@@ -1,4 +1,6 @@
-const API_BASE = '/api';
+const API_BASE = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+  ? '/api'
+  : 'https://suldery-nails-production.up.railway.app/api';
 const SITE_BASE = (() => {
   const path = location.pathname;
   if (path.includes('/Suldery-Nails/')) return '/Suldery-Nails/';
@@ -23,7 +25,10 @@ async function apiFetch(path, options = {}) {
   }
 
 
-  const response = await fetch(`${API_BASE}${path}`, { ...options, headers, credentials: 'same-origin' });
+  const token = localStorage.getItem('suldery_token');
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+
+  const response = await fetch(`${API_BASE}${path}`, { ...options, headers, credentials: 'include' });
   let data = {};
   try { data = await response.json(); } catch {}
 

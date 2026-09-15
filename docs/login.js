@@ -100,6 +100,9 @@ async function login() {
       body: JSON.stringify({ email, password })
     });
 
+    if (data.token) localStorage.setItem('suldery_token', data.token);
+    localStorage.setItem('suldery_user', JSON.stringify(data.user));
+
     if (data.user.role === 'owner') {
       window.location.href = pageUrl('duena.html');
       return;
