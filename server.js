@@ -19,11 +19,22 @@ const isProduction = process.env.NODE_ENV === 'production';
 const uploadDir = path.join(__dirname, 'uploads', 'portfolio');
 
 const services = {
-  'Manicure semipermanente': 60,
-  'Pedicure': 60,
-  'Polygel': 120,
-  'Dipping': 60,
-  'Forrado': 60
+  'Manicure semipermanente': 90,
+  'Pedicure semipermanente': 60,
+  'Dipping': 120,
+  'Press on': 120
+};
+const LUNCH_START = 12 * 60;
+const LUNCH_END = 13 * 60;
+const SLOT_STEP = 30;
+const FIXED_WEEKLY_SCHEDULE = {
+  1: { is_open: true, start_time: '07:00', end_time: '18:00' },
+  2: { is_open: true, start_time: '07:00', end_time: '18:00' },
+  3: { is_open: true, start_time: '07:00', end_time: '18:00' },
+  4: { is_open: true, start_time: '07:00', end_time: '18:00' },
+  5: { is_open: true, start_time: '07:00', end_time: '18:00' },
+  6: { is_open: true, start_time: '07:00', end_time: '18:00' },
+  7: { is_open: false, start_time: null, end_time: null }
 };
 
 app.disable('x-powered-by');
@@ -209,25 +220,27 @@ function serviceDuration(service) {
 }
 
 async function getSchedule() {
-  const [rows] = await pool.query(
-    'SELECT weekday, is_open, start_time, end_time FROM working_hours ORDER BY weekday'
-  );
-  return rows.map(row => ({
-    weekday: row.weekday,
-    is_open: Boolean(row.is_open),
-    start_time: formatDbTime(row.start_time),
-    end_time: formatDbTime(row.end_time)
+  return Object.entries(FIXED_WEEKLY_SCHEDULE).map(([weekday, value]) => ({
+    weekday: Number(weekday),
+    is_open: Boolean(value.is_open),
+    start_time: value.start_time,
+    end_time: value.end_time
   }));
 }
 
 async function getScheduleDay(weekday) {
-  const [rows] = await pool.query(
-    'SELECT weekday, is_open, start_time, end_time FROM working_hours WHERE weekday=? LIMIT 1',
-    [weekday]
-  );
-  const row = rows[0];
-  if (!row) return null;
-  return { ...row, is_open: Boolean(row.is_open), start_time: formatDbTime(row.start_time), end_time: formatDbTime(row.end_time) };
+  const day = FIXED_WEEKLY_SCHEDULE[Number(weekday)];
+  return day ? { weekday: Number(weekday), ...day } : null;
+}
+
+async function syncFixedSchedule() {
+  for (const [weekday, value] of Object.entries(FIXED_WEEKLY_SCHEDULE)) {
+    await pool.query(
+      `INSERT INTO working_hours(weekday,is_open,start_time,end_time) VALUES(?,?,?,?)
+       ON DUPLICATE KEY UPDATE is_open=VALUES(is_open),start_time=VALUES(start_time),end_time=VALUES(end_time)`,
+      [Number(weekday), value.is_open ? 1 : 0, value.start_time ? `${value.start_time}:00` : null, value.end_time ? `${value.end_time}:00` : null]
+    );
+  }
 }
 
 async function getDayAppointments(date) {
@@ -263,6 +276,15 @@ async function getBlockedDates(startDate, endDate) {
   }));
 }
 
+function slotOverlapsLunch(start, end) {
+  return start < LUNCH_END && end > LUNCH_START;
+}
+
+function slotFitsSchedule(start, end, scheduleDay) {
+  if (!scheduleDay?.is_open || !scheduleDay.start_time || !scheduleDay.end_time) return false;
+  return start >= toMinutes(scheduleDay.start_time) && end <= toMinutes(scheduleDay.end_time) && !slotOverlapsLunch(start, end);
+}
+
 function slotIsFree(start, duration, appointments) {
   const end = start + duration;
   return !appointments.some(appt => {
@@ -278,16 +300,16 @@ function slotsForDate(date, scheduleDay, appointments, duration = 60) {
   const start = toMinutes(scheduleDay.start_time);
   const end = toMinutes(scheduleDay.end_time);
   const slots = [];
-
   let earliest = start;
   if (isToday(date)) {
     const now = new Date();
-    const nextFullHour = Math.ceil((now.getHours() * 60 + now.getMinutes()) / 60) * 60;
-    earliest = Math.max(start, nextFullHour);
+    const current = now.getHours() * 60 + now.getMinutes();
+    earliest = Math.max(start, Math.ceil(current / SLOT_STEP) * SLOT_STEP);
   }
-
-  for (let minute = start; minute + duration <= end; minute += 60) {
+  for (let minute = start; minute + duration <= end; minute += SLOT_STEP) {
     if (minute < earliest) continue;
+    const slotEnd = minute + duration;
+    if (!slotFitsSchedule(minute, slotEnd, scheduleDay)) continue;
     if (slotIsFree(minute, duration, appointments)) slots.push(toTime(minute).slice(0, 5));
   }
   return slots;
@@ -308,12 +330,6 @@ async function findUserById(id) {
   return rows[0] || null;
 }
 
-function validateScheduleHours(start, end) {
-  if (!/^\d{2}:00$/.test(start) || !/^\d{2}:00$/.test(end)) return false;
-  const s = toMinutes(start);
-  const e = toMinutes(end);
-  return s >= 0 && e <= 1440 && s < e;
-}
 
 app.get('/api/health', async (_req, res) => {
   try {
@@ -449,11 +465,12 @@ app.get('/api/calendar', authRequired, async (req, res) => {
         continue;
       }
 
+      const baselineSlots = slotsForDate(date, scheduleDay, grouped.get(date) || [], 60);
       const slots = slotsForDate(date, scheduleDay, grouped.get(date) || [], duration);
-      if (!slots.length) {
+      if (!baselineSlots.length) {
         days.push({ date, status: 'full', slots: 0, message: 'Bebé, hoy ya tengo todas las citas agendadas.' });
       } else {
-        days.push({ date, status: 'available', slots: slots.length, message: '', duration });
+        days.push({ date, status: 'available', slots: baselineSlots.length, message: '', duration, services: Object.keys(services) });
       }
     }
     res.json({ month, service, duration, days });
@@ -470,6 +487,9 @@ app.get('/api/appointments/slots', authRequired, async (req, res) => {
     const duration = serviceDuration(service);
     if (!date || !duration) return res.status(400).json({ message: 'Fecha o servicio inválido.' });
     if (isDateInPast(date)) return res.json({ date, service, duration, slots: [], message: 'Esta fecha ya pasó.' });
+
+    const blocked = await isDateBlocked(date);
+    if (blocked) return res.json({ date, service, duration, slots: [], message: blocked.reason ? `No hay atención: ${blocked.reason}` : 'Este día no está disponible para citas.' });
 
     const scheduleDay = await getScheduleDay(dateWeekday(date));
     if (!scheduleDay?.is_open || dateWeekday(date) === 7) {
@@ -497,6 +517,74 @@ app.get('/api/appointments/my', authRequired, async (req, res) => {
   }
 });
 
+async function withAppointmentDateLock(date, work) {
+  const connection = await pool.getConnection();
+  const lockName = `suldery:appointment:${date}`;
+  let locked = false;
+  try {
+    const [rows] = await connection.query('SELECT GET_LOCK(?, 5) AS acquired', [lockName]);
+    locked = Number(rows[0]?.acquired) === 1;
+    if (!locked) {
+      const error = new Error('No se pudo asegurar el turno. Inténtalo nuevamente.');
+      error.statusCode = 409;
+      throw error;
+    }
+    await connection.beginTransaction();
+    const result = await work(connection);
+    await connection.commit();
+    return result;
+  } catch (error) {
+    try { await connection.rollback(); } catch {}
+    throw error;
+  } finally {
+    if (locked) { try { await connection.query('SELECT RELEASE_LOCK(?)', [lockName]); } catch {} }
+    connection.release();
+  }
+}
+
+async function getDayAppointmentsWithConnection(connection, date) {
+  const [rows] = await connection.query(
+    `SELECT appointment_time, duration_minutes, status
+     FROM appointments
+     WHERE appointment_date=? AND status IN ('pending','accepted')
+     ORDER BY appointment_time`,
+    [date]
+  );
+  return rows;
+}
+
+async function sendOwnerSms(message) {
+  const accountSid = String(process.env.TWILIO_ACCOUNT_SID || '').trim();
+  const authToken = String(process.env.TWILIO_AUTH_TOKEN || '').trim();
+  const to = String(process.env.OWNER_SMS_TO || '').trim();
+  const from = String(process.env.TWILIO_FROM || '').trim();
+  if (!accountSid || !authToken || !to || !from) return { sent: false, skipped: true };
+
+  const credentials = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+  const body = new URLSearchParams({ To: to, From: from, Body: message });
+  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(accountSid)}/Messages.json`, {
+    method: 'POST',
+    headers: { Authorization: `Basic ${credentials}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body
+  });
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(`Twilio ${response.status}: ${detail.slice(0, 300)}`);
+  }
+  return { sent: true };
+}
+
+async function notifyNewClientAppointment({ clientName, service, date, time }) {
+  try {
+    return await sendOwnerSms(
+      `Suldery Nails: nueva solicitud. ${clientName} pidió ${service} el ${date.split('-').reverse().join('/')} a las ${time}. Revisa y confirma: https://suldery-nails-production.up.railway.app/duena.html`
+    );
+  } catch (error) {
+    console.error('No se pudo enviar el SMS a la dueña:', error.message);
+    return { sent: false, error: error.message };
+  }
+}
+
 app.post('/api/appointments', authRequired, async (req, res) => {
   try {
     const user = await findUserById(req.auth.id);
@@ -509,13 +597,16 @@ app.post('/api/appointments', authRequired, async (req, res) => {
     if (!duration || !date || !/^\d{2}:\d{2}$/.test(time)) return res.status(400).json({ message: 'Selecciona un servicio, día y hora válidos.' });
     if (isDateInPast(date)) return res.status(400).json({ message: 'La fecha ya pasó.' });
 
+    const blocked = await isDateBlocked(date);
+    if (blocked) return res.status(409).json({ message: blocked.reason ? `No hay atención ese día: ${blocked.reason}` : 'Ese día no está disponible para citas.' });
+
     const scheduleDay = await getScheduleDay(dateWeekday(date));
     if (!scheduleDay?.is_open || dateWeekday(date) === 7) return res.status(400).json({ message: 'Bebé, ese día es de descanso. Elige otro.' });
 
     const start = toMinutes(time);
     const end = start + duration;
-    if (start % 60 !== 0 || start < toMinutes(scheduleDay.start_time) || end > toMinutes(scheduleDay.end_time)) {
-      return res.status(409).json({ message: 'Ese horario está fuera de la jornada disponible.' });
+    if (start % SLOT_STEP !== 0 || !slotFitsSchedule(start, end, scheduleDay)) {
+      return res.status(409).json({ message: 'Ese horario está fuera de la jornada disponible o coincide con el almuerzo (12:00–13:00).' });
     }
     if (isToday(date)) {
       const now = new Date();
@@ -523,26 +614,35 @@ app.post('/api/appointments', authRequired, async (req, res) => {
       if (start <= currentMinutes) return res.status(409).json({ message: 'Esa hora ya pasó. Elige otra.' });
     }
 
-    const appointments = await getDayAppointments(date);
-    if (!slotIsFree(start, duration, appointments)) return res.status(409).json({ message: 'Ese horario ya no está disponible. Elige otro.' });
-
-    const [same] = await pool.query(
-      `SELECT id FROM appointments
-       WHERE user_id=? AND appointment_date=? AND status IN ('pending','accepted')
-       AND appointment_time < ? AND ADDTIME(appointment_time, SEC_TO_TIME(duration_minutes*60)) > ?`,
-      [req.auth.id, date, `${time}:00`, `${time}:00`]
-    );
-    if (same.length) return res.status(409).json({ message: 'Ya tienes una cita que se cruza con ese horario.' });
-
-    await pool.query(
-      `INSERT INTO appointments(user_id,client_name,service,duration_minutes,appointment_date,appointment_time,status)
-       VALUES(?,?,?,?,?,?,'pending')`,
-      [req.auth.id, user.name, service, duration, date, `${time}:00`]
-    );
+    await withAppointmentDateLock(date, async connection => {
+      const lockedAppointments = await getDayAppointmentsWithConnection(connection, date);
+      if (!slotIsFree(start, duration, lockedAppointments)) {
+        const error = new Error('Ese horario ya no está disponible. Elige otro.');
+        error.statusCode = 409;
+        throw error;
+      }
+      const [same] = await connection.query(
+        `SELECT id FROM appointments
+         WHERE user_id=? AND appointment_date=? AND status IN ('pending','accepted')
+         AND appointment_time < ? AND ADDTIME(appointment_time, SEC_TO_TIME(duration_minutes*60)) > ?`,
+        [req.auth.id, date, `${time}:00`, `${time}:00`]
+      );
+      if (same.length) {
+        const error = new Error('Ya tienes una cita que se cruza con ese horario.');
+        error.statusCode = 409;
+        throw error;
+      }
+      await connection.query(
+        `INSERT INTO appointments(user_id,client_name,service,duration_minutes,appointment_date,appointment_time,status)
+         VALUES(?,?,?,?,?,?,'pending')`,
+        [req.auth.id, user.name, service, duration, date, `${time}:00`]
+      );
+    });
+    void notifyNewClientAppointment({ clientName: user.name, service, date, time });
     res.status(201).json({ message: 'Cita enviada. Queda pendiente de confirmación por Suldery.' });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'No se pudo crear la cita.' });
+    res.status(error.statusCode || 500).json({ message: error.message || 'No se pudo crear la cita.' });
   }
 });
 
@@ -630,25 +730,6 @@ app.get('/api/owner/schedule', authRequired, ownerRequired, async (_req, res) =>
   catch { res.status(500).json({ message: 'No se pudo cargar el horario.' }); }
 });
 
-app.patch('/api/owner/schedule/:weekday', authRequired, ownerRequired, async (req, res) => {
-  try {
-    const weekday = Number(req.params.weekday);
-    const isOpen = Boolean(req.body.isOpen);
-    const start = String(req.body.start || '').trim();
-    const end = String(req.body.end || '').trim();
-    if (weekday < 1 || weekday > 7) return res.status(400).json({ message: 'Día inválido.' });
-    if (isOpen && !validateScheduleHours(start, end)) return res.status(400).json({ message: 'Usa horas exactas, por ejemplo 07:00 a 18:00.' });
-
-    await pool.query(
-      'UPDATE working_hours SET is_open=?,start_time=?,end_time=? WHERE weekday=?',
-      [isOpen ? 1 : 0, isOpen ? `${start}:00` : null, isOpen ? `${end}:00` : null, weekday]
-    );
-    const name = ['', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'][weekday];
-    res.json({ message: `Horario de ${name} actualizado.` });
-  } catch {
-    res.status(500).json({ message: 'No se pudo guardar el horario.' });
-  }
-});
 
 
 app.get('/api/owner/blocked-dates', authRequired, ownerRequired, async (_req, res) => {
@@ -702,6 +783,8 @@ app.get('/api/owner/slots', authRequired, ownerRequired, async (req, res) => {
     if (!date || !duration) return res.status(400).json({ message: 'Fecha o servicio inválido.' });
     if (isDateInPast(date)) return res.json({ date, service, duration, slots: [] });
 
+    const blocked = await isDateBlocked(date);
+    if (blocked) return res.json({ date, service, duration, slots: [] });
     const scheduleDay = await getScheduleDay(dateWeekday(date));
     if (!scheduleDay?.is_open || dateWeekday(date) === 7) return res.json({ date, service, duration, slots: [] });
     const appointments = await getDayAppointments(date);
@@ -721,26 +804,39 @@ app.post('/api/owner/appointments', authRequired, ownerRequired, async (req, res
     if (!clientName || !duration || !date || !/^\d{2}:\d{2}$/.test(time)) return res.status(400).json({ message: 'Completa todos los datos.' });
     if (isDateInPast(date)) return res.status(400).json({ message: 'La fecha ya pasó.' });
 
+    const blocked = await isDateBlocked(date);
+    if (blocked) return res.status(409).json({ message: blocked.reason ? `No hay atención ese día: ${blocked.reason}` : 'Ese día no está disponible para citas.' });
+
     const scheduleDay = await getScheduleDay(dateWeekday(date));
     if (!scheduleDay?.is_open || dateWeekday(date) === 7) return res.status(400).json({ message: 'Ese día está marcado como descanso.' });
 
     const start = toMinutes(time);
     const end = start + duration;
-    if (start % 60 !== 0 || start < toMinutes(scheduleDay.start_time) || end > toMinutes(scheduleDay.end_time)) {
-      return res.status(409).json({ message: 'Ese horario está fuera de tu jornada.' });
+    if (start % SLOT_STEP !== 0 || !slotFitsSchedule(start, end, scheduleDay)) {
+      return res.status(409).json({ message: 'Ese horario está fuera de tu jornada o coincide con el almuerzo (12:00–13:00).' });
     }
-    const appointments = await getDayAppointments(date);
-    if (!slotIsFree(start, duration, appointments)) return res.status(409).json({ message: 'Ese horario está ocupado.' });
-
-    await pool.query(
-      `INSERT INTO appointments(user_id,client_name,service,duration_minutes,appointment_date,appointment_time,status)
-       VALUES(NULL,?,?,?,?,?,'accepted')`,
-      [clientName, service, duration, date, `${time}:00`]
-    );
+    if (isToday(date)) {
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      if (start <= currentMinutes) return res.status(409).json({ message: 'Esa hora ya pasó. Elige otra.' });
+    }
+    await withAppointmentDateLock(date, async connection => {
+      const lockedAppointments = await getDayAppointmentsWithConnection(connection, date);
+      if (!slotIsFree(start, duration, lockedAppointments)) {
+        const error = new Error('Ese horario está ocupado.');
+        error.statusCode = 409;
+        throw error;
+      }
+      await connection.query(
+        `INSERT INTO appointments(user_id,client_name,service,duration_minutes,appointment_date,appointment_time,status)
+         VALUES(NULL,?,?,?,?,?,'accepted')`,
+        [clientName, service, duration, date, `${time}:00`]
+      );
+    });
     res.status(201).json({ message: 'Cita manual registrada y confirmada.' });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'No se pudo registrar la cita.' });
+    res.status(error.statusCode || 500).json({ message: error.message || 'No se pudo registrar la cita.' });
   }
 });
 
@@ -831,6 +927,7 @@ app.use((error, _req, res, _next) => {
   try {
     ensureUploadDirectory();
     await initDatabase();
+    await syncFixedSchedule();
     await pool.query(`ALTER TABLE portfolio_photos ADD COLUMN display_order INT NOT NULL DEFAULT 0`)
       .catch(error => {
         if (error.code !== 'ER_DUP_FIELDNAME') throw error;

@@ -28,6 +28,7 @@
         <div class="brand-pill soft">✦ ADMINISTRACIÓN</div>
         <h1>Tu agenda, bajo<br><em>control.</em></h1>
         <p>Aprueba clientas, confirma citas, organiza tu horario y administra las fotos que verán tus clientas.</p>
+        <button id="openManualBookingButton" class="primary-button hero-cta" type="button">Agendar clienta <span>→</span></button>
       </div>
       <div class="owner-mini-card"><strong id="ownerDateLabel">Hoy</strong><span>Una agenda ordenada, un día más tranquilo ♡</span></div>
     </section>
@@ -50,10 +51,14 @@
       </article>
     </section>
 
-    <section class="admin-card glass-card schedule-manager">
-      <div class="card-heading"><div><p class="eyebrow">HORARIO</p><h2>Define tus horas de atención</h2></div><span class="flower">♡</span></div>
-      <p class="manager-note">Por defecto trabajas de 7:00 a. m. a 6:00 p. m., de lunes a sábado. Puedes cerrar un día o cambiar su hora desde aquí.</p>
-      <div id="scheduleGrid" class="schedule-grid"></div>
+    <section class="admin-card glass-card schedule-manager fixed-schedule-card">
+      <div class="card-heading"><div><p class="eyebrow">HORARIO FIJO</p><h2>Horario de atención</h2></div><span class="flower">♡</span></div>
+      <p class="manager-note">Tu agenda está configurada de lunes a sábado, de 7:00 a. m. a 6:00 p. m. El almuerzo de 12:00 p. m. a 1:00 p. m. queda bloqueado automáticamente. Los domingos no se atiende.</p>
+      <div class="fixed-schedule-grid">
+        <div><strong>Lunes a sábado</strong><span>7:00 a. m. — 12:00 p. m.</span><span>1:00 p. m. — 6:00 p. m.</span></div>
+        <div><strong>Almuerzo</strong><span>12:00 p. m. — 1:00 p. m.</span><small>No se aceptan citas.</small></div>
+        <div><strong>Domingo</strong><span>Cerrado</span><small>No se aceptan citas.</small></div>
+      </div>
     </section>
 
     <section class="admin-card glass-card blocked-dates-card">
@@ -67,12 +72,12 @@
       <div id="blockedDatesList" class="blocked-dates-list"></div>
     </section>
 
-    <section class="admin-card glass-card manual-booking-card">
-      <div class="card-heading"><div><p class="eyebrow">AGENDA MANUAL</p><h2>Registra una cita tú misma</h2></div><span class="flower">✦</span></div>
-      <p class="manager-note">Ideal para clientas que te escriben directamente o que prefieren agendar contigo.</p>
+    <section id="manualBookingCard" class="admin-card glass-card manual-booking-card hidden-step">
+      <div class="card-heading"><div><p class="eyebrow">AGENDA MANUAL</p><h2>Registra una cita tú misma</h2></div><div class="admin-actions"><span class="flower">✦</span><button id="closeManualBookingButton" class="small-button ghost" type="button">Cerrar</button></div></div>
+      <p class="manager-note">Ideal para clientas que te escriben directamente o que prefieren agendar contigo. El sistema solo muestra turnos que no se cruzan con otra cita y nunca ofrece el almuerzo de 12:00 p. m. a 1:00 p. m.</p>
       <form id="ownerBookingForm" class="owner-booking-form">
         <label>Nombre de la clienta<input id="ownerClientName" type="text" placeholder="Nombre completo"></label>
-        <label>Servicio<select id="ownerService"><option value="Manicure semipermanente">Manicure semipermanente · 1 hora</option><option value="Pedicure">Pedicure · 1 hora</option><option value="Polygel">Polygel · 2 horas</option><option value="Dipping">Dipping · 1 hora</option><option value="Forrado">Forrado · 1 hora</option></select>
+        <label>Servicio<select id="ownerService"><option value="Manicure semipermanente">Manicure semipermanente · 1 h 30 min</option><option value="Pedicure semipermanente">Pedicure semipermanente · 1 hora</option><option value="Dipping">Dipping · 2 horas</option><option value="Press on">Press on · 2 horas</option></select>
           <small id="ownerServiceDurationHint" class="service-duration-hint">Duración: 1 hora</small>
         </label>
         <label>Fecha<input id="ownerAppointmentDate" type="date"></label>

@@ -65,3 +65,12 @@ Mejoras recientes:
 - Flujo de reserva paso a paso: día → hora → servicio → confirmación.
 - Tema oscuro aplicado correctamente al body y a toda la interfaz.
 - Correcciones de texto/acentos para evitar problemas de codificación.
+
+
+ACTUALIZACIÓN 2.1
+- Servicios y duraciones: Manicure semipermanente 1h30, Pedicure semipermanente 1h, Dipping 2h, Press on 2h.
+- Almuerzo bloqueado 12:00–13:00.
+- Horario fijo lunes a sábado 07:00–18:00; domingo cerrado.
+- La dueña ya no modifica la jornada semanal; solo puede bloquear fechas especiales.
+- Las reservas manuales y de clientas usan validación contra cruces y bloqueo por fecha.
+- SMS opcional de nuevas solicitudes mediante Twilio con variables TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM y OWNER_SMS_TO.

@@ -357,3 +357,12 @@ body.dark-mode .install-app-button {
 @media (max-width: 680px) {
   .install-app-button { font-size: .62rem; padding: .5rem .65rem; }
 }
+
+/* v2.1 · horario fijo y reservas finales */
+.fixed-schedule-card{overflow:hidden}
+.fixed-schedule-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.8rem;margin-top:1rem}
+.fixed-schedule-grid>div{padding:1rem;border:1px solid var(--line);border-radius:18px;background:rgba(198,40,104,.04);display:flex;flex-direction:column;gap:.28rem}
+.fixed-schedule-grid strong{color:var(--ink)}
+.fixed-schedule-grid span{color:var(--muted);font-size:.82rem}
+.fixed-schedule-grid small{color:var(--rose-dark);font-weight:800;margin-top:.15rem}
+@media(max-width:780px){.fixed-schedule-grid{grid-template-columns:1fr}}

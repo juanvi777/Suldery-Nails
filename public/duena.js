@@ -19,6 +19,8 @@ async function initDuena() {
     loadOwnerSlots();
   });
   $d('ownerBookingForm').addEventListener('submit', submitManualBooking);
+  $d('openManualBookingButton').addEventListener('click', openManualBooking);
+  $d('closeManualBookingButton').addEventListener('click', closeManualBooking);
   $d('photoPicker').addEventListener('change', subirFoto);
   $d('blockedDateForm').addEventListener('submit', bloquearFecha);
   $d('blockedDatesList').addEventListener('click', handleBlockedDateAction);
@@ -33,16 +35,19 @@ async function refreshOwnerData() {
     loadPendingUsers(),
     loadOwnerAppointments(),
     loadOwnerGallery(),
-    loadSchedule(),
     loadBlockedDates()
   ]);
   await loadOwnerSlots();
 }
 
 function updateOwnerServiceDurationHint() {
-  const service = $d('ownerService').value;
-  const duration = service === 'Polygel' ? '2 horas' : '1 hora';
-  $d('ownerServiceDurationHint').textContent = `Duración de la cita: ${duration}`;
+  const durations = {
+    'Manicure semipermanente': '1 h 30 min',
+    'Pedicure semipermanente': '1 hora',
+    'Dipping': '2 horas',
+    'Press on': '2 horas'
+  };
+  $d('ownerServiceDurationHint').textContent = `Duración de la cita: ${durations[$d('ownerService').value] || '—'}`;
 }
 
 function localISODate(date) {
@@ -118,44 +123,6 @@ async function setApptStatus(id, status) {
   } catch (error) { alert(error.message); }
 }
 
-async function loadSchedule() {
-  const data = await apiFetch('/owner/schedule');
-  ownerSchedule = data.schedule;
-  const grid = $d('scheduleGrid');
-  grid.innerHTML = '';
-
-  ownerSchedule.forEach(day => {
-    const card = document.createElement('article');
-    card.className = `schedule-day ${day.is_open ? 'open' : 'closed'}`;
-    card.innerHTML = `<div class="schedule-day-title"><strong>${DAY_NAMES[day.weekday]}</strong><span>${day.is_open ? 'Abierto' : 'Descanso'}</span></div>
-      <div class="schedule-fields">
-        <label class="switch-row"><span>Atender</span><input type="checkbox" class="day-open-toggle" ${day.is_open ? 'checked' : ''}></label>
-        <label>Desde<input class="day-start" type="time" value="${day.start_time || '07:00'}"></label>
-        <label>Hasta<input class="day-end" type="time" value="${day.end_time || '18:00'}"></label>
-      </div>
-      <button type="button" class="secondary-button schedule-save">Guardar horario</button>`;
-
-    const toggle = card.querySelector('.day-open-toggle');
-    const start = card.querySelector('.day-start');
-    const end = card.querySelector('.day-end');
-    toggle.addEventListener('change', () => card.classList.toggle('closed', !toggle.checked));
-    card.querySelector('.schedule-save').addEventListener('click', async () => {
-      try {
-        await apiFetch(`/owner/schedule/${day.weekday}`, {
-          method: 'PATCH',
-          body: JSON.stringify({ isOpen: toggle.checked, start: start.value, end: end.value })
-        });
-        await loadSchedule();
-        await loadOwnerSlots();
-      } catch (error) {
-        alert(error.message);
-        shake(card);
-      }
-    });
-    grid.appendChild(card);
-  });
-}
-
 async function loadOwnerSlots() {
   const date = $d('ownerAppointmentDate').value;
   const select = $d('ownerAppointmentTime');
@@ -176,6 +143,16 @@ async function loadOwnerSlots() {
   } catch (error) {
     select.innerHTML = `<option value="">${escapeHtml(error.message)}</option>`;
   }
+}
+
+function openManualBooking() {
+  const card = $d('manualBookingCard');
+  card.classList.remove('hidden-step');
+  card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function closeManualBooking() {
+  $d('manualBookingCard').classList.add('hidden-step');
 }
 
 async function submitManualBooking(event) {

@@ -47,14 +47,16 @@ CREATE TABLE IF NOT EXISTS working_hours (
   UNIQUE KEY uq_working_hours_weekday (weekday)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT IGNORE INTO working_hours (weekday, is_open, start_time, end_time) VALUES
+INSERT INTO working_hours (weekday, is_open, start_time, end_time) VALUES
   (1,1,'07:00:00','18:00:00'),
   (2,1,'07:00:00','18:00:00'),
   (3,1,'07:00:00','18:00:00'),
   (4,1,'07:00:00','18:00:00'),
   (5,1,'07:00:00','18:00:00'),
   (6,1,'07:00:00','18:00:00'),
-  (7,0,NULL,NULL);
+  (7,0,NULL,NULL)
+ON DUPLICATE KEY UPDATE
+  is_open=VALUES(is_open), start_time=VALUES(start_time), end_time=VALUES(end_time);
 
 
 CREATE TABLE IF NOT EXISTS blocked_dates (

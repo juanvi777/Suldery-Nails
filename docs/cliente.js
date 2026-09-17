@@ -18,12 +18,24 @@ function monthKey(date) {
 }
 
 function serviceDuration(service) {
-  return service === 'Polygel' ? 2 : 1;
+  return {
+    'Manicure semipermanente': 90,
+    'Pedicure semipermanente': 60,
+    'Dipping': 120,
+    'Press on': 120
+  }[service] || 0;
+}
+
+function durationLabel(minutes) {
+  if (minutes === 60) return '1 hora';
+  if (minutes === 120) return '2 horas';
+  if (minutes === 90) return '1 h 30 min';
+  return `${minutes} min`;
 }
 
 function updateServiceDurationHint() {
   const service = $('service')?.value;
-  $('serviceDurationHint').textContent = `Duración de la cita: ${serviceDuration(service) === 2 ? '2 horas' : '1 hora'}`;
+  $('serviceDurationHint').textContent = `Duración de la cita: ${durationLabel(serviceDuration(service))}`;
 }
 
 function setStepVisibility(element, visible) {
@@ -253,9 +265,12 @@ async function refreshServiceValidation() {
       selectedTime = '';
       setStepVisibility($('bookingSummary'), false);
       setStepVisibility($('bookingButton'), false);
-      setMessage($('bookingMessage'), service === 'Polygel'
-        ? 'Ese horario no tiene espacio suficiente para 2 horas. Elige otra hora.'
-        : 'Ese horario ya no está disponible. Elige otra hora.');
+      const minutes = serviceDuration(service);
+      setMessage($('bookingMessage'), minutes === 90
+        ? 'Ese horario no tiene espacio suficiente para 1 hora y 30 minutos. Elige otra hora.'
+        : minutes === 120
+          ? 'Ese horario no tiene espacio suficiente para 2 horas. Elige otra hora.'
+          : 'Ese horario ya no está disponible. Elige otra hora.');
       renderSlots(data.slots);
       return;
     }
@@ -274,7 +289,7 @@ function updateSummary() {
   $('summaryDate').textContent = formatDate(selectedDate);
   $('summaryTime').textContent = selectedTime;
   $('summaryService').textContent = selectedService;
-  $('summaryDuration').textContent = serviceDuration(selectedService) === 2 ? '2 horas' : '1 hora';
+  $('summaryDuration').textContent = durationLabel(serviceDuration(selectedService));
   setStepVisibility($('bookingSummary'), true);
   setStepVisibility($('bookingButton'), true);
   $('bookingSummary').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
