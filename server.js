@@ -27,14 +27,14 @@ const services = {
 const LUNCH_START = 12 * 60;
 const LUNCH_END = 13 * 60;
 const SLOT_STEP = 30;
-const FIXED_WEEKLY_SCHEDULE = {
-  1: { is_open: true, start_time: '07:00', end_time: '18:00' },
-  2: { is_open: true, start_time: '07:00', end_time: '18:00' },
-  3: { is_open: true, start_time: '07:00', end_time: '18:00' },
-  4: { is_open: true, start_time: '07:00', end_time: '18:00' },
-  5: { is_open: true, start_time: '07:00', end_time: '18:00' },
-  6: { is_open: true, start_time: '07:00', end_time: '18:00' },
-  7: { is_open: false, start_time: null, end_time: null }
+const DEFAULT_WEEKLY_INTERVALS = {
+  1: [{ start_time: '07:00', end_time: '12:00' }, { start_time: '13:00', end_time: '18:00' }],
+  2: [{ start_time: '07:00', end_time: '12:00' }, { start_time: '13:00', end_time: '18:00' }],
+  3: [{ start_time: '07:00', end_time: '12:00' }, { start_time: '13:00', end_time: '18:00' }],
+  4: [{ start_time: '07:00', end_time: '12:00' }, { start_time: '13:00', end_time: '18:00' }],
+  5: [{ start_time: '07:00', end_time: '12:00' }, { start_time: '13:00', end_time: '18:00' }],
+  6: [{ start_time: '07:00', end_time: '12:00' }, { start_time: '13:00', end_time: '18:00' }],
+  7: []
 };
 
 app.disable('x-powered-by');
@@ -180,7 +180,9 @@ function ownerRequired(req, res, next) {
 }
 
 function toMinutes(time) {
-  const [h, m] = String(time).slice(0, 5).split(':').map(Number);
+  const text = String(time).slice(0, 5);
+  if (text === '24:00') return 1440;
+  const [h, m] = text.split(':').map(Number);
   return h * 60 + m;
 }
 
@@ -219,61 +221,226 @@ function serviceDuration(service) {
   return services[service] || null;
 }
 
-async function getSchedule() {
-  return Object.entries(FIXED_WEEKLY_SCHEDULE).map(([weekday, value]) => ({
-    weekday: Number(weekday),
-    is_open: Boolean(value.is_open),
-    start_time: value.start_time,
-    end_time: value.end_time
-  }));
+function normalizeTimeValue(value, allowEndOfDay = false) {
+  const text = String(value || '').slice(0, 5);
+  const match = /^(\d{2}):(\d{2})$/.exec(text);
+  if (!match) return null;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (minute % 30 !== 0) return null;
+  if (allowEndOfDay && text === '24:00') return '24:00';
+  if (hour < 0 || hour > 23) return null;
+  if (minute < 0 || minute > 59) return null;
+  if (!allowEndOfDay && hour === 23 && minute !== 0 && minute !== 30) return null;
+  return text;
 }
 
-async function getScheduleDay(weekday) {
-  const day = FIXED_WEEKLY_SCHEDULE[Number(weekday)];
-  return day ? { weekday: Number(weekday), ...day } : null;
+function sanitizeIntervals(intervals) {
+  if (!Array.isArray(intervals)) return [];
+  const cleaned = [];
+  for (const item of intervals) {
+    const start = normalizeTimeValue(item?.start_time || item?.start);
+    const end = normalizeTimeValue(item?.end_time || item?.end, true);
+    if (!start || !end) throw Object.assign(new Error('Usa horarios en bloques de 30 minutos.'), { statusCode: 400 });
+    const startMin = toMinutes(start);
+    const endMin = toMinutes(end);
+    if (endMin <= startMin) throw Object.assign(new Error('La hora final debe ser posterior a la hora inicial.'), { statusCode: 400 });
+
+    // El almuerzo es fijo. Si un tramo lo cruza, se parte automáticamente para evitar errores.
+    if (startMin < LUNCH_START && endMin > LUNCH_END) {
+      cleaned.push({ start_time: start, end_time: '12:00' });
+      cleaned.push({ start_time: '13:00', end_time: end });
+    } else if (startMin < LUNCH_START && endMin > LUNCH_START && endMin <= LUNCH_END) {
+      cleaned.push({ start_time: start, end_time: '12:00' });
+    } else if (startMin >= LUNCH_START && endMin <= LUNCH_END) {
+      continue;
+    } else if (startMin < LUNCH_END && endMin > LUNCH_END) {
+      cleaned.push({ start_time: '13:00', end_time: end });
+    } else {
+      cleaned.push({ start_time: start, end_time: end });
+    }
+  }
+  cleaned.sort((a, b) => toMinutes(a.start_time) - toMinutes(b.start_time));
+  const result = [];
+  for (const interval of cleaned) {
+    const start = toMinutes(interval.start_time);
+    const end = toMinutes(interval.end_time);
+    if (end <= start) continue;
+    const previous = result[result.length - 1];
+    if (previous && start < toMinutes(previous.end_time)) {
+      throw Object.assign(new Error('Los tramos horarios no pueden cruzarse.'), { statusCode: 400 });
+    }
+    result.push(interval);
+  }
+  return result;
 }
 
-async function syncFixedSchedule() {
-  for (const [weekday, value] of Object.entries(FIXED_WEEKLY_SCHEDULE)) {
-    await pool.query(
-      `INSERT INTO working_hours(weekday,is_open,start_time,end_time) VALUES(?,?,?,?)
-       ON DUPLICATE KEY UPDATE is_open=VALUES(is_open),start_time=VALUES(start_time),end_time=VALUES(end_time)`,
-      [Number(weekday), value.is_open ? 1 : 0, value.start_time ? `${value.start_time}:00` : null, value.end_time ? `${value.end_time}:00` : null]
-    );
+async function ensureDefaultSchedule() {
+  const [rows] = await pool.query('SELECT COUNT(*) AS total FROM working_intervals');
+  if (Number(rows[0]?.total) > 0) return;
+  for (const [weekday, intervals] of Object.entries(DEFAULT_WEEKLY_INTERVALS)) {
+    for (const interval of intervals) {
+      await pool.query(
+        'INSERT IGNORE INTO working_intervals(weekday,start_time,end_time) VALUES(?,?,?)',
+        [Number(weekday), `${interval.start_time}:00`, `${interval.end_time}:00`]
+      );
+    }
   }
 }
 
-async function getDayAppointments(date) {
+async function getSchedule() {
   const [rows] = await pool.query(
-    `SELECT appointment_time, duration_minutes, status
+    'SELECT weekday, start_time, end_time FROM working_intervals ORDER BY weekday,start_time'
+  );
+  const schedule = Object.fromEntries(Object.keys(DEFAULT_WEEKLY_INTERVALS).map(day => [Number(day), []]));
+  rows.forEach(row => {
+    schedule[Number(row.weekday)].push({
+      start_time: formatDbTime(row.start_time),
+      end_time: formatDbTime(row.end_time)
+    });
+  });
+  return schedule;
+}
+
+function parseIntervalsJson(value) {
+  if (Array.isArray(value)) return value;
+  if (value && typeof value === 'object') return value;
+  try { return JSON.parse(value || '[]'); } catch { return []; }
+}
+
+async function getScheduleDay(weekday, date = null) {
+  if (date) {
+    const [overrideRows] = await pool.query(
+      'SELECT override_date,is_open,intervals_json,note FROM schedule_overrides WHERE override_date=? LIMIT 1',
+      [date]
+    );
+    if (overrideRows[0]) {
+      const intervals = parseIntervalsJson(overrideRows[0].intervals_json);
+      return {
+        weekday: Number(weekday),
+        is_open: Boolean(overrideRows[0].is_open),
+        intervals: sanitizeIntervals(intervals),
+        source: 'override',
+        note: overrideRows[0].note || ''
+      };
+    }
+  }
+  const schedule = await getSchedule();
+  const intervals = schedule[Number(weekday)] || [];
+  return {
+    weekday: Number(weekday),
+    is_open: intervals.length > 0,
+    intervals,
+    source: 'weekly',
+    note: ''
+  };
+}
+
+async function getScheduleEditorData() {
+  const weekly = await getSchedule();
+  const [overrideRows] = await pool.query(
+    'SELECT override_date,is_open,intervals_json,note FROM schedule_overrides WHERE override_date >= CURDATE() ORDER BY override_date'
+  );
+  const overrides = overrideRows.map(row => {
+    const intervals = parseIntervalsJson(row.intervals_json);
+    return {
+      date: row.override_date instanceof Date ? row.override_date.toISOString().slice(0, 10) : String(row.override_date).slice(0, 10),
+      is_open: Boolean(row.is_open),
+      intervals,
+      note: row.note || ''
+    };
+  });
+  return { weekly, overrides };
+}
+
+async function validateScheduleAgainstAppointments(weeklySchedule, overrideDate = null, overrideSchedule = null) {
+  const [appointmentRows] = await pool.query(
+    `SELECT appointment_date,appointment_time,duration_minutes
      FROM appointments
-     WHERE appointment_date=? AND status IN ('pending','accepted')
-     ORDER BY appointment_time`,
-    [date]
+     WHERE appointment_date >= CURDATE()
+       AND appointment_date <= DATE_ADD(CURDATE(), INTERVAL 1 YEAR)
+       AND status IN ('pending','accepted')
+     ORDER BY appointment_date,appointment_time`
   );
-  return rows;
+  if (!appointmentRows.length) return;
+
+  const [overrideRows] = await pool.query(
+    `SELECT override_date,is_open,intervals_json
+     FROM schedule_overrides
+     WHERE override_date >= CURDATE()
+       AND override_date <= DATE_ADD(CURDATE(), INTERVAL 1 YEAR)`
+  );
+  const existingOverrides = new Map(overrideRows.map(row => [
+    row.override_date instanceof Date ? row.override_date.toISOString().slice(0,10) : String(row.override_date).slice(0,10),
+    {
+      is_open: Boolean(row.is_open),
+      intervals: sanitizeIntervals(parseIntervalsJson(row.intervals_json))
+    }
+  ]));
+  if (overrideDate && overrideSchedule) existingOverrides.set(overrideDate, overrideSchedule);
+
+  for (const appt of appointmentRows) {
+    const date = appt.appointment_date instanceof Date ? appt.appointment_date.toISOString().slice(0,10) : String(appt.appointment_date).slice(0,10);
+    if (isDateBlockedCached(date)) continue;
+    const override = existingOverrides.get(date);
+    const weekday = dateWeekday(date);
+    const daySchedule = override || { is_open: Array.isArray(weeklySchedule[weekday]) && weeklySchedule[weekday].length > 0, intervals: weeklySchedule[weekday] || [] };
+    const start = toMinutes(appt.appointment_time);
+    const duration = Number(appt.duration_minutes) || 60;
+    if (!daySchedule.is_open || !slotFitsSchedule(start, start + duration, daySchedule)) {
+      const error = new Error(`No se puede guardar el horario: ya existe una cita el ${date.split('-').reverse().join('/')} a las ${String(appt.appointment_time).slice(0,5)} que quedaría fuera del nuevo horario.`);
+      error.statusCode = 409;
+      throw error;
+    }
+  }
 }
 
-
-async function isDateBlocked(date) {
-  const [rows] = await pool.query(
-    'SELECT id, blocked_date, reason FROM blocked_dates WHERE blocked_date=? LIMIT 1',
-    [date]
-  );
-  return rows[0] || null;
+// Se reemplaza por la consulta real solo dentro de la validación masiva para no hacer una consulta por cita.
+let blockedDateCache = null;
+function isDateBlockedCached(date) {
+  if (!blockedDateCache) return false;
+  return blockedDateCache.has(date);
 }
 
-async function getBlockedDates(startDate, endDate) {
+async function buildBlockedDateCache() {
   const [rows] = await pool.query(
-    'SELECT blocked_date, reason FROM blocked_dates WHERE blocked_date BETWEEN ? AND ? ORDER BY blocked_date',
-    [startDate, endDate]
+    `SELECT blocked_date FROM blocked_dates WHERE blocked_date >= CURDATE() AND blocked_date <= DATE_ADD(CURDATE(), INTERVAL 1 YEAR)`
   );
-  return rows.map(row => ({
-    date: row.blocked_date instanceof Date
-      ? row.blocked_date.toISOString().slice(0, 10)
-      : String(row.blocked_date).slice(0, 10),
-    reason: row.reason || ''
-  }));
+  blockedDateCache = new Set(rows.map(row => row.blocked_date instanceof Date ? row.blocked_date.toISOString().slice(0,10) : String(row.blocked_date).slice(0,10)));
+}
+
+async function saveWeeklySchedule(scheduleInput) {
+  if (!scheduleInput || typeof scheduleInput !== 'object') {
+    throw Object.assign(new Error('Horario semanal inválido.'), { statusCode: 400 });
+  }
+  const normalized = {};
+  for (let weekday = 1; weekday <= 7; weekday++) {
+    normalized[weekday] = sanitizeIntervals(scheduleInput[weekday] || []);
+  }
+  await buildBlockedDateCache();
+  await validateScheduleAgainstAppointments(normalized);
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    await connection.query('DELETE FROM working_intervals');
+    for (const [weekday, intervals] of Object.entries(normalized)) {
+      for (const interval of intervals) {
+        await connection.query(
+          'INSERT INTO working_intervals(weekday,start_time,end_time) VALUES(?,?,?)',
+          [Number(weekday), `${interval.start_time}:00`, `${interval.end_time}:00`]
+        );
+      }
+    }
+    await connection.commit();
+  } catch (error) {
+    try { await connection.rollback(); } catch {}
+    throw error;
+  } finally {
+    connection.release();
+    blockedDateCache = null;
+  }
+  return normalized;
 }
 
 function slotOverlapsLunch(start, end) {
@@ -281,8 +448,13 @@ function slotOverlapsLunch(start, end) {
 }
 
 function slotFitsSchedule(start, end, scheduleDay) {
-  if (!scheduleDay?.is_open || !scheduleDay.start_time || !scheduleDay.end_time) return false;
-  return start >= toMinutes(scheduleDay.start_time) && end <= toMinutes(scheduleDay.end_time) && !slotOverlapsLunch(start, end);
+  if (!scheduleDay?.is_open || !Array.isArray(scheduleDay.intervals)) return false;
+  if (slotOverlapsLunch(start, end)) return false;
+  return scheduleDay.intervals.some(interval => {
+    const intervalStart = toMinutes(interval.start_time);
+    const intervalEnd = toMinutes(interval.end_time);
+    return start >= intervalStart && end <= intervalEnd;
+  });
 }
 
 function slotIsFree(start, duration, appointments) {
@@ -296,29 +468,32 @@ function slotIsFree(start, duration, appointments) {
 }
 
 function slotsForDate(date, scheduleDay, appointments, duration = 60) {
-  if (!scheduleDay?.is_open || !scheduleDay.start_time || !scheduleDay.end_time) return [];
-  const start = toMinutes(scheduleDay.start_time);
-  const end = toMinutes(scheduleDay.end_time);
+  if (!scheduleDay?.is_open || !Array.isArray(scheduleDay.intervals)) return [];
   const slots = [];
-  let earliest = start;
+  let earliest = 0;
   if (isToday(date)) {
     const now = new Date();
     const current = now.getHours() * 60 + now.getMinutes();
-    earliest = Math.max(start, Math.ceil(current / SLOT_STEP) * SLOT_STEP);
+    earliest = Math.max(0, Math.ceil(current / SLOT_STEP) * SLOT_STEP);
   }
-  for (let minute = start; minute + duration <= end; minute += SLOT_STEP) {
-    if (minute < earliest) continue;
-    const slotEnd = minute + duration;
-    if (!slotFitsSchedule(minute, slotEnd, scheduleDay)) continue;
-    if (slotIsFree(minute, duration, appointments)) slots.push(toTime(minute).slice(0, 5));
+
+  for (const interval of scheduleDay.intervals) {
+    const start = toMinutes(interval.start_time);
+    const end = toMinutes(interval.end_time);
+    for (let minute = start; minute + duration <= end; minute += SLOT_STEP) {
+      if (minute < earliest) continue;
+      const slotEnd = minute + duration;
+      if (!slotFitsSchedule(minute, slotEnd, scheduleDay)) continue;
+      if (slotIsFree(minute, duration, appointments)) slots.push(toTime(minute).slice(0, 5));
+    }
   }
-  return slots;
+  return [...new Set(slots)].sort();
 }
 
 function dayMessage(date, scheduleDay, slots) {
-  if (dateWeekday(date) === 7) return 'Bebé, hoy estoy descansando. Nos vemos otro día. ♡';
+  if (dateWeekday(date) === 7 && !scheduleDay?.is_open) return 'Bebé, hoy estoy descansando. Nos vemos otro día. ♡';
   if (!scheduleDay?.is_open) return 'Bebé, hoy no estoy atendiendo. Elige otro día. ♡';
-  if (!slots.length) return 'Bebé, hoy ya tengo todas las citas agendadas.';
+  if (!slots.length) return 'Bebé, no hay un turno que complete todo el servicio en ese día.';
   return '';
 }
 
@@ -421,8 +596,7 @@ app.get('/api/calendar', authRequired, async (req, res) => {
     if (monthNumber < 1 || monthNumber > 12) return res.status(400).json({ message: 'Mes inválido.' });
 
     const totalDays = new Date(year, monthNumber, 0).getDate();
-    const scheduleRows = await getSchedule();
-    const scheduleMap = new Map(scheduleRows.map(row => [row.weekday, row]));
+    const weeklySchedule = await getSchedule();
     const startDate = `${year}-${String(monthNumber).padStart(2, '0')}-01`;
     const endDate = `${year}-${String(monthNumber).padStart(2, '0')}-${String(totalDays).padStart(2, '0')}`;
     const blockedRows = await getBlockedDates(startDate, endDate);
@@ -454,7 +628,7 @@ app.get('/api/calendar', authRequired, async (req, res) => {
       }
 
       const weekday = dateWeekday(date);
-      const scheduleDay = scheduleMap.get(weekday);
+      const scheduleDay = await getScheduleDay(weekday, date);
       const blocked = blockedMap.get(date);
       if (blocked) {
         days.push({ date, status: 'blocked', slots: 0, message: blocked.reason ? `No hay atención: ${blocked.reason}` : 'Este día no está disponible para citas.' });
@@ -465,12 +639,11 @@ app.get('/api/calendar', authRequired, async (req, res) => {
         continue;
       }
 
-      const baselineSlots = slotsForDate(date, scheduleDay, grouped.get(date) || [], 60);
       const slots = slotsForDate(date, scheduleDay, grouped.get(date) || [], duration);
-      if (!baselineSlots.length) {
+      if (!slots.length) {
         days.push({ date, status: 'full', slots: 0, message: 'Bebé, hoy ya tengo todas las citas agendadas.' });
       } else {
-        days.push({ date, status: 'available', slots: baselineSlots.length, message: '', duration, services: Object.keys(services) });
+        days.push({ date, status: 'available', slots: slots.length, message: '', duration, services: Object.keys(services) });
       }
     }
     res.json({ month, service, duration, days });
@@ -491,7 +664,7 @@ app.get('/api/appointments/slots', authRequired, async (req, res) => {
     const blocked = await isDateBlocked(date);
     if (blocked) return res.json({ date, service, duration, slots: [], message: blocked.reason ? `No hay atención: ${blocked.reason}` : 'Este día no está disponible para citas.' });
 
-    const scheduleDay = await getScheduleDay(dateWeekday(date));
+    const scheduleDay = await getScheduleDay(dateWeekday(date), date);
     if (!scheduleDay?.is_open || dateWeekday(date) === 7) {
       return res.json({ date, service, duration, slots: [], message: 'Bebé, hoy estoy descansando. Nos vemos otro día. ♡' });
     }
@@ -600,7 +773,7 @@ app.post('/api/appointments', authRequired, async (req, res) => {
     const blocked = await isDateBlocked(date);
     if (blocked) return res.status(409).json({ message: blocked.reason ? `No hay atención ese día: ${blocked.reason}` : 'Ese día no está disponible para citas.' });
 
-    const scheduleDay = await getScheduleDay(dateWeekday(date));
+    const scheduleDay = await getScheduleDay(dateWeekday(date), date);
     if (!scheduleDay?.is_open || dateWeekday(date) === 7) return res.status(400).json({ message: 'Bebé, ese día es de descanso. Elige otro.' });
 
     const start = toMinutes(time);
@@ -730,7 +903,56 @@ app.get('/api/owner/schedule', authRequired, ownerRequired, async (_req, res) =>
   catch { res.status(500).json({ message: 'No se pudo cargar el horario.' }); }
 });
 
+app.get('/api/owner/schedule-editor', authRequired, ownerRequired, async (_req, res) => {
+  try { res.json(await getScheduleEditorData()); }
+  catch { res.status(500).json({ message: 'No se pudo cargar el configurador de horario.' }); }
+});
 
+app.put('/api/owner/schedule-editor', authRequired, ownerRequired, async (req, res) => {
+  try {
+    const weekly = await saveWeeklySchedule(req.body?.weekly);
+    res.json({ message: 'Horario semanal guardado correctamente.', weekly });
+  } catch (error) {
+    console.error(error);
+    res.status(error.statusCode || 500).json({ message: error.message || 'No se pudo guardar el horario.' });
+  }
+});
+
+app.post('/api/owner/schedule-overrides', authRequired, ownerRequired, async (req, res) => {
+  try {
+    const date = toISODate(req.body?.date);
+    if (!date || isDateInPast(date)) return res.status(400).json({ message: 'Selecciona una fecha futura válida.' });
+    const isOpen = Boolean(req.body?.is_open);
+    const note = String(req.body?.note || '').trim().slice(0, 255);
+    const intervals = isOpen ? sanitizeIntervals(req.body?.intervals || []) : [];
+    if (isOpen && !intervals.length) return res.status(400).json({ message: 'Agrega al menos un tramo horario para esa fecha.' });
+    await buildBlockedDateCache();
+    const currentWeeklySchedule = await getSchedule();
+    await validateScheduleAgainstAppointments(currentWeeklySchedule, date, { is_open: isOpen, intervals });
+    blockedDateCache = null;
+    await pool.query(
+      `INSERT INTO schedule_overrides(override_date,is_open,intervals_json,note) VALUES(?,?,?,?)
+       ON DUPLICATE KEY UPDATE is_open=VALUES(is_open),intervals_json=VALUES(intervals_json),note=VALUES(note)`,
+      [date, isOpen ? 1 : 0, JSON.stringify(intervals), note || null]
+    );
+    res.status(201).json({ message: isOpen ? 'Horario especial guardado.' : 'Día marcado como descanso especial.', date, is_open: isOpen, intervals, note });
+  } catch (error) {
+    console.error(error);
+    res.status(error.statusCode || 500).json({ message: error.message || 'No se pudo guardar el horario especial.' });
+  }
+});
+
+app.delete('/api/owner/schedule-overrides/:date', authRequired, ownerRequired, async (req, res) => {
+  try {
+    const date = toISODate(req.params.date);
+    if (!date) return res.status(400).json({ message: 'Fecha inválida.' });
+    const [result] = await pool.query('DELETE FROM schedule_overrides WHERE override_date=?', [date]);
+    if (!result.affectedRows) return res.status(404).json({ message: 'No existe una excepción para esa fecha.' });
+    res.json({ message: 'Horario especial eliminado.' });
+  } catch {
+    res.status(500).json({ message: 'No se pudo eliminar el horario especial.' });
+  }
+});
 
 app.get('/api/owner/blocked-dates', authRequired, ownerRequired, async (_req, res) => {
   try {
@@ -753,6 +975,8 @@ app.post('/api/owner/blocked-dates', authRequired, ownerRequired, async (req, re
     const reason = String(req.body.reason || '').trim().slice(0, 255);
     if (!date) return res.status(400).json({ message: 'Selecciona una fecha válida.' });
     if (isDateInPast(date)) return res.status(400).json({ message: 'No puedes bloquear una fecha que ya pasó.' });
+    const existingAppointments = await getDayAppointments(date);
+    if (existingAppointments.length) return res.status(409).json({ message: 'No puedes bloquear ese día porque ya tiene citas pendientes o confirmadas. Primero cancélalas o reubícalas.' });
     const result = await pool.query(
       `INSERT INTO blocked_dates(blocked_date,reason) VALUES(?,?)
        ON DUPLICATE KEY UPDATE reason=VALUES(reason)`,
@@ -785,7 +1009,7 @@ app.get('/api/owner/slots', authRequired, ownerRequired, async (req, res) => {
 
     const blocked = await isDateBlocked(date);
     if (blocked) return res.json({ date, service, duration, slots: [] });
-    const scheduleDay = await getScheduleDay(dateWeekday(date));
+    const scheduleDay = await getScheduleDay(dateWeekday(date), date);
     if (!scheduleDay?.is_open || dateWeekday(date) === 7) return res.json({ date, service, duration, slots: [] });
     const appointments = await getDayAppointments(date);
     res.json({ date, service, duration, slots: slotsForDate(date, scheduleDay, appointments, duration) });
@@ -807,7 +1031,7 @@ app.post('/api/owner/appointments', authRequired, ownerRequired, async (req, res
     const blocked = await isDateBlocked(date);
     if (blocked) return res.status(409).json({ message: blocked.reason ? `No hay atención ese día: ${blocked.reason}` : 'Ese día no está disponible para citas.' });
 
-    const scheduleDay = await getScheduleDay(dateWeekday(date));
+    const scheduleDay = await getScheduleDay(dateWeekday(date), date);
     if (!scheduleDay?.is_open || dateWeekday(date) === 7) return res.status(400).json({ message: 'Ese día está marcado como descanso.' });
 
     const start = toMinutes(time);
@@ -927,7 +1151,7 @@ app.use((error, _req, res, _next) => {
   try {
     ensureUploadDirectory();
     await initDatabase();
-    await syncFixedSchedule();
+    await ensureDefaultSchedule();
     await pool.query(`ALTER TABLE portfolio_photos ADD COLUMN display_order INT NOT NULL DEFAULT 0`)
       .catch(error => {
         if (error.code !== 'ER_DUP_FIELDNAME') throw error;

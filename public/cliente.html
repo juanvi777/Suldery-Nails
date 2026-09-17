@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=2033">
+  <link rel="stylesheet" href="style.css?v=2034">
 </head>
 <body class="dashboard-page">
   <main class="dashboard-shell">
@@ -36,47 +36,12 @@
     <section id="agenda" class="booking-layout hidden-booking">
       <section class="booking-card glass-card">
         <div class="card-heading">
-          <div><p class="eyebrow">NUEVA CITA</p><h2>Paso 1 · Escoge tu día</h2></div>
+          <div><p class="eyebrow">NUEVA CITA</p><h2>Primero elige tu servicio</h2></div>
           <button id="closeBookingButton" class="link-button" type="button">Cerrar</button>
         </div>
-        <div class="calendar-card">
-          <div class="calendar-watermark"></div>
-          <div class="calendar-brand">
-            <div class="calendar-brand-logo" aria-hidden="true">
-              <img src="assets/suldery-nails-logo.jpeg" alt="Logo de Suldery Nails">
-            </div>
-            <div class="calendar-brand-copy">
-              <span class="calendar-kicker">SULDERY NAILS</span>
-              <strong>Reserva tu momento</strong>
-              <small>Elige un día disponible y sigue los pasos para agendar.</small>
-            </div>
-            <div class="calendar-theme-mark" aria-hidden="true"><span>☼</span><span>◐</span></div>
-          </div>
 
-          <div class="calendar-topbar">
-            <button id="previousMonth" class="month-button" type="button" aria-label="Mes anterior">‹</button>
-            <div class="calendar-title"><span>CALENDARIO DE CITAS</span><h3 id="calendarMonthLabel"></h3></div>
-            <button id="nextMonth" class="month-button" type="button" aria-label="Mes siguiente">›</button>
-          </div>
-
-          <div class="calendar-legend">
-            <span><i class="legend-dot available"></i> Disponible</span>
-            <span><i class="legend-dot full"></i> No disponible</span>
-            <span><i class="legend-dot today-dot"></i> Hoy</span>
-          </div>
-
-          <div class="calendar-weekdays"><span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span></div>
-          <div id="calendarDays" class="calendar-days"></div>
-          <p id="calendarFeedback" class="calendar-feedback">Selecciona un día disponible para continuar.</p>
-        </div>
-
-        <div class="time-selection booking-step" id="timeStep">
-          <div class="time-header"><div><p class="eyebrow">PASO 2</p><span class="field-label">Elige una hora</span></div><span id="timeHint" class="time-hint">Selecciona primero un día</span></div>
-          <div id="timeSlots" class="time-slots"><span class="time-help">Primero selecciona una fecha.</span></div>
-        </div>
-
-        <div class="service-selection booking-step hidden-step" id="serviceStep">
-          <div class="time-header"><div><p class="eyebrow">PASO 3</p><span class="field-label">¿Qué te vas a realizar?</span></div></div>
+        <div class="service-selection booking-step" id="serviceStep">
+          <div class="time-header"><div><p class="eyebrow">PASO 1</p><span class="field-label">¿Qué te vas a realizar?</span></div><span class="time-hint">La duración determina qué horas son posibles.</span></div>
           <label class="service-field">Servicio
             <select id="service">
               <option value="Manicure semipermanente">Manicure semipermanente · 1 h 30 min</option>
@@ -85,16 +50,37 @@
               <option value="Press on">Press on · 2 horas</option>
             </select>
             <small id="serviceDurationHint" class="service-duration-hint">Duración: 1 h 30 min</small>
-            <small class="service-duration-hint">Almuerzo: 12:00 p. m. – 1:00 p. m. (sin citas)</small>
+            <small class="service-duration-hint">Almuerzo fijo: 12:00 p. m. – 1:00 p. m. (sin citas). La hora final se calcula automáticamente.</small>
           </label>
         </div>
 
-        <div id="bookingSummary" class="booking-summary hidden-step">
-          <p class="eyebrow">PASO 4</p>
-          <h3>Confirma tu cita</h3>
-          <div class="summary-grid"><span>Fecha</span><strong id="summaryDate"></strong><span>Hora</span><strong id="summaryTime"></strong><span>Servicio</span><strong id="summaryService"></strong><span>Duración</span><strong id="summaryDuration"></strong></div>
+        <div class="calendar-card">
+          <div class="calendar-watermark"></div>
+          <div class="calendar-brand">
+            <div class="calendar-brand-logo" aria-hidden="true"><img src="assets/suldery-nails-logo.jpeg" alt="Logo de Suldery Nails"></div>
+            <div class="calendar-brand-copy"><span class="calendar-kicker">SULDERY NAILS</span><strong>Reserva tu momento</strong><small>Solo aparecen días que tienen al menos un turno posible para el servicio elegido.</small></div>
+            <div class="calendar-theme-mark" aria-hidden="true"><span>☼</span><span>◐</span></div>
+          </div>
+          <div class="calendar-topbar">
+            <button id="previousMonth" class="month-button" type="button" aria-label="Mes anterior">‹</button>
+            <div class="calendar-title"><span>PASO 2 · CALENDARIO</span><h3 id="calendarMonthLabel"></h3></div>
+            <button id="nextMonth" class="month-button" type="button" aria-label="Mes siguiente">›</button>
+          </div>
+          <div class="calendar-legend"><span><i class="legend-dot available"></i> Disponible</span><span><i class="legend-dot full"></i> No disponible</span><span><i class="legend-dot today-dot"></i> Hoy</span></div>
+          <div class="calendar-weekdays"><span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span></div>
+          <div id="calendarDays" class="calendar-days"></div>
+          <p id="calendarFeedback" class="calendar-feedback">Selecciona un día disponible para continuar.</p>
         </div>
 
+        <div class="time-selection booking-step" id="timeStep">
+          <div class="time-header"><div><p class="eyebrow">PASO 3</p><span class="field-label">Elige una hora</span></div><span id="timeHint" class="time-hint">Selecciona primero un día</span></div>
+          <div id="timeSlots" class="time-slots"><span class="time-help">Primero selecciona una fecha.</span></div>
+        </div>
+
+        <div id="bookingSummary" class="booking-summary hidden-step">
+          <p class="eyebrow">PASO 4</p><h3>Confirma tu cita</h3>
+          <div class="summary-grid"><span>Fecha</span><strong id="summaryDate"></strong><span>Hora</span><strong id="summaryTime"></strong><span>Servicio</span><strong id="summaryService"></strong><span>Duración</span><strong id="summaryDuration"></strong></div>
+        </div>
         <p id="bookingMessage" class="form-message" role="alert"></p>
         <button id="bookingButton" class="primary-button hidden-step" type="button">Confirmar cita <span>→</span></button>
       </section>
@@ -111,7 +97,7 @@
       <div id="clientGallery" class="carousel-frame"></div>
     </section>
   </main>
-  <script src="auth.js?v=20260917"></script>
-  <script src="cliente.js?v=20260917"></script>
+  <script src="auth.js?v=20260918"></script>
+  <script src="cliente.js?v=20260918"></script>
 </body>
 </html>

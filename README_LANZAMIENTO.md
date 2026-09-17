@@ -40,3 +40,12 @@ npm start
 
 ## Producción
 El backend está preparado para Railway. GitHub Pages puede seguir publicando la parte estática, pero las funciones de login, citas y MySQL deben usar el backend de Railway.
+
+
+## v2.2 — agenda sin cruces
+- Panel de dueña con cuatro botones independientes: horario, agendar clienta, bloquear días y fotos.
+- Horario semanal con varios tramos por día.
+- Excepciones por fecha para diligencias, salidas o jornadas especiales.
+- Almuerzo fijo de 12:00 a 13:00, sin citas.
+- La duración del servicio determina automáticamente los turnos válidos.
+- La reserva de clienta pide primero el servicio, luego el día y después la hora, evitando ofrecer horas que no alcanzan para completar el servicio.

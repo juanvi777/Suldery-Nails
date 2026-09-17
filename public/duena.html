@@ -14,21 +14,25 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=2033">
+  <link rel="stylesheet" href="style.css?v=2034">
 </head>
 <body class="dashboard-page owner-page">
   <main class="dashboard-shell">
     <header class="dashboard-header glass-card">
       <a class="logo" href="duena.html"><img src="assets/suldery-nails-logo.jpeg" alt="Suldery Nails"><span>Suldery <em>Nails</em></span></a>
-      <div class="user-menu"><button id="installAppButton" class="install-app-button" type="button" hidden>＋ Instalar app</button><button class="theme-toggle" type="button" data-theme-toggle aria-label="Activar modo oscuro"><span class="theme-icon">☾</span><span class="theme-label">Modo oscuro</span></button><span>Panel de Suldery</span><button class="secondary-button" type="button" data-action="logout">Cerrar sesión</button></div>
+      <div class="user-menu">
+        <button id="installAppButton" class="install-app-button" type="button" hidden>＋ Instalar app</button>
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Activar modo oscuro"><span class="theme-icon">☾</span><span class="theme-label">Modo oscuro</span></button>
+        <span>Panel de Suldery</span>
+        <button class="secondary-button" type="button" data-action="logout">Cerrar sesión</button>
+      </div>
     </header>
 
     <section class="hero-dashboard owner-hero">
       <div>
         <div class="brand-pill soft">✦ ADMINISTRACIÓN</div>
         <h1>Tu agenda, bajo<br><em>control.</em></h1>
-        <p>Aprueba clientas, confirma citas, organiza tu horario y administra las fotos que verán tus clientas.</p>
-        <button id="openManualBookingButton" class="primary-button hero-cta" type="button">Agendar clienta <span>→</span></button>
+        <p>Todo en un solo lugar. Abre solamente la herramienta que necesitas y mantén tu agenda sin cruces ni turnos imposibles.</p>
       </div>
       <div class="owner-mini-card"><strong id="ownerDateLabel">Hoy</strong><span>Una agenda ordenada, un día más tranquilo ♡</span></div>
     </section>
@@ -39,31 +43,47 @@
       <article class="stat-card"><span>PORTAFOLIO</span><strong id="photoCount">0</strong><small>fotos publicadas</small></article>
     </section>
 
-    <section class="owner-grid">
-      <article class="admin-card glass-card">
-        <div class="card-heading"><div><p class="eyebrow">CUENTAS</p><h2>Solicitudes de clientas</h2></div><span class="flower">✿</span></div>
-        <div id="pendingUsersList" class="admin-list"></div>
-      </article>
-
-      <article class="admin-card glass-card">
-        <div class="card-heading"><div><p class="eyebrow">AGENDA</p><h2>Solicitudes de citas</h2></div><span class="flower">✦</span></div>
-        <div id="ownerAppointmentsList" class="admin-list"></div>
-      </article>
+    <section class="owner-tool-grid" aria-label="Herramientas de administración">
+      <button type="button" class="owner-tool-button" data-owner-tool="schedule"><span class="owner-tool-icon">◷</span><span><strong>Horario de trabajo</strong><small>Semana + excepciones</small></span><b>→</b></button>
+      <button type="button" class="owner-tool-button" data-owner-tool="manual"><span class="owner-tool-icon">＋</span><span><strong>Agendar clienta</strong><small>Cita manual confirmada</small></span><b>→</b></button>
+      <button type="button" class="owner-tool-button" data-owner-tool="blocked"><span class="owner-tool-icon">▣</span><span><strong>Bloquear días</strong><small>Vacaciones o descansos</small></span><b>→</b></button>
+      <button type="button" class="owner-tool-button" data-owner-tool="photos"><span class="owner-tool-icon">✦</span><span><strong>Subir fotos</strong><small>Portafolio para clientas</small></span><b>→</b></button>
     </section>
 
-    <section class="admin-card glass-card schedule-manager fixed-schedule-card">
-      <div class="card-heading"><div><p class="eyebrow">HORARIO FIJO</p><h2>Horario de atención</h2></div><span class="flower">♡</span></div>
-      <p class="manager-note">Tu agenda está configurada de lunes a sábado, de 7:00 a. m. a 6:00 p. m. El almuerzo de 12:00 p. m. a 1:00 p. m. queda bloqueado automáticamente. Los domingos no se atiende.</p>
-      <div class="fixed-schedule-grid">
-        <div><strong>Lunes a sábado</strong><span>7:00 a. m. — 12:00 p. m.</span><span>1:00 p. m. — 6:00 p. m.</span></div>
-        <div><strong>Almuerzo</strong><span>12:00 p. m. — 1:00 p. m.</span><small>No se aceptan citas.</small></div>
-        <div><strong>Domingo</strong><span>Cerrado</span><small>No se aceptan citas.</small></div>
+    <section id="ownerToolSchedule" class="owner-tool-panel admin-card glass-card hidden-tool-panel">
+      <div class="card-heading"><div><p class="eyebrow">HORARIO</p><h2>Define cuándo puedes atender</h2></div><button class="small-button ghost" type="button" data-close-owner-tool>Cerrar</button></div>
+      <p class="manager-note">Puedes tener varios tramos por día. El almuerzo de 12:00 p. m. a 1:00 p. m. siempre queda bloqueado. Para una diligencia puntual, crea una excepción para esa fecha con solo los tramos que sí puedes atender.</p>
+      <form id="weeklyScheduleForm" class="weekly-schedule-editor"></form>
+      <div class="owner-tool-actions"><button id="saveWeeklyScheduleButton" class="primary-button" type="button">Guardar horario semanal <span>→</span></button><span id="weeklyScheduleMessage" class="form-message"></span></div>
+      <div class="schedule-exception-box">
+        <div class="subsection-heading"><div><p class="eyebrow">FECHA ESPECIAL</p><h3>Cambia solo un día</h3></div></div>
+        <form id="scheduleOverrideForm" class="schedule-override-form">
+          <label>Fecha<input id="scheduleOverrideDate" type="date" required></label>
+          <label>¿Atender ese día?<select id="scheduleOverrideOpen"><option value="yes">Sí, con horario especial</option><option value="no">No, es día de descanso</option></select></label>
+          <label>Nota (opcional)<input id="scheduleOverrideNote" maxlength="255" placeholder="Ej. Salgo a una diligencia a las 2:00 p. m."></label>
+          <div id="scheduleOverrideIntervals" class="interval-editor" data-interval-target="override"></div>
+          <button class="primary-button" type="submit">Guardar fecha especial <span>→</span></button>
+        </form>
+        <div id="scheduleOverridesList" class="override-list"></div>
       </div>
     </section>
 
-    <section class="admin-card glass-card blocked-dates-card">
-      <div class="card-heading"><div><p class="eyebrow">DÍAS NO DISPONIBLES</p><h2>Bloquea fechas especiales</h2></div><span class="flower">✦</span></div>
-      <p class="manager-note">Además del domingo y tus días de descanso semanales, puedes bloquear fechas específicas como vacaciones o días personales.</p>
+    <section id="ownerToolManual" class="owner-tool-panel admin-card glass-card hidden-tool-panel">
+      <div class="card-heading"><div><p class="eyebrow">AGENDA MANUAL</p><h2>Registra una cita tú misma</h2></div><button class="small-button ghost" type="button" data-close-owner-tool>Cerrar</button></div>
+      <p class="manager-note">La cita queda confirmada de inmediato y ocupa el turno. El sistema solo ofrece horas en las que cabe completo el servicio y jamás permite cruzar el almuerzo ni otra cita. Ejemplo: 2 horas llega como máximo a las 10:00 a. m. en la mañana; 1 h 30 min hasta las 10:30 a. m.; 1 hora hasta las 11:00 a. m.</p>
+      <form id="ownerBookingForm" class="owner-booking-form">
+        <label>Nombre de la clienta<input id="ownerClientName" type="text" placeholder="Nombre completo" required></label>
+        <label>Servicio<select id="ownerService"><option value="Manicure semipermanente">Manicure semipermanente · 1 h 30 min</option><option value="Pedicure semipermanente">Pedicure semipermanente · 1 hora</option><option value="Dipping">Dipping · 2 horas</option><option value="Press on">Press on · 2 horas</option></select><small id="ownerServiceDurationHint" class="service-duration-hint"></small></label>
+        <label>Fecha<input id="ownerAppointmentDate" type="date" required></label>
+        <label>Hora disponible<select id="ownerAppointmentTime" required></select></label>
+        <p id="ownerBookingMessage" class="form-message"></p>
+        <button id="ownerBookingButton" class="primary-button" type="submit">Agendar cita <span>→</span></button>
+      </form>
+    </section>
+
+    <section id="ownerToolBlocked" class="owner-tool-panel admin-card glass-card hidden-tool-panel">
+      <div class="card-heading"><div><p class="eyebrow">DÍAS NO DISPONIBLES</p><h2>Bloquea fechas completas</h2></div><button class="small-button ghost" type="button" data-close-owner-tool>Cerrar</button></div>
+      <p class="manager-note">Usa esto para vacaciones, eventos o un día completo libre. Si solamente sales unas horas, usa <strong>Horario de trabajo → Fecha especial</strong> para no bloquear todo el día.</p>
       <form id="blockedDateForm" class="blocked-date-form">
         <label>Fecha<input id="blockedDate" type="date" required></label>
         <label>Motivo (opcional)<input id="blockedReason" type="text" maxlength="255" placeholder="Ej. Vacaciones"></label>
@@ -72,29 +92,25 @@
       <div id="blockedDatesList" class="blocked-dates-list"></div>
     </section>
 
-    <section id="manualBookingCard" class="admin-card glass-card manual-booking-card hidden-step">
-      <div class="card-heading"><div><p class="eyebrow">AGENDA MANUAL</p><h2>Registra una cita tú misma</h2></div><div class="admin-actions"><span class="flower">✦</span><button id="closeManualBookingButton" class="small-button ghost" type="button">Cerrar</button></div></div>
-      <p class="manager-note">Ideal para clientas que te escriben directamente o que prefieren agendar contigo. El sistema solo muestra turnos que no se cruzan con otra cita y nunca ofrece el almuerzo de 12:00 p. m. a 1:00 p. m.</p>
-      <form id="ownerBookingForm" class="owner-booking-form">
-        <label>Nombre de la clienta<input id="ownerClientName" type="text" placeholder="Nombre completo"></label>
-        <label>Servicio<select id="ownerService"><option value="Manicure semipermanente">Manicure semipermanente · 1 h 30 min</option><option value="Pedicure semipermanente">Pedicure semipermanente · 1 hora</option><option value="Dipping">Dipping · 2 horas</option><option value="Press on">Press on · 2 horas</option></select>
-          <small id="ownerServiceDurationHint" class="service-duration-hint">Duración: 1 hora</small>
-        </label>
-        <label>Fecha<input id="ownerAppointmentDate" type="date"></label>
-        <label>Hora disponible<select id="ownerAppointmentTime"></select></label>
-        <p id="ownerBookingMessage" class="form-message"></p>
-        <button id="ownerBookingButton" class="primary-button" type="submit">Agendar cita <span>→</span></button>
-      </form>
-    </section>
-
-    <section class="admin-card glass-card portfolio-manager">
-      <div class="card-heading"><div><p class="eyebrow">PORTAFOLIO</p><h2>Fotos de tus diseños</h2></div><label class="small-button file-button" for="photoPicker">+ Elegir foto</label></div>
-      <p class="manager-note">Hasta 6 fotos. Se muestran en el carrusel de tus clientas. Usa las flechas para cambiar el orden.</p>
+    <section id="ownerToolPhotos" class="owner-tool-panel admin-card glass-card hidden-tool-panel">
+      <div class="card-heading"><div><p class="eyebrow">PORTAFOLIO</p><h2>Fotos de tus diseños</h2></div><div class="admin-actions"><label class="small-button file-button" for="photoPicker">+ Elegir foto</label><button class="small-button ghost" type="button" data-close-owner-tool>Cerrar</button></div></div>
+      <p class="manager-note">Hasta 6 fotos. Se muestran en el carrusel de inicio de sesión y en el apartado de clienta.</p>
       <input id="photoPicker" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden">
       <div id="ownerGallery" class="photo-gallery owner-gallery"></div>
     </section>
+
+    <section class="owner-grid">
+      <article class="admin-card glass-card">
+        <div class="card-heading"><div><p class="eyebrow">CUENTAS</p><h2>Solicitudes de clientas</h2></div><span class="flower">✿</span></div>
+        <div id="pendingUsersList" class="admin-list"></div>
+      </article>
+      <article class="admin-card glass-card">
+        <div class="card-heading"><div><p class="eyebrow">AGENDA</p><h2>Solicitudes de citas</h2></div><span class="flower">✦</span></div>
+        <div id="ownerAppointmentsList" class="admin-list"></div>
+      </article>
+    </section>
   </main>
-  <script src="auth.js?v=20260917"></script>
-  <script src="duena.js?v=20260917"></script>
+  <script src="auth.js?v=20260918"></script>
+  <script src="duena.js?v=20260918"></script>
 </body>
 </html>

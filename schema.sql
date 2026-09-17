@@ -67,3 +67,24 @@ CREATE TABLE IF NOT EXISTS blocked_dates (
   PRIMARY KEY (id),
   UNIQUE KEY uq_blocked_dates_date (blocked_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+CREATE TABLE IF NOT EXISTS working_intervals (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  weekday TINYINT UNSIGNED NOT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  PRIMARY KEY (id),
+  KEY idx_working_intervals_weekday (weekday),
+  UNIQUE KEY uq_working_interval (weekday,start_time,end_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS schedule_overrides (
+  override_date DATE NOT NULL,
+  is_open TINYINT(1) NOT NULL DEFAULT 1,
+  intervals_json JSON NULL,
+  note VARCHAR(255) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (override_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
