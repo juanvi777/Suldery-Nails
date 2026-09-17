@@ -48,6 +48,7 @@ app.use((req, res, next) => {
 });
 const requiredCorsOrigins = [
   'https://juanvi777.github.io',
+  'https://suldery-nails-production.up.railway.app',
   'http://localhost:3000',
   'http://127.0.0.1:3000'
 ];
@@ -59,7 +60,9 @@ const allowedCorsOrigins = new Set([...requiredCorsOrigins, ...configuredCorsOri
 function isAllowedCorsOrigin(origin) {
   if (!origin) return true;
   if (allowedCorsOrigins.has(origin)) return true;
-  return /^https:\/\/[a-z0-9-]+\.github\.io$/i.test(origin);
+  if (/^https:\/\/[a-z0-9-]+\.github\.io$/i.test(origin)) return true;
+  if (/^https:\/\/[a-z0-9-]+\.up\.railway\.app$/i.test(origin)) return true;
+  return /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
 }
 const corsOptions = {
   origin(origin, callback) {
@@ -286,6 +289,19 @@ async function ensureDefaultSchedule() {
       );
     }
   }
+}
+
+async function getBlockedDates(startDate, endDate) {
+  const [rows] = await pool.query(
+    `SELECT blocked_date, reason FROM blocked_dates WHERE blocked_date BETWEEN ? AND ? ORDER BY blocked_date`,
+    [startDate, endDate]
+  );
+  return rows.map(row => ({
+    date: row.blocked_date instanceof Date
+      ? row.blocked_date.toISOString().slice(0, 10)
+      : String(row.blocked_date).slice(0, 10),
+    reason: row.reason || ''
+  }));
 }
 
 async function getSchedule() {

@@ -49,3 +49,7 @@ El backend está preparado para Railway. GitHub Pages puede seguir publicando la
 - Almuerzo fijo de 12:00 a 13:00, sin citas.
 - La duración del servicio determina automáticamente los turnos válidos.
 - La reserva de clienta pide primero el servicio, luego el día y después la hora, evitando ofrecer horas que no alcanzan para completar el servicio.
+
+
+## v2.3
+Corrección de CORS para el dominio público de Railway y otros subdominios Railway.
