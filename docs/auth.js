@@ -1,6 +1,10 @@
-const API_BASE = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+const isGithubPages = location.hostname.endsWith('.github.io');
+const API_BASE = isLocal
   ? '/api'
-  : 'https://suldery-nails-production.up.railway.app/api';
+  : isGithubPages
+    ? 'https://suldery-nails-production.up.railway.app/api'
+    : '/api';
 const SITE_BASE = (() => {
   const path = location.pathname;
   if (path.includes('/Suldery-Nails/')) return '/Suldery-Nails/';
@@ -168,7 +172,7 @@ document.addEventListener('click', async event => {
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js', { scope: './' }).catch(() => {});
+    navigator.serviceWorker.register('sw.js?v=20260917', { scope: './' }).catch(() => {});
   });
 }
 
