@@ -1,6 +1,7 @@
-SULDERY NAILS — publicación en GitHub Pages
+SULDERY NAILS - conexión pública
 
-La carpeta docs/ es una copia lista para publicar como sitio estático en GitHub Pages.
-En GitHub: Settings → Pages → Deploy from a branch → main → /docs.
+Frontend GitHub Pages: https://juanvi777.github.io/Suldery-Nails/
+Backend Railway: https://suldery-nails-production.up.railway.app
 
-La aplicación completa (login real, citas, MySQL y server.js) requiere un backend Node.js; GitHub Pages solo sirve el frontend estático.
+La versión pública usa CORS explícito para GitHub Pages y autenticación mediante Bearer token.
+No subas .env ni contraseñas al repositorio.

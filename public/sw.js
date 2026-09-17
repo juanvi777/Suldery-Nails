@@ -1,4 +1,4 @@
-const CACHE_NAME = 'suldery-shell-v17';
+const CACHE_NAME = 'suldery-shell-v18';
 
 const ASSET_PATHS = [
   'index.html',
@@ -6,7 +6,7 @@ const ASSET_PATHS = [
   'cliente.html',
   'duena.html',
   'style.css?v=2033',
-  'auth.js',
+  'auth.js?v=1801',
   'login.js',
   'registro.js',
   'cliente.js',

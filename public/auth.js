@@ -28,7 +28,19 @@ async function apiFetch(path, options = {}) {
   const token = localStorage.getItem('suldery_token');
   if (token) headers.set('Authorization', `Bearer ${token}`);
 
-  const response = await fetch(`${API_BASE}${path}`, { ...options, headers, credentials: 'include' });
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers,
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-store'
+    });
+  } catch (error) {
+    console.error('Error de conexión con la API de Suldery Nails:', error);
+    throw new Error('No se pudo conectar con el servidor. Comprueba tu conexión a Internet e inténtalo nuevamente.');
+  }
   let data = {};
   try { data = await response.json(); } catch {}
 
