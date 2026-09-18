@@ -1,61 +1,23 @@
-const CACHE_NAME = 'suldery-shell-v34';
-
+const CACHE_NAME = 'suldery-shell-v35-free-push';
 const ASSET_PATHS = [
-  'index.html',
-  'registro.html',
-  'cliente.html',
-  'duena.html',
-  'style.css?v=20260922',
-  'auth.js?v=20260922',
-  'login.js?v=20260922',
-  'registro.js?v=20260922',
-  'cliente.js?v=20260922',
-  'duena.js?v=20260922',
-  'assets/suldery-nails-logo.jpeg',
-  'assets/suldery-nails-icon-192.png',
-  'assets/suldery-nails-icon-512.png',
-  'manifest.webmanifest',
-  'assets/favicon-48.png'
+  'index.html','registro.html','cliente.html','duena.html',
+  'style.css?v=20260925','auth.js?v=20260925','login.js?v=20260925','registro.js?v=20260925','cliente.js?v=20260925','duena.js?v=20260925',
+  'assets/suldery-nails-logo.jpeg','assets/suldery-nails-icon-192.png','assets/suldery-nails-icon-512.png','manifest.webmanifest','assets/favicon-48.png'
 ];
-
 const scopedUrl = path => new URL(path, self.registration.scope).href;
 const APP_SHELL = ASSET_PATHS.map(scopedUrl);
-
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting())
-  );
+self.addEventListener('install', event => event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)).then(() => self.skipWaiting())));
+self.addEventListener('activate', event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)))).then(() => self.clients.claim())));
+self.addEventListener('push', event => {
+  let payload = { title: 'Suldery Nails 💕', body: 'Tienes un nuevo aviso.', url: './' };
+  try { if (event.data) payload = { ...payload, ...event.data.json() }; } catch { try { if (event.data) payload.body = event.data.text(); } catch {} }
+  const target = payload.url || self.registration.scope;
+  const icon = payload.icon ? new URL(payload.icon, self.registration.scope).href : new URL('assets/suldery-nails-icon-192.png', self.registration.scope).href;
+  event.waitUntil(self.registration.showNotification(payload.title, { body: payload.body, icon, badge: icon, vibrate: [120, 60, 120], tag: payload.tag || 'suldery-nails', renotify: true, data: { url: target }}));
 });
-
-self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))))
-      .then(() => self.clients.claim())
-  );
-});
-
+self.addEventListener('notificationclick', event => { event.notification.close(); event.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => { const target = event.notification.data?.url || self.registration.scope; const existing = list.find(client => client.url === target || client.url.startsWith(target)); if (existing) return existing.focus(); return clients.openWindow(target); })); });
 self.addEventListener('fetch', event => {
-  const request = event.request;
-  if (request.method !== 'GET') return;
-
-  const url = new URL(request.url);
-  if (url.origin !== self.location.origin) return;
-  if (url.pathname.includes('/api/')) return;
-  if (url.pathname.includes('/uploads/')) return;
-
-  event.respondWith(
-    caches.match(request).then(cached => {
-      const network = fetch(request).then(response => {
-        if (response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
-        }
-        return response;
-      }).catch(() => cached);
-      return cached || network;
-    })
-  );
+  const request = event.request; if (request.method !== 'GET') return;
+  const url = new URL(request.url); if (url.origin !== self.location.origin) return; if (url.pathname.includes('/api/') || url.pathname.includes('/uploads/')) return;
+  event.respondWith(caches.match(request).then(cached => { const network = fetch(request).then(response => { if (response.ok) caches.open(CACHE_NAME).then(cache => cache.put(request, response.clone())); return response; }).catch(() => cached); return cached || network; }));
 });

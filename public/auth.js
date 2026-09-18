@@ -197,9 +197,89 @@ document.addEventListener('click', async event => {
   updateInstallButtons();
 });
 
+
+let sulderyServiceWorkerRegistration = null;
+let sulderyPushPromise = null;
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
+}
+
+async function getSulderyServiceWorker() {
+  if (!('serviceWorker' in navigator)) throw new Error('Este dispositivo no admite notificaciones web.');
+  if (!sulderyServiceWorkerRegistration) {
+    sulderyServiceWorkerRegistration = await navigator.serviceWorker.register('sw.js?v=20260923', { scope: './' });
+  }
+  await navigator.serviceWorker.ready;
+  return sulderyServiceWorkerRegistration;
+}
+
+async function getPushPublicKey() {
+  const data = await apiFetch('/notifications/public-key');
+  if (!data.publicKey) throw new Error('No se pudo preparar el sistema de notificaciones.');
+  return data.publicKey;
+}
+
+async function enableSulderyPush() {
+  if (sulderyPushPromise) return sulderyPushPromise;
+  sulderyPushPromise = (async () => {
+    if (!('Notification' in window) || !('PushManager' in window)) {
+      throw new Error('Este navegador no admite notificaciones push.');
+    }
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') throw new Error('Debes permitir las notificaciones para recibir los avisos.');
+    const registration = await getSulderyServiceWorker();
+    const existing = await registration.pushManager.getSubscription();
+    const publicKey = await getPushPublicKey();
+    const subscription = existing || await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicKey)
+    });
+    await apiFetch('/notifications/subscribe', {
+      method: 'POST',
+      body: JSON.stringify(subscription.toJSON())
+    });
+    return { ok: true };
+  })().finally(() => { sulderyPushPromise = null; });
+  return sulderyPushPromise;
+}
+
+async function getSulderyPushStatus() {
+  try { return await apiFetch('/notifications/status'); }
+  catch { return { subscribed: false, devices: 0 }; }
+}
+
+window.enableSulderyPush = enableSulderyPush;
+window.getSulderyPushStatus = getSulderyPushStatus;
+window.getSulderyServiceWorker = getSulderyServiceWorker;
+
+async function enablePendingSulderyPush(registrationToken) {
+  if (!registrationToken) throw new Error('No se pudo preparar el aviso de registro.');
+  if (!('Notification' in window) || !('PushManager' in window)) throw new Error('Este navegador no admite avisos web.');
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') throw new Error('Debes permitir los avisos para recibir la confirmación de tu cuenta.');
+  const registration = await getSulderyServiceWorker();
+  const existing = await registration.pushManager.getSubscription();
+  const publicKey = await getPushPublicKey();
+  const subscription = existing || await registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(publicKey)
+  });
+  await apiFetch('/notifications/subscribe-pending', {
+    method: 'POST',
+    body: JSON.stringify({ token: registrationToken, subscription: subscription.toJSON() })
+  });
+  return { ok: true };
+}
+window.enablePendingSulderyPush = enablePendingSulderyPush;
+
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js?v=20260918', { scope: './' }).catch(() => {});
+    navigator.serviceWorker.register('sw.js?v=20260923', { scope: './' }).catch(() => {});
   });
 }
 

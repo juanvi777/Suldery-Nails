@@ -29,7 +29,20 @@ async function registrar() {
       body: JSON.stringify({ name, email, phone, password })
     });
     registerForm.reset();
-    setMessage(registerMessage, data.message || `Hola 💕, tu solicitud para unirte a Suldery Nails ya fue enviada. Solo falta que Suldery la apruebe. Si necesitas comunicarte con Suldery, puedes escribirle o llamarle. ¡Gracias por confiar en Suldery! 💅✨`, true);
+    setMessage(registerMessage, data.message || `Hola 💕, tu solicitud para unirte a Suldery Nails ya fue enviada. Solo falta que Suldery la apruebe. ¡Gracias por confiar en Suldery! 💅✨`, true);
+    const pushButton = document.getElementById('enableRegistrationNotifications');
+    if (pushButton && data.push_registration_token) {
+      pushButton.hidden = false;
+      pushButton.onclick = async () => {
+        try {
+          await enablePendingSulderyPush(data.push_registration_token);
+          pushButton.textContent = '🔔 Avisos activados';
+          pushButton.disabled = true;
+        } catch (error) {
+          alert(error.message);
+        }
+      };
+    }
   } catch (error) {
     showRegisterError(error.message);
   } finally {

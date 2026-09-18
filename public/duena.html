@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260922">
+  <link rel="stylesheet" href="style.css?v=20260925">
 </head>
 <body class="dashboard-page owner-page">
   <main class="dashboard-shell">
@@ -37,7 +37,7 @@
         <p>Todo en un solo lugar. Abre solamente la herramienta que necesitas y mantén tu agenda sin cruces ni turnos imposibles.</p>
       </div>
       <div class="owner-mini-card"><strong id="ownerDateLabel">Hoy</strong><span>Una agenda ordenada, un día más tranquilo ♡</span>
-        <div class="sms-status-card"><strong id="smsStatusTitle">Avisos por Telegram</strong><small id="smsStatusText">Comprobando la conexión…</small><div class="notification-actions"><button id="detectTelegramButton" class="small-button ghost" type="button">Detectar chat</button><button id="testTelegramButton" class="small-button ghost" type="button">Probar Telegram</button></div></div>
+        <div class="sms-status-card"><strong id="notificationStatusTitle">Avisos en este dispositivo</strong><small id="notificationStatusText">Comprobando las notificaciones…</small><div class="notification-actions"><button id="enableNotificationsButton" class="small-button ghost" type="button">Activar avisos</button><button id="testNotificationButton" class="small-button ghost" type="button">Probar aviso</button></div></div></div>
       </div>
     </section>
 
@@ -144,10 +144,15 @@
     </section>
 
     <section id="ownerToolPhotos" class="owner-tool-panel admin-card glass-card hidden-tool-panel">
-      <div class="card-heading"><div><p class="eyebrow">PORTAFOLIO</p><h2>Fotos de tus diseños</h2></div><div class="admin-actions"><label class="small-button file-button" for="photoPicker">+ Elegir foto</label><button class="small-button ghost" type="button" data-close-owner-tool>Cerrar</button></div></div>
-      <p class="manager-note">Hasta 8 fotos. Puedes separar cuáles se muestran al iniciar sesión y cuáles aparecen dentro del perfil de clienta.</p>
-      <div class="photo-upload-options"><label>Mostrar la nueva foto en<select id="photoVisibilityPicker"><option value="login" selected>Inicio de sesión</option><option value="client">Página de clienta</option></select></label></div><input id="photoPicker" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden"><input id="photoReplacePicker" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden">
-      <div id="ownerGallery" class="photo-gallery owner-gallery"></div>
+      <div class="card-heading"><div><p class="eyebrow">PORTAFOLIO</p><h2>Fotos de tus diseños</h2></div><div class="admin-actions"><label class="small-button file-button" for="photoPicker">+ Subir foto</label><button class="small-button ghost" type="button" data-close-owner-tool>Cerrar</button></div></div>
+      <p class="manager-note">Máximo 8 fotos en total. Cada foto se publica en un solo lugar: inicio de sesión o página de clienta. Puedes reemplazarla o eliminarla cuando quieras.</p>
+      <div class="photo-upload-options"><label>La nueva foto se mostrará en<select id="photoVisibilityPicker"><option value="login" selected>Inicio de sesión</option><option value="client">Página de clienta</option></select></label></div>
+      <input id="photoPicker" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden"><input id="photoReplacePicker" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden">
+      <div class="photo-owner-groups">
+        <section class="photo-owner-group"><div class="subsection-heading"><div><p class="eyebrow">INICIO DE SESIÓN</p><h3>Fotos que ve quien todavía no entra</h3></div><span id="loginPhotoCount" class="photo-group-count">0</span></div><div id="ownerLoginGallery" class="photo-owner-list"></div></section>
+        <section class="photo-owner-group"><div class="subsection-heading"><div><p class="eyebrow">PÁGINA DE CLIENTA</p><h3>Fotos que ven tus clientas</h3></div><span id="clientPhotoCount" class="photo-group-count">0</span></div><div id="ownerClientGallery" class="photo-owner-list"></div></section>
+      </div>
+      <p id="photoManagerMessage" class="form-message" role="status"></p>
     </section>
 
     <section class="owner-grid">
@@ -161,7 +166,7 @@
       </article>
     </section>
   </main>
-  <script src="auth.js?v=20260922"></script>
-  <script src="duena.js?v=20260922"></script>
+  <script src="auth.js?v=20260925"></script>
+  <script src="duena.js?v=20260925"></script>
 </body>
 </html>

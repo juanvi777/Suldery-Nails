@@ -133,19 +133,19 @@ async function initDuena() {
   $d('blockedDatesList').addEventListener('click', handleBlockedDateAction);
   $d('blockedMode')?.addEventListener('change', toggleBlockedMode);
   $d('blockedIntervalsEditor')?.addEventListener('click', handleBlockedIntervalEditorClick);
-  $d('ownerGallery').addEventListener('click', handleGalleryAction);
-  $d('ownerGallery').addEventListener('change', handlePhotoVisibilityChange);
+  $d('ownerLoginGallery')?.addEventListener('click', handleGalleryAction);
+  $d('ownerClientGallery')?.addEventListener('click', handleGalleryAction);
   $d('saveWeeklyScheduleButton').addEventListener('click', saveWeeklySchedule);
   $d('scheduleOverrideForm').addEventListener('submit', saveScheduleOverride);
   $d('scheduleOverrideOpen').addEventListener('change', toggleOverrideIntervals);
   $d('scheduleOverridesList').addEventListener('click', handleOverrideAction);
-  $d('detectTelegramButton')?.addEventListener('click', detectTelegramChat);
-  $d('testTelegramButton')?.addEventListener('click', testOwnerTelegram);
   $d('ownerCalendarPrevious')?.addEventListener('click', () => changeOwnerCalendarMonth(-1));
   $d('ownerCalendarNext')?.addEventListener('click', () => changeOwnerCalendarMonth(1));
   $d('ownerCalendarToday')?.addEventListener('click', goToOwnerCalendarToday);
   $d('ownerCalendarService')?.addEventListener('change', () => { if (ownerCalendarSelectedDate) loadOwnerCalendarDay(ownerCalendarSelectedDate); });
   $d('ownerCalendarAppointments')?.addEventListener('click', handleOwnerCalendarAppointmentAction);
+  $d('enableNotificationsButton')?.addEventListener('click', async () => { try { await enableSulderyPush(); await loadNotificationStatus(); alert('Listo 💕. Este dispositivo ya puede recibir tus avisos.'); } catch (error) { alert(error.message); } });
+  $d('testNotificationButton')?.addEventListener('click', testOwnerNotification);
 
   updateOwnerServiceDurationHint();
   buildOverrideIntervals();
@@ -171,63 +171,40 @@ function closeOwnerTools() {
   document.querySelectorAll('.owner-tool-panel').forEach(panel => panel.classList.add('hidden-tool-panel'));
 }
 
-async function loadTelegramStatus() {
-  const title = $d('smsStatusTitle');
-  const text = $d('smsStatusText');
+async function loadNotificationStatus() {
+  const title = $d('notificationStatusTitle');
+  const text = $d('notificationStatusText');
+  const button = $d('enableNotificationsButton');
   if (!title || !text) return;
   try {
-    const data = await apiFetch('/owner/notifications/status');
-    if (data.configured) {
-      title.textContent = 'Avisos por Telegram · activos';
-      text.textContent = `Los avisos llegarán al chat de Suldery (${data.destination}).`;
+    const data = await getSulderyPushStatus();
+    if (data.subscribed) {
+      title.textContent = 'Avisos gratuitos · activos';
+      text.textContent = `Este dispositivo está listo para recibir tus avisos (${data.devices} dispositivo${data.devices === 1 ? '' : 's'}).`;
+      if (button) button.textContent = 'Avisos activos ✓';
     } else {
-      title.textContent = 'Avisos por Telegram · pendientes';
-      text.textContent = `Falta configurar: ${data.missing.join(', ')}.`;
+      title.textContent = 'Avisos gratuitos · pendientes';
+      text.textContent = 'Actívalos una vez en este celular para recibir solicitudes y recordatorios.';
+      if (button) button.textContent = 'Activar avisos';
     }
   } catch (error) {
-    title.textContent = 'Avisos por Telegram';
+    title.textContent = 'Avisos gratuitos';
     text.textContent = error.message;
   }
 }
 
-async function detectTelegramChat() {
-  const button = $d('detectTelegramButton');
-  if (!button) return;
-  const original = button.textContent;
-  button.disabled = true;
-  button.textContent = 'Buscando…';
+async function testOwnerNotification() {
   try {
-    const data = await apiFetch('/owner/notifications/telegram/detect-chat');
-    alert(`Chat encontrado: ${data.chat_id}${data.first_name ? ` · ${data.first_name}` : ''}\n\nCopia ese chat ID a la variable TELEGRAM_CHAT_ID en Railway.`);
-  } catch (error) {
-    alert(error.message);
-  } finally {
-    button.disabled = false;
-    button.textContent = original;
-    await loadTelegramStatus();
-  }
+    const data = await apiFetch('/owner/notifications/test', { method: 'POST' });
+    alert(data.message);
+  } catch (error) { alert(error.message); }
 }
 
-async function testOwnerTelegram() {
-  const button = $d('testTelegramButton');
-  if (!button) return;
-  button.disabled = true;
-  const original = button.textContent;
-  button.textContent = 'Enviando…';
-  try {
-    const data = await apiFetch('/owner/notifications/test', { method:'POST' });
-    alert(data.message);
-  } catch (error) {
-    alert(error.message);
-  } finally {
-    button.disabled = false;
-    button.textContent = original;
-    await loadTelegramStatus();
-  }
-}
+
+
 
 async function refreshOwnerData() {
-  await Promise.all([loadPendingUsers(), loadOwnerAppointments(), loadTelegramStatus()]);
+  await Promise.all([loadPendingUsers(), loadOwnerAppointments(), loadNotificationStatus()]);
   await loadOwnerGallery();
   await loadBlockedDates();
   updateOwnerServiceDurationHint();
@@ -709,37 +686,34 @@ async function loadOwnerGallery() {
   const data = await apiFetch('/owner/portfolio');
   ownerPhotosCache = Array.isArray(data.photos) ? data.photos : [];
   if ($d('photoCount')) $d('photoCount').textContent = ownerPhotosCache.length;
+  const loginPhotos = ownerPhotosCache.filter(photo => photo.visibility === 'login' || photo.visibility === 'both');
+  const clientPhotos = ownerPhotosCache.filter(photo => photo.visibility === 'client' || photo.visibility === 'both');
+  if ($d('loginPhotoCount')) $d('loginPhotoCount').textContent = loginPhotos.length;
+  if ($d('clientPhotoCount')) $d('clientPhotoCount').textContent = clientPhotos.length;
+  renderOwnerPhotoGroup($d('ownerLoginGallery'), loginPhotos, 'login');
+  renderOwnerPhotoGroup($d('ownerClientGallery'), clientPhotos, 'client');
+}
 
-  const gallery = $d('ownerGallery');
-  gallery.innerHTML = '';
-  if (!ownerPhotosCache.length) {
-    gallery.innerHTML = '<div class="empty-state">Todavía no hay fotos publicadas.</div>';
+function renderOwnerPhotoGroup(container, photos, visibility) {
+  if (!container) return;
+  container.innerHTML = '';
+  if (!photos.length) {
+    container.innerHTML = `<div class="empty-state">Todavía no hay fotos en ${visibility === 'login' ? 'inicio de sesión' : 'la página de clienta'}.</div>`;
     return;
   }
-
-  ownerPhotosCache.forEach((photo, index) => {
+  photos.forEach((photo, index) => {
     const figure = document.createElement('figure');
     figure.className = 'portfolio-photo owner-photo';
-    const currentVisibility = photo.visibility === 'both' ? '' : (photo.visibility || 'login');
     figure.innerHTML = `
       <div class="owner-photo-number">${index + 1}</div>
       <img src="${escapeAttribute(photo.image_url)}" alt="${escapeAttribute(photo.title)}" loading="lazy">
       <figcaption>${escapeAttribute(photo.title)}</figcaption>
-      ${photo.visibility === 'both' ? '<small class="photo-legacy-note">Esta foto estaba publicada en ambos espacios. Elige dónde dejarla ahora.</small>' : ''}
-      <label class="photo-visibility">Mostrar en
-        <select data-photo-visibility="${photo.id}">
-          <option value="" ${currentVisibility === '' ? 'selected' : ''}>Selecciona…</option>
-          <option value="login" ${currentVisibility === 'login' ? 'selected' : ''}>Inicio de sesión</option>
-          <option value="client" ${currentVisibility === 'client' ? 'selected' : ''}>Página de clienta</option>
-        </select>
-      </label>
-      <div class="photo-actions">
-        <button type="button" class="small-button ghost" ${index === 0 ? 'disabled' : ''} data-photo-action="move" data-id="${photo.id}" data-direction="up">↑</button>
-        <button type="button" class="small-button ghost" ${index === ownerPhotosCache.length - 1 ? 'disabled' : ''} data-photo-action="move" data-id="${photo.id}" data-direction="down">↓</button>
+      <div class="photo-actions photo-actions-vertical">
         <button type="button" class="small-button ghost" data-photo-action="replace" data-id="${photo.id}">Cambiar foto</button>
         <button type="button" class="remove-photo" data-photo-action="delete" data-id="${photo.id}">Eliminar</button>
+        ${photo.visibility === 'both' ? `<button type="button" class="small-button ghost" data-photo-action="set-visibility" data-id="${photo.id}" data-visibility="${visibility === 'login' ? 'login' : 'client'}">Dejar solo aquí</button>` : ''}
       </div>`;
-    gallery.appendChild(figure);
+    container.appendChild(figure);
   });
 }
 
@@ -757,7 +731,24 @@ async function handlePhotoVisibilityChange(event) {
   }
 }
 
-function handleGalleryAction(event){const button=event.target.closest('[data-photo-action]');if(!button||button.disabled)return;const id=Number(button.dataset.id);if(button.dataset.photoAction==='delete')eliminarFoto(id);if(button.dataset.photoAction==='move')moverFoto(id,button.dataset.direction);if(button.dataset.photoAction==='replace')prepararReemplazoFoto(id);}
+function handleGalleryAction(event) {
+  const button = event.target.closest('[data-photo-action]');
+  if (!button || button.disabled) return;
+  const id = Number(button.dataset.id);
+  if (button.dataset.photoAction === 'delete') eliminarFoto(id);
+  if (button.dataset.photoAction === 'replace') prepararReemplazoFoto(id);
+  if (button.dataset.photoAction === 'set-visibility') setPhotoVisibility(id, button.dataset.visibility);
+}
+
+async function setPhotoVisibility(id, visibility) {
+  if (!['login', 'client'].includes(visibility)) return;
+  try {
+    await apiFetch(`/owner/portfolio/${id}/visibility`, { method: 'PATCH', body: JSON.stringify({ visibility }) });
+    await loadOwnerGallery();
+  } catch (error) {
+    alert(error.message);
+  }
+}
 
 async function subirFoto(event){const file=event.target.files[0];if(!file)return;const form=new FormData();form.append('photo',file);form.append('title','Diseño Suldery Nails');form.append('visibility',$d('photoVisibilityPicker')?.value || 'login');try{await apiFetch('/owner/portfolio',{method:'POST',body:form});await loadOwnerGallery();}catch(error){alert(error.message);}finally{event.target.value='';}}
 

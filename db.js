@@ -117,6 +117,46 @@ async function ensureCompatibilityMigrations() {
       KEY idx_notification_type_sent (notification_type, sent_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
   );
+
+  await pool.query(`CREATE TABLE IF NOT EXISTS app_settings (
+    setting_key VARCHAR(120) NOT NULL,
+    setting_value TEXT NOT NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (setting_key)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+  await pool.query(`CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id INT UNSIGNED NOT NULL,
+    endpoint_hash CHAR(64) NOT NULL,
+    endpoint TEXT NOT NULL,
+    p256dh VARCHAR(255) NOT NULL,
+    auth VARCHAR(255) NOT NULL,
+    content_encoding VARCHAR(30) NOT NULL DEFAULT 'aes128gcm',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_push_endpoint_hash (endpoint_hash),
+    KEY idx_push_user (user_id),
+    CONSTRAINT fk_push_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+  await pool.query(`CREATE TABLE IF NOT EXISTS pending_push_registrations (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id INT UNSIGNED NOT NULL,
+    token_hash CHAR(64) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    used_at DATETIME NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_pending_push_token (token_hash),
+    KEY idx_pending_push_user (user_id),
+    CONSTRAINT fk_pending_push_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+  // Las versiones antiguas permitían "both". Se conserva en MySQL para no perder
+  // fotos existentes, pero la interfaz nueva solo permite escoger una ubicación.
+
 }
 
 async function initDatabase() {

@@ -22,10 +22,12 @@ async function initCliente(){
   $('closeBookingButton').addEventListener('click',closeBooking);
   $('previousMonth').addEventListener('click',previousMonth); $('nextMonth').addEventListener('click',nextMonth);
   $('bookingButton').addEventListener('click',crearCita);
+  $('enableNotificationsButton')?.addEventListener('click', async () => { try { await enableSulderyPush(); $('enableNotificationsButton').textContent='🔔 Avisos activos'; alert('Listo 💕. Este dispositivo recibirá tus avisos importantes.'); } catch (error) { alert(error.message); } });
   $('service').addEventListener('change',onServiceChange);
   updateServiceDurationHint();
   await refreshCalendar();
   await Promise.all([loadAppointments(),loadGallery()]);
+  try { const push = await getSulderyPushStatus(); if (push.subscribed && $('enableNotificationsButton')) $('enableNotificationsButton').textContent='🔔 Avisos activos'; } catch {}
 }
 
 function openBooking(){ $('agenda').classList.remove('hidden-booking'); setTimeout(()=>$('agenda').scrollIntoView({behavior:'smooth',block:'start'}),20); $('calendarFeedback').textContent='Selecciona un día disponible para continuar.'; }

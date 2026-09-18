@@ -6,6 +6,8 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const crypto = require('crypto');
+const http = require('http');
+const https = require('https');
 require('dotenv').config();
 const { pool, initDatabase, testConnection, ensureUploadDirectory } = require('./db');
 
@@ -238,6 +240,18 @@ function dateWeekday(date) {
 
 function formatDbTime(value) {
   return value ? String(value).slice(0, 5) : null;
+}
+
+
+function formatTime12Server(value) {
+  const text = String(value || '').slice(0, 5);
+  const match = /^(\d{2}):(\d{2})$/.exec(text);
+  if (!match) return text || 'hora pendiente';
+  let hour = Number(match[1]);
+  const minute = match[2];
+  const period = hour >= 12 ? 'PM' : 'AM';
+  hour = hour % 12 || 12;
+  return `${hour}:${minute} ${period}`;
 }
 
 function serviceDuration(service) {
@@ -658,10 +672,12 @@ app.post('/api/auth/register', async (req, res) => {
       `INSERT INTO users(name,email,phone,password_hash,role,status) VALUES(?,?,?,?,'client','pending')`,
       [name, email, phone, passwordHash]
     );
+    const pushRegistrationToken = await issuePendingPushToken(result.insertId);
     void notifyNewClientAccount({ id: result.insertId, name, email, phone });
     const firstName = name.split(/\s+/)[0] || name;
     res.status(201).json({
-      message: `Hola ${firstName} 💕, ya recibimos tu solicitud para unirte a Suldery Nails. Solo falta que Suldery la apruebe. Te avisaremos apenas esté lista para ti. ¡Gracias por confiar en Suldery! 💅✨`
+      message: `Hola ${firstName} 💕, ya recibimos tu solicitud para unirte a Suldery Nails. Solo falta que Suldery la apruebe. Te avisaremos apenas esté lista para ti. ¡Gracias por confiar en Suldery! 💅✨`,
+      push_registration_token: pushRegistrationToken
     });
   } catch (error) {
     console.error(error);
@@ -902,264 +918,355 @@ function colombiaDateTime(date, time) {
   return new Date(`${safeDate}T${safeTime}:00-05:00`);
 }
 
-function getTelegramConfig() {
-  const botToken = String(process.env.TELEGRAM_BOT_TOKEN || '').trim();
-  const chatId = String(process.env.TELEGRAM_CHAT_ID || '').trim();
-  const missing = [];
-  if (!botToken) missing.push('TELEGRAM_BOT_TOKEN');
-  if (!chatId) missing.push('TELEGRAM_CHAT_ID');
-  return { botToken, chatId, missing };
+
+let vapidConfig = null;
+const VAPID_SUBJECT = 'mailto:notifications@sulderynails.app';
+
+function base64url(buffer) {
+  return Buffer.from(buffer).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
-function maskChatId(chatId) {
-  const value = String(chatId || '').trim();
-  if (!value) return 'sin configurar';
-  if (value.length <= 6) return '••••' + value;
-  return `${value.slice(0, 3)}••••${value.slice(-3)}`;
+function fromBase64url(value) {
+  const text = String(value || '');
+  return Buffer.from(text.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (text.length % 4)) % 4), 'base64');
 }
 
-async function sendTelegram(to, message) {
-  const config = getTelegramConfig();
-  if (config.missing.length) {
-    return { sent: false, skipped: true, missing: config.missing };
+function hkdfExtract(salt, ikm) {
+  return crypto.createHmac('sha256', salt).update(ikm).digest();
+}
+
+function hkdfExpand(prk, info, length) {
+  const result = [];
+  let previous = Buffer.alloc(0);
+  for (let counter = 1; Buffer.concat(result).length < length; counter += 1) {
+    previous = crypto.createHmac('sha256', prk)
+      .update(Buffer.concat([previous, Buffer.from(info), Buffer.from([counter])]))
+      .digest();
+    result.push(previous);
+    if (counter > 255) throw new Error('HKDF demasiado largo.');
+  }
+  return Buffer.concat(result).subarray(0, length);
+}
+
+function publicKeyBytesFromJwk(jwk) {
+  return Buffer.concat([Buffer.from([4]), fromBase64url(jwk.x), fromBase64url(jwk.y)]);
+}
+
+function encryptSetting(plainText) {
+  const key = crypto.createHash('sha256').update(JWT_SECRET).digest();
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const ciphertext = Buffer.concat([cipher.update(String(plainText), 'utf8'), cipher.final()]);
+  return JSON.stringify({ iv: base64url(iv), data: base64url(ciphertext), tag: base64url(cipher.getAuthTag()) });
+}
+
+function decryptSetting(payload) {
+  const parsed = JSON.parse(String(payload || '{}'));
+  const key = crypto.createHash('sha256').update(JWT_SECRET).digest();
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, fromBase64url(parsed.iv));
+  decipher.setAuthTag(fromBase64url(parsed.tag));
+  return Buffer.concat([decipher.update(fromBase64url(parsed.data)), decipher.final()]).toString('utf8');
+}
+
+async function ensureVapidKeys() {
+  const [rows] = await pool.query(
+    `SELECT setting_key,setting_value FROM app_settings WHERE setting_key IN ('vapid_public_key','vapid_private_key')`
+  );
+  const values = new Map(rows.map(row => [row.setting_key, row.setting_value]));
+
+  if (values.has('vapid_public_key') && values.has('vapid_private_key')) {
+    try {
+      const privateJwk = JSON.parse(decryptSetting(values.get('vapid_private_key')));
+      const privateKey = crypto.createPrivateKey({ key: privateJwk, format: 'jwk' });
+      vapidConfig = { privateKey, publicKey: values.get('vapid_public_key') };
+      return vapidConfig;
+    } catch (error) {
+      console.error('No se pudieron recuperar las claves de avisos. Se generarán nuevas.', error.message);
+    }
   }
 
-  const response = await fetch(`https://api.telegram.org/bot${encodeURIComponent(config.botToken)}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      chat_id: String(to || config.chatId),
-      text: String(message),
-      disable_web_page_preview: true
-    })
+  const pair = crypto.generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+  const privateJwk = pair.privateKey.export({ format: 'jwk' });
+  const publicJwk = pair.publicKey.export({ format: 'jwk' });
+  const publicKey = base64url(publicKeyBytesFromJwk(publicJwk));
+
+  await pool.query(
+    `INSERT INTO app_settings(setting_key,setting_value) VALUES('vapid_public_key',?)
+     ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value)`,
+    [publicKey]
+  );
+  await pool.query(
+    `INSERT INTO app_settings(setting_key,setting_value) VALUES('vapid_private_key',?)
+     ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value)`,
+    [encryptSetting(JSON.stringify(privateJwk))]
+  );
+
+  vapidConfig = { privateKey: pair.privateKey, publicKey };
+  return vapidConfig;
+}
+
+function createVapidJwt(audience) {
+  if (!vapidConfig) throw new Error('Los avisos todavía no están preparados.');
+  const header = base64url(Buffer.from(JSON.stringify({ typ: 'JWT', alg: 'ES256' })));
+  const payload = base64url(Buffer.from(JSON.stringify({
+    aud: audience,
+    exp: Math.floor(Date.now() / 1000) + 12 * 60 * 60,
+    sub: VAPID_SUBJECT
+  })));
+  const unsigned = `${header}.${payload}`;
+  const signature = crypto.createSign('SHA256')
+    .update(unsigned)
+    .end()
+    .sign({ key: vapidConfig.privateKey, dsaEncoding: 'ieee-p1363' });
+  return `${unsigned}.${base64url(signature)}`;
+}
+
+function encryptWebPushPayload(subscription, message) {
+  const receiverPublic = fromBase64url(subscription.p256dh);
+  const authSecret = fromBase64url(subscription.auth);
+  if (receiverPublic.length !== 65) throw new Error('La suscripción tiene una clave pública inválida.');
+  if (authSecret.length !== 16) throw new Error('La suscripción tiene un secreto de autenticación inválido.');
+
+  const receiverKey = crypto.createPublicKey({
+    key: {
+      kty: 'EC', crv: 'P-256',
+      x: base64url(receiverPublic.subarray(1, 33)),
+      y: base64url(receiverPublic.subarray(33, 65))
+    },
+    format: 'jwk'
   });
 
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok || data.ok !== true) {
-    throw new Error(`Telegram ${response.status}: ${data.description || 'No se pudo enviar el mensaje.'}`);
-  }
+  const senderPair = crypto.generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+  const senderPublic = publicKeyBytesFromJwk(senderPair.publicKey.export({ format: 'jwk' }));
+  const ecdhSecret = crypto.diffieHellman({ privateKey: senderPair.privateKey, publicKey: receiverKey });
 
-  return { sent: true, messageId: data.result?.message_id || null };
+  const prkKey = hkdfExtract(authSecret, ecdhSecret);
+  const keyInfo = Buffer.concat([Buffer.from('WebPush: info\0'), receiverPublic, senderPublic]);
+  const ikm = hkdfExpand(prkKey, keyInfo, 32);
+
+  const salt = crypto.randomBytes(16);
+  const prk = hkdfExtract(salt, ikm);
+  const cek = hkdfExpand(prk, Buffer.from('Content-Encoding: aes128gcm\0'), 16);
+  const nonce = hkdfExpand(prk, Buffer.from('Content-Encoding: nonce\0'), 12);
+
+  const padded = Buffer.concat([Buffer.from(String(message), 'utf8'), Buffer.from([2])]);
+  const cipher = crypto.createCipheriv('aes-128-gcm', cek, nonce);
+  const encrypted = Buffer.concat([cipher.update(padded), cipher.final(), cipher.getAuthTag()]);
+
+  const rs = Buffer.alloc(4);
+  rs.writeUInt32BE(4096, 0);
+  return Buffer.concat([salt, rs, Buffer.from([senderPublic.length]), senderPublic, encrypted]);
 }
 
-async function sendTelegramOnce(notificationKey, notificationType, message) {
-  const config = getTelegramConfig();
-  if (config.missing.length) return { sent: false, skipped: true, missing: config.missing };
-
-  const existing = await pool.query(
-    'SELECT id FROM notification_log WHERE notification_key=? LIMIT 1',
-    [notificationKey]
-  );
-  if (existing[0].length) return { sent: true, alreadySent: true };
-
-  try {
-    const result = await sendTelegram(config.chatId, message);
-    await pool.query(
-      `INSERT INTO notification_log(notification_key,notification_type)
-       VALUES(?,?)
-       ON DUPLICATE KEY UPDATE notification_key=notification_key`,
-      [notificationKey, notificationType]
-    );
-    return result;
-  } catch (error) {
-    console.error(`No se pudo enviar ${notificationType}:`, error.message);
-    return { sent: false, error: error.message };
-  }
-}
-
-function getSmsConfig() {
-  const accountSid = String(process.env.TWILIO_ACCOUNT_SID || '').trim();
-  const authToken = String(process.env.TWILIO_AUTH_TOKEN || '').trim();
-  const ownerPhone = normalizePhoneNumber(process.env.OWNER_SMS_TO || '');
-  const from = normalizePhoneNumber(process.env.TWILIO_FROM || '');
-  const messagingServiceSid = String(process.env.TWILIO_MESSAGING_SERVICE_SID || '').trim();
-  const missing = [];
-  if (!accountSid) missing.push('TWILIO_ACCOUNT_SID');
-  if (!authToken) missing.push('TWILIO_AUTH_TOKEN');
-  if (!from && !messagingServiceSid) missing.push('TWILIO_FROM o TWILIO_MESSAGING_SERVICE_SID');
-  return { accountSid, authToken, ownerPhone, from, messagingServiceSid, missing };
-}
-
-async function sendSms(to, message) {
-  const config = getSmsConfig();
-  if (config.missing.length) {
-    return { sent: false, skipped: true, missing: config.missing };
-  }
-
-  const credentials = Buffer.from(`${config.accountSid}:${config.authToken}`).toString('base64');
-  const params = {
-    To: normalizePhoneNumber(to),
-    Body: message
-  };
-
-  if (config.messagingServiceSid) params.MessagingServiceSid = config.messagingServiceSid;
-  else params.From = config.from;
-
-  if (!params.To) return { sent: false, skipped: true, missing: ['número destinatario'] };
-
-  const response = await fetch(
-    `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(config.accountSid)}/Messages.json`,
-    {
+function requestBytes(urlString, body, headers) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(urlString);
+    const transport = url.protocol === 'https:' ? https : http;
+    const request = transport.request({
       method: 'POST',
-      headers: {
-        Authorization: `Basic ${credentials}`,
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: new URLSearchParams(params)
-    }
-  );
-
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(`Twilio ${response.status}: ${detail.slice(0, 500)}`);
-  }
-
-  const data = await response.json().catch(() => ({}));
-  return { sent: true, sid: data.sid || '' };
+      hostname: url.hostname,
+      port: url.port || (url.protocol === 'https:' ? 443 : 80),
+      path: `${url.pathname}${url.search}`,
+      headers: { ...headers, 'Content-Length': Buffer.byteLength(body) }
+    }, response => {
+      const chunks = [];
+      response.on('data', chunk => chunks.push(chunk));
+      response.on('end', () => resolve({
+        statusCode: response.statusCode || 0,
+        body: Buffer.concat(chunks).toString('utf8')
+      }));
+    });
+    request.on('error', reject);
+    request.write(body);
+    request.end();
+  });
 }
 
-async function sendSmsOnce(notificationKey, notificationType, to, message) {
-  const existing = await pool.query(
-    'SELECT id FROM notification_log WHERE notification_key=? LIMIT 1',
-    [notificationKey]
-  );
-  if (existing[0].length) return { sent: true, alreadySent: true };
+async function sendWebPush(subscription, payload) {
+  const endpoint = new URL(subscription.endpoint);
+  const body = encryptWebPushPayload(subscription, JSON.stringify(payload));
+  const audience = `${endpoint.protocol}//${endpoint.host}`;
+  const response = await requestBytes(subscription.endpoint, body, {
+    TTL: '86400',
+    Urgency: 'high',
+    'Content-Type': 'application/octet-stream',
+    'Content-Encoding': 'aes128gcm',
+    Authorization: `vapid t=${createVapidJwt(audience)}, k=${vapidConfig.publicKey}`
+  });
 
-  try {
-    const result = await sendSms(to, message);
-    if (!result.sent) return result;
-
-    await pool.query(
-      `INSERT INTO notification_log(notification_key,notification_type)
-       VALUES(?,?)
-       ON DUPLICATE KEY UPDATE notification_key=notification_key`,
-      [notificationKey, notificationType]
-    );
-    return result;
-  } catch (error) {
-    console.error(`No se pudo enviar ${notificationType}:`, error.message);
-    return { sent: false, error: error.message };
+  if (response.statusCode === 404 || response.statusCode === 410) return { sent: false, gone: true };
+  if (response.statusCode < 200 || response.statusCode >= 300) {
+    throw new Error(`El servicio de avisos respondió ${response.statusCode}: ${response.body.slice(0, 250)}`);
   }
+  return { sent: true };
+}
+
+async function sendPushToUser(userId, message, url) {
+  if (!vapidConfig) await ensureVapidKeys();
+  const [rows] = await pool.query(
+    `SELECT id,endpoint,p256dh,auth,content_encoding FROM push_subscriptions WHERE user_id=?`,
+    [userId]
+  );
+  if (!rows.length) return { sent: false, skipped: true, missing: ['avisos no activados en el dispositivo'] };
+
+  let delivered = 0;
+  for (const subscription of rows) {
+    try {
+      const result = await sendWebPush(subscription, {
+        title: 'Suldery Nails 💕',
+        body: message,
+        url: url || ownerPanelUrl(),
+        icon: 'assets/suldery-nails-icon-192.png',
+        tag: `suldery-${Date.now()}`
+      });
+      if (result.sent) delivered += 1;
+      if (result.gone) await pool.query('DELETE FROM push_subscriptions WHERE id=?', [subscription.id]);
+    } catch (error) {
+      console.error('No se pudo enviar un aviso push:', error.message);
+    }
+  }
+  return { sent: delivered > 0, delivered, total: rows.length };
+}
+
+async function sendPushOnce(notificationKey, notificationType, userId, message, url) {
+  const [existing] = await pool.query('SELECT id FROM notification_log WHERE notification_key=? LIMIT 1', [notificationKey]);
+  if (existing.length) return { sent: true, alreadySent: true };
+
+  const result = await sendPushToUser(userId, message, url);
+  if (!result.sent) return result;
+
+  await pool.query(
+    `INSERT INTO notification_log(notification_key,notification_type) VALUES(?,?)
+     ON DUPLICATE KEY UPDATE notification_key=notification_key`,
+    [notificationKey, notificationType]
+  );
+  return result;
+}
+
+function firstNameOf(value) {
+  return String(value || '').trim().split(/\s+/)[0] || 'hola';
 }
 
 function ownerPanelUrl() {
   return 'https://suldery-nails-production.up.railway.app/duena.html';
 }
 
+function clientPanelUrl() {
+  return 'https://suldery-nails-production.up.railway.app/cliente.html';
+}
+
+function notificationDateTime(date, time) {
+  return `${formatHumanDate(date)} a las ${formatTime12Server(time)}`;
+}
+
+async function getOwnerIds() {
+  const [rows] = await pool.query(`SELECT id FROM users WHERE role='owner' AND status='accepted'`);
+  return rows.map(row => Number(row.id));
+}
+
+async function notifyOwners(message, keyPrefix, type) {
+  const ownerIds = await getOwnerIds();
+  return Promise.all(ownerIds.map(ownerId => sendPushOnce(`${keyPrefix}:owner:${ownerId}`, type, ownerId, message, ownerPanelUrl())));
+}
+
+async function issuePendingPushToken(userId) {
+  const rawToken = base64url(crypto.randomBytes(36));
+  const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+  await pool.query('DELETE FROM pending_push_registrations WHERE user_id=? OR expires_at<NOW()', [userId]);
+  await pool.query(
+    `INSERT INTO pending_push_registrations(user_id,token_hash,expires_at) VALUES(?,?,DATE_ADD(NOW(), INTERVAL 24 HOUR))`,
+    [userId, tokenHash]
+  );
+  return rawToken;
+}
+
 async function notifyNewClientAccount({ id, name, email, phone }) {
-  return sendTelegramOnce(
-    `account-pending:owner:${id}`,
-    'account_pending_owner_telegram',
-    `Hola Suldery 💕
-
-Una nueva clienta quiere unirse a Suldery Nails y su cuenta está pendiente de aprobación.
-
-👤 ${name}
-✉️ ${email}
-📱 ${phone || 'sin teléfono'}
-
-Puedes revisar la solicitud en tu panel:
-${ownerPanelUrl()}`
+  return notifyOwners(
+    `Hola Suldery 💕, una nueva clienta quiere ser parte de Suldery Nails.\n\n👤 ${name}\n✉️ ${email}\n📱 ${phone || 'sin teléfono'}\n\nSu cuenta quedó pendiente de aprobación. Cuando tengas un momento, puedes revisarla en tu panel.`,
+    `account-pending:${id}`,
+    'account_pending_owner_push'
   );
 }
 
-async function notifyClientAccountAccepted({ id, name, phone }) {
-  if (!phone) return { sent: false, skipped: true, missing: ['teléfono de la clienta'] };
-  const firstName = String(name || '').trim().split(/\s+/)[0] || name;
-  return sendSmsOnce(
+async function notifyClientAccountAccepted({ id, name }) {
+  return sendPushOnce(
     `account-accepted:client:${id}`,
-    'account_accepted_client',
-    phone,
-    `Hola ${firstName} 💕, ¡qué alegría tenerte en Suldery Nails! Tu cuenta ya fue aprobada y está lista para que puedas iniciar sesión y reservar tu cita. Te esperamos con mucho cariño. 💅✨`
+    'account_accepted_client_push',
+    id,
+    `Hola ${firstNameOf(name)} 💕, ¡qué alegría tenerte en Suldery Nails! Tu cuenta ya fue activada y ya puedes entrar para elegir tu próxima cita. Te esperamos con mucho cariño. 💅✨`,
+    clientPanelUrl()
   );
 }
 
-async function notifyClientAccountRejected({ id, name, phone }) {
-  if (!phone) return { sent: false, skipped: true, missing: ['teléfono de la clienta'] };
-  const firstName = String(name || '').trim().split(/\s+/)[0] || name;
-  return sendSmsOnce(
+async function notifyClientAccountRejected({ id, name }) {
+  return sendPushOnce(
     `account-rejected:client:${id}`,
-    'account_rejected_client',
-    phone,
-    `Hola ${firstName}, gracias por querer ser parte de Suldery Nails. Por ahora no pudimos aprobar tu cuenta. Puedes comunicarte con Suldery al 310 631 9093 si necesitas revisar algo. 💕`
+    'account_rejected_client_push',
+    id,
+    `Hola ${firstNameOf(name)} 💕, por ahora no pudimos activar tu cuenta en Suldery Nails. Si necesitas hablar con Suldery, puedes escribirle o llamarle al 310 631 9093.`,
+    'https://suldery-nails-production.up.railway.app/'
   );
 }
 
 async function notifyNewClientAppointment({ id, clientName, phone, service, date, time }) {
-  return sendTelegramOnce(
-    `appointment-pending:owner:${id}`,
-    'appointment_pending_owner_telegram',
-    `Hola Suldery 💕
-
-${clientName} acaba de solicitar una cita.
-
-💅 ${service}
-📅 ${formatSmsDateTime(date, time)}
-📱 ${phone || 'sin teléfono'}
-
-La solicitud está pendiente de confirmación.
-
-Revisar agenda:
-${ownerPanelUrl()}`
+  return notifyOwners(
+    `Hola Suldery 💕, ${clientName} acaba de solicitar una cita.\n\n💅 ${service}\n📅 ${notificationDateTime(date, time)}\n📱 ${phone || 'sin teléfono'}\n\nLa solicitud está pendiente de confirmación.`,
+    `appointment-pending:${id}`,
+    'appointment_pending_owner_push'
   );
 }
 
-async function notifyClientAppointmentAccepted({ id, clientName, phone, service, date, time }) {
-  if (!phone) return { sent: false, skipped: true, missing: ['teléfono de la clienta'] };
-  const firstName = String(clientName || '').trim().split(/\s+/)[0] || clientName;
-  return sendSmsOnce(
+async function notifyClientAppointmentAccepted({ id, clientName, service, date, time }) {
+  const [rows] = await pool.query('SELECT user_id FROM appointments WHERE id=? LIMIT 1', [id]);
+  const userId = rows[0]?.user_id;
+  if (!userId) return { sent: false, skipped: true };
+  return sendPushOnce(
     `appointment-accepted:client:${id}`,
-    'appointment_accepted_client',
-    phone,
-    `Hola ${firstName} 💕, tu cita en Suldery Nails quedó confirmada. Te esperamos ${formatSmsDateTime(date, time)} para tu ${service}. Guarda este mensaje como recordatorio. 💅✨`
+    'appointment_accepted_client_push',
+    userId,
+    `Hola ${firstNameOf(clientName)} 💕, tu cita en Suldery Nails ya quedó confirmada para ${notificationDateTime(date, time)}, para tu ${service}. ¡Te esperamos! 💅✨`,
+    clientPanelUrl()
   );
 }
 
-async function notifyClientAppointmentRejected({ id, clientName, phone, service, date, time }) {
-  if (!phone) return { sent: false, skipped: true, missing: ['teléfono de la clienta'] };
-  const firstName = String(clientName || '').trim().split(/\s+/)[0] || clientName;
-  return sendSmsOnce(
+async function notifyClientAppointmentRejected({ id, clientName, service, date, time }) {
+  const [rows] = await pool.query('SELECT user_id FROM appointments WHERE id=? LIMIT 1', [id]);
+  const userId = rows[0]?.user_id;
+  if (!userId) return { sent: false, skipped: true };
+  return sendPushOnce(
     `appointment-rejected:client:${id}`,
-    'appointment_rejected_client',
-    phone,
-    `Hola ${firstName}, la solicitud de tu cita para ${formatSmsDateTime(date, time)} de ${service} no pudo ser confirmada. Puedes entrar a Suldery Nails y escoger otro espacio disponible. 💕`
+    'appointment_rejected_client_push',
+    userId,
+    `Hola ${firstNameOf(clientName)}, la solicitud de tu cita para ${notificationDateTime(date, time)} de ${service} no pudo ser confirmada. Puedes volver a Suldery Nails y elegir otro horario. 💕`,
+    clientPanelUrl()
   );
 }
 
-async function notifyClientAppointmentCancelled({ id, clientName, phone, service, date, time }) {
-  if (!phone) return { sent: false, skipped: true, missing: ['teléfono de la clienta'] };
-  const firstName = String(clientName || '').trim().split(/\s+/)[0] || clientName;
-  return sendSmsOnce(
+async function notifyClientAppointmentCancelled({ id, clientName, service, date, time }) {
+  const [rows] = await pool.query('SELECT user_id FROM appointments WHERE id=? LIMIT 1', [id]);
+  const userId = rows[0]?.user_id;
+  if (!userId) return { sent: false, skipped: true };
+  return sendPushOnce(
     `appointment-cancelled:client:${id}`,
-    'appointment_cancelled_client',
-    phone,
-    `Hola ${firstName}, tu cita de ${service} para ${formatSmsDateTime(date, time)} fue cancelada. Si necesitas ayuda para encontrar otro horario, puedes comunicarte con Suldery al 310 631 9093. 💕`
+    'appointment_cancelled_client_push',
+    userId,
+    `Hola ${firstNameOf(clientName)}, tu cita de ${service} para ${notificationDateTime(date, time)} fue cancelada. Puedes entrar a Suldery Nails para buscar otro espacio. 💕`,
+    clientPanelUrl()
   );
 }
 
 async function notifyOwnerAppointmentCancelled({ id, clientName, phone, service, date, time }) {
-  return sendTelegramOnce(
-    `appointment-cancelled:owner:${id}`,
-    'appointment_cancelled_owner_telegram',
-    `Hola Suldery 💕
-
-${clientName} canceló su cita.
-
-💅 ${service}
-📅 ${formatSmsDateTime(date, time)}
-📱 ${phone || 'sin teléfono'}
-
-Tu agenda ya quedó liberada.`
+  return notifyOwners(
+    `Hola Suldery 💕, ${clientName} canceló su cita.\n\n💅 ${service}\n📅 ${notificationDateTime(date, time)}\n📱 ${phone || 'sin teléfono'}\n\nEl espacio ya quedó libre en tu agenda.`,
+    `appointment-cancelled:${id}`,
+    'appointment_cancelled_owner_push'
   );
 }
 
 async function sendPendingSummary() {
   try {
     const [users] = await pool.query(`SELECT COUNT(*) AS total FROM users WHERE role='client' AND status='pending'`);
-    const [appointments] = await pool.query(
-      `SELECT COUNT(*) AS total FROM appointments WHERE status='pending' AND appointment_date >= ?`,
-      [colombiaTodayISO()]
-    );
+    const [appointments] = await pool.query(`SELECT COUNT(*) AS total FROM appointments WHERE status='pending' AND appointment_date >= ?`, [colombiaTodayISO()]);
     const pendingUsers = Number(users[0]?.total || 0);
     const pendingAppointments = Number(appointments[0]?.total || 0);
     if (!pendingUsers && !pendingAppointments) return;
@@ -1168,12 +1275,7 @@ async function sendPendingSummary() {
     const parts = [];
     if (pendingUsers) parts.push(`${pendingUsers} cuenta${pendingUsers === 1 ? '' : 's'} pendiente${pendingUsers === 1 ? '' : 's'} de aprobación`);
     if (pendingAppointments) parts.push(`${pendingAppointments} cita${pendingAppointments === 1 ? '' : 's'} pendiente${pendingAppointments === 1 ? '' : 's'} de confirmar`);
-
-    await sendTelegramOnce(
-      `pending-summary:owner:${bucket}`,
-      'pending_summary_owner_telegram',
-      `Hola Suldery 💕, tienes ${parts.join(' y ')}. Cuando tengas un momento, puedes revisarlas aquí:\n${ownerPanelUrl()}`
-    );
+    await notifyOwners(`Hola Suldery 💕, tienes ${parts.join(' y ')}. Cuando tengas un momento, puedes revisarlas en tu panel.`, `pending-summary:${bucket}`, 'pending_summary_owner_push');
   } catch (error) {
     console.error('No se pudo preparar el resumen de pendientes:', error.message);
   }
@@ -1185,46 +1287,53 @@ async function sendUpcomingAppointmentReminders() {
     const upper = new Date(`${today}T12:00:00-05:00`);
     upper.setUTCDate(upper.getUTCDate() + 2);
     const upperDate = upper.toISOString().slice(0, 10);
-
     const [rows] = await pool.query(
-      `SELECT a.id,a.client_name,a.client_phone,a.service,a.appointment_date,a.appointment_time,
-              u.phone AS user_phone
-       FROM appointments a
-       LEFT JOIN users u ON u.id=a.user_id
+      `SELECT a.id,a.user_id,a.client_name,a.client_phone,a.service,a.appointment_date,a.appointment_time,u.phone AS user_phone
+       FROM appointments a LEFT JOIN users u ON u.id=a.user_id
        WHERE a.status='accepted' AND a.appointment_date BETWEEN ? AND ?
-       ORDER BY a.appointment_date,a.appointment_time`,
-      [today, upperDate]
+       ORDER BY a.appointment_date,a.appointment_time`, [today, upperDate]
     );
-
     const now = Date.now();
 
     for (const appt of rows) {
       const dateText = dateOnly(appt.appointment_date);
-      const timeText = String(appt.appointment_time).slice(0, 5);
+      const timeText = formatDbTime(appt.appointment_time);
       const when = colombiaDateTime(dateText, timeText).getTime();
       const minutesAway = (when - now) / 60000;
       const clientPhone = appt.client_phone || appt.user_phone || '';
 
       if (minutesAway > 23 * 60 && minutesAway <= 25 * 60) {
-        await sendTelegramOnce(
-          `appointment-reminder-24h:owner:${appt.id}`,
-          'appointment_reminder_24h_owner_telegram',
-          `Hola Suldery 💕
-
-Recuerdito de agenda: mañana tienes a ${appt.client_name} para ${appt.service} a las ${formatTime12(timeText)} (${formatShortDate(dateText)}).
-📱 Teléfono: ${clientPhone || 'sin teléfono'}.`
+        await notifyOwners(
+          `Hola Suldery 💕, recordatorio para mañana: tienes a ${appt.client_name} a las ${formatTime12Server(timeText)} para ${appt.service}. 📱 ${clientPhone || 'sin teléfono'}.`,
+          `appointment-reminder-24h:${appt.id}`,
+          'appointment_reminder_24h_owner_push'
         );
+        if (appt.user_id) {
+          await sendPushOnce(
+            `appointment-reminder-24h:client:${appt.id}`,
+            'appointment_reminder_24h_client_push',
+            appt.user_id,
+            `Hola ${firstNameOf(appt.client_name)} 💕, mañana tienes tu cita en Suldery Nails a las ${formatTime12Server(timeText)} para ${appt.service}. ¡Te esperamos! 💅✨`,
+            clientPanelUrl()
+          );
+        }
       }
 
       if (minutesAway > 25 && minutesAway <= 35) {
-        await sendTelegramOnce(
-          `appointment-reminder-30m:owner:${appt.id}`,
-          'appointment_reminder_30m_owner_telegram',
-          `Hola Suldery 💕
-
-Falta poquito: en unos 30 minutos tienes a ${appt.client_name} para ${appt.service}, a las ${formatTime12(timeText)}.
-📱 Teléfono: ${clientPhone || 'sin teléfono'}. ✨`
+        await notifyOwners(
+          `Hola Suldery 💕, faltan unos 30 minutos para la cita de ${appt.client_name} (${appt.service}) a las ${formatTime12Server(timeText)}. 📱 ${clientPhone || 'sin teléfono'}. ✨`,
+          `appointment-reminder-30m:${appt.id}`,
+          'appointment_reminder_30m_owner_push'
         );
+        if (appt.user_id) {
+          await sendPushOnce(
+            `appointment-reminder-30m:client:${appt.id}`,
+            'appointment_reminder_30m_client_push',
+            appt.user_id,
+            `Hola ${firstNameOf(appt.client_name)} 💕, faltan unos 30 minutos para tu cita en Suldery Nails: ${formatTime12Server(timeText)} para ${appt.service}. 💅✨`,
+            clientPanelUrl()
+          );
+        }
       }
     }
   } catch (error) {
@@ -1237,7 +1346,6 @@ function startOwnerNotificationBot() {
     await sendPendingSummary();
     await sendUpcomingAppointmentReminders();
   };
-
   setTimeout(run, 10000);
   setInterval(run, 60 * 1000);
 }
@@ -1341,7 +1449,7 @@ app.patch('/api/appointments/:id/cancel', authRequired, async (req, res) => {
 app.get('/api/portfolio', async (req, res) => {
   try {
     const visibility = String(req.query.visibility || 'client').trim();
-    const allowed = ['login','client','both'];
+    const allowed = ['login','client'];
     if (!allowed.includes(visibility)) return res.status(400).json({ message: 'Visibilidad inválida.' });
 
     const [rows] = await pool.query(
@@ -1358,7 +1466,7 @@ app.get('/api/portfolio', async (req, res) => {
       image_url: row.image_data
         ? `data:${row.image_mime || 'image/jpeg'};base64,${Buffer.from(row.image_data).toString('base64')}`
         : row.image_url,
-      visibility: row.visibility || 'both',
+      visibility: row.visibility || 'login',
       display_order: row.display_order,
       created_at: row.created_at
     }));
@@ -1369,52 +1477,112 @@ app.get('/api/portfolio', async (req, res) => {
   }
 });
 
-app.get('/api/owner/notifications/status', authRequired, ownerRequired, (_req, res) => {
-  const config = getTelegramConfig();
-  res.json({
-    configured: config.missing.length === 0,
-    destination: maskChatId(config.chatId),
-    missing: config.missing,
-    mode: 'telegram'
-  });
-});
-
-app.get('/api/owner/notifications/telegram/detect-chat', authRequired, ownerRequired, async (_req, res) => {
-  const config = getTelegramConfig();
-  if (!config.botToken) return res.status(503).json({ message: 'Primero configura TELEGRAM_BOT_TOKEN en Railway.' });
+app.get('/api/notifications/public-key', async (_req, res) => {
   try {
-    const response = await fetch(`https://api.telegram.org/bot${encodeURIComponent(config.botToken)}/getUpdates`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ allowed_updates: ['message'], limit: 20, timeout: 0 })
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || data.ok !== true) {
-      throw new Error(data.description || 'Telegram no pudo consultar los mensajes del bot.');
-    }
-    const updates = Array.isArray(data.result) ? data.result : [];
-    const privateMessages = updates
-      .map(update => update.message)
-      .filter(message => message?.chat?.type === 'private' && message.chat.id)
-      .sort((a, b) => Number(b.date || 0) - Number(a.date || 0));
-    const last = privateMessages[0];
-    if (!last) {
-      return res.status(404).json({ message: 'Todavía no encontré un chat privado. Abre tu bot en Telegram y envíale /start; después pulsa Detectar chat.' });
-    }
-    res.json({ chat_id: String(last.chat.id), first_name: last.chat.first_name || '', username: last.chat.username || '' });
+    if (!vapidConfig) await ensureVapidKeys();
+    res.json({ publicKey: vapidConfig.publicKey });
   } catch (error) {
-    console.error('No se pudo detectar el chat de Telegram:', error.message);
-    res.status(502).json({ message: error.message || 'No se pudo consultar Telegram.' });
+    console.error('No se pudo preparar la clave pública de avisos:', error.message);
+    res.status(500).json({ message: 'No se pudieron preparar los avisos.' });
   }
 });
 
-app.post('/api/owner/notifications/test', authRequired, ownerRequired, async (_req, res) => {
-  const result = await sendTelegram(getTelegramConfig().chatId, 'Hola Suldery 💕, este es un mensaje de prueba de SULDERY NAILS. Tu bot de avisos por Telegram ya está listo. ✨');
-  if (!result.sent) {
-    if (result.skipped) return res.status(503).json({ message: `El bot de Telegram todavía no está configurado. Falta: ${result.missing.join(', ')}.` });
-    return res.status(502).json({ message: result.error || 'Telegram no pudo enviar el mensaje.' });
+app.get('/api/notifications/status', authRequired, async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT COUNT(*) AS total FROM push_subscriptions WHERE user_id=?', [req.auth.id]);
+    res.json({ subscribed: Number(rows[0]?.total || 0) > 0, devices: Number(rows[0]?.total || 0) });
+  } catch {
+    res.status(500).json({ message: 'No se pudo comprobar el estado de los avisos.' });
   }
-  res.json({ message: 'Mensaje de prueba enviado a tu Telegram. 💕' });
+});
+
+app.post('/api/notifications/subscribe', authRequired, async (req, res) => {
+  try {
+    const subscription = req.body || {};
+    const endpoint = String(subscription.endpoint || '').trim();
+    const p256dh = String(subscription.keys?.p256dh || '').trim();
+    const auth = String(subscription.keys?.auth || '').trim();
+    if (!/^https:\/\//i.test(endpoint) || !p256dh || !auth) return res.status(400).json({ message: 'Suscripción de avisos inválida.' });
+    const endpointHash = crypto.createHash('sha256').update(endpoint).digest('hex');
+    await pool.query(
+      `INSERT INTO push_subscriptions(user_id,endpoint_hash,endpoint,p256dh,auth,content_encoding)
+       VALUES(?,?,?,?,?,?)
+       ON DUPLICATE KEY UPDATE user_id=VALUES(user_id),endpoint=VALUES(endpoint),p256dh=VALUES(p256dh),auth=VALUES(auth),content_encoding=VALUES(content_encoding),updated_at=CURRENT_TIMESTAMP`,
+      [req.auth.id, endpointHash, endpoint, p256dh, auth, String(subscription.contentEncoding || subscription.content_encoding || 'aes128gcm')]
+    );
+    res.json({ message: 'Avisos activados en este dispositivo.' });
+  } catch (error) {
+    console.error('No se pudo guardar la suscripción de avisos:', error.message);
+    res.status(500).json({ message: 'No se pudieron activar los avisos.' });
+  }
+});
+
+app.post('/api/notifications/subscribe-pending', async (req, res) => {
+  try {
+    const token = String(req.body?.token || '').trim();
+    const subscription = req.body?.subscription || {};
+    const endpoint = String(subscription.endpoint || '').trim();
+    const p256dh = String(subscription.keys?.p256dh || '').trim();
+    const auth = String(subscription.keys?.auth || '').trim();
+    if (!token || !/^https:\/\//i.test(endpoint) || !p256dh || !auth) return res.status(400).json({ message: 'No se pudo guardar el aviso del dispositivo.' });
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const [rows] = await pool.query(
+      `SELECT id,user_id FROM pending_push_registrations WHERE token_hash=? AND expires_at>NOW() AND used_at IS NULL LIMIT 1`,
+      [tokenHash]
+    );
+    if (!rows.length) return res.status(400).json({ message: 'El permiso de avisos de registro ya venció. Puedes activarlo de nuevo al iniciar sesión.' });
+
+    const endpointHash = crypto.createHash('sha256').update(endpoint).digest('hex');
+    await pool.query(
+      `INSERT INTO push_subscriptions(user_id,endpoint_hash,endpoint,p256dh,auth,content_encoding)
+       VALUES(?,?,?,?,?,?)
+       ON DUPLICATE KEY UPDATE user_id=VALUES(user_id),endpoint=VALUES(endpoint),p256dh=VALUES(p256dh),auth=VALUES(auth),content_encoding=VALUES(content_encoding),updated_at=CURRENT_TIMESTAMP`,
+      [rows[0].user_id, endpointHash, endpoint, p256dh, auth, String(subscription.contentEncoding || subscription.content_encoding || 'aes128gcm')]
+    );
+    await pool.query('UPDATE pending_push_registrations SET used_at=NOW() WHERE id=?', [rows[0].id]);
+    res.json({ message: 'Avisos activados.' });
+  } catch (error) {
+    console.error('No se pudo guardar el aviso pendiente:', error.message);
+    res.status(500).json({ message: 'No se pudo activar el aviso de registro.' });
+  }
+});
+
+app.delete('/api/notifications/subscribe', authRequired, async (req, res) => {
+  try {
+    const endpoint = String(req.body?.endpoint || '').trim();
+    if (endpoint) {
+      const endpointHash = crypto.createHash('sha256').update(endpoint).digest('hex');
+      await pool.query('DELETE FROM push_subscriptions WHERE user_id=? AND endpoint_hash=?', [req.auth.id, endpointHash]);
+    }
+    res.json({ message: 'Avisos desactivados en este dispositivo.' });
+  } catch {
+    res.status(500).json({ message: 'No se pudieron desactivar los avisos.' });
+  }
+});
+
+app.get('/api/owner/notifications/status', authRequired, ownerRequired, async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT COUNT(*) AS total FROM push_subscriptions WHERE user_id=?', [req.auth.id]);
+    const devices = Number(rows[0]?.total || 0);
+    res.json({ configured: true, subscribed: devices > 0, devices, mode: 'web-push-free' });
+  } catch {
+    res.status(500).json({ message: 'No se pudo comprobar el estado de los avisos.' });
+  }
+});
+
+app.post('/api/owner/notifications/test', authRequired, ownerRequired, async (req, res) => {
+  try {
+    const result = await sendPushToUser(
+      req.auth.id,
+      'Hola Suldery 💕, este es un aviso de prueba. Las notificaciones gratuitas ya están conectadas a este dispositivo. ✨',
+      ownerPanelUrl()
+    );
+    if (!result.sent) return res.status(503).json({ message: 'Primero pulsa “Activar avisos” en este dispositivo.' });
+    res.json({ message: 'Aviso de prueba enviado. 💕' });
+  } catch (error) {
+    console.error('No se pudo enviar el aviso de prueba:', error.message);
+    res.status(502).json({ message: 'No se pudo enviar el aviso de prueba.' });
+  }
 });
 
 app.get('/api/owner/users', authRequired, ownerRequired, async (_req, res) => {
@@ -1502,7 +1670,7 @@ app.patch('/api/owner/appointments/:id/status', authRequired, ownerRequired, asy
     if (status === 'rejected') void notifyClientAppointmentRejected(details);
     if (status === 'cancelled') void notifyClientAppointmentCancelled(details);
 
-    res.json({ message: status === 'accepted' ? 'Cita confirmada. La clienta recibirá un SMS si tiene teléfono registrado.' : 'Estado de la cita actualizado.' });
+    res.json({ message: status === 'accepted' ? 'Cita confirmada. La clienta recibirá un aviso en su dispositivo si activó las notificaciones.' : 'Estado de la cita actualizado.' });
   } catch {
     res.status(500).json({ message: 'No se pudo actualizar la cita.' });
   }
@@ -1905,7 +2073,7 @@ app.get('/api/owner/portfolio', authRequired, ownerRequired, async (_req, res) =
     const photos = rows.map(row => ({
       id: row.id,
       title: row.title,
-      visibility: row.visibility || 'both',
+      visibility: row.visibility || 'login',
       image_url: row.image_data
         ? `data:${row.image_mime || 'image/jpeg'};base64,${Buffer.from(row.image_data).toString('base64')}`
         : row.image_url,
@@ -2066,10 +2234,10 @@ app.use((error, _req, res, _next) => {
         if (error.code !== 'ER_DUP_FIELDNAME') throw error;
       });
     await normalizePortfolioOrder();
+    await ensureVapidKeys();
     app.listen(PORT, () => {
-      const telegram = getTelegramConfig();
       console.log(`Suldery Nails funcionando en el puerto ${PORT}`);
-      console.log(`Avisos Telegram para Suldery: ${telegram.chatId ? maskChatId(telegram.chatId) : 'sin chat'}${telegram.missing.length ? ` · pendientes: ${telegram.missing.join(', ')}` : ' · configurados'}`);
+      console.log('Avisos gratuitos por notificación web preparados.');
       startOwnerNotificationBot();
     });
   } catch (error) {
