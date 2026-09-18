@@ -25,13 +25,14 @@ function timeOptions(includeEndOfDay = false) {
     if (minutes === 1440 && !includeEndOfDay) continue;
     const h = Math.floor(minutes / 60);
     const m = minutes % 60;
-    values.push(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
+    const value = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+    values.push(value);
   }
   return values;
 }
 
 function timeSelectHTML(value, allowEndOfDay = false) {
-  return `<select class="interval-time" data-time>${timeOptions(allowEndOfDay).map(time => `<option value="${time}" ${time === value ? 'selected' : ''}>${time}</option>`).join('')}</select>`;
+  return `<select class="interval-time" data-time>${timeOptions(allowEndOfDay).map(time => `<option value="${time}" ${time === value ? 'selected' : ''}>${formatTime12(time)}</option>`).join('')}</select>`;
 }
 
 function intervalRow(interval = { start_time:'07:00', end_time:'12:00' }, removable = true) {
@@ -129,7 +130,10 @@ async function initDuena() {
   $d('photoPicker').addEventListener('change', subirFoto);
   $d('blockedDateForm').addEventListener('submit', bloquearFecha);
   $d('blockedDatesList').addEventListener('click', handleBlockedDateAction);
+  $d('blockedMode')?.addEventListener('change', toggleBlockedMode);
+  $d('blockedIntervalsEditor')?.addEventListener('click', handleBlockedIntervalEditorClick);
   $d('ownerGallery').addEventListener('click', handleGalleryAction);
+  $d('ownerGallery').addEventListener('change', handlePhotoVisibilityChange);
   $d('saveWeeklyScheduleButton').addEventListener('click', saveWeeklySchedule);
   $d('scheduleOverrideForm').addEventListener('submit', saveScheduleOverride);
   $d('scheduleOverrideOpen').addEventListener('change', toggleOverrideIntervals);
@@ -143,6 +147,8 @@ async function initDuena() {
 
   updateOwnerServiceDurationHint();
   buildOverrideIntervals();
+  buildBlockedIntervalsEditor();
+  toggleBlockedMode();
   await refreshOwnerData();
 }
 
@@ -264,7 +270,7 @@ function renderScheduledAppointments() {
     const item = document.createElement('article');
     item.className = 'admin-item';
     const source = appt.user_id ? 'Clienta registrada' : 'Cita agendada manualmente';
-    item.innerHTML = `<div class="admin-item-main"><strong>${escapeHtml(appt.client_name)}</strong><p>${escapeHtml(appt.service)} · ${formatDate(appt.appointment_date)} · ${String(appt.appointment_time).slice(0,5)} · ${DURATION_LABELS[appt.service] || `${Number(appt.duration_minutes)||60} min`}</p><small>${escapeHtml(source)}${appt.client_email ? ` · ${escapeHtml(appt.client_email)}` : ''}${appt.client_phone ? ` · Tel: ${escapeHtml(appt.client_phone)}` : ''}</small></div><span class="status accepted">Confirmada</span>`;
+    item.innerHTML = `<div class="admin-item-main"><strong>${escapeHtml(appt.client_name)}</strong><p>${escapeHtml(appt.service)} · ${formatDate(appt.appointment_date)} · ${formatTime12(appt.appointment_time)} · ${DURATION_LABELS[appt.service] || `${Number(appt.duration_minutes)||60} min`}</p><small>${escapeHtml(source)}${appt.client_email ? ` · ${escapeHtml(appt.client_email)}` : ''}${appt.client_phone ? ` · Tel: ${escapeHtml(appt.client_phone)}` : ''}</small></div><span class="status accepted">Confirmada</span>`;
     list.appendChild(item);
   });
 }
@@ -302,7 +308,7 @@ async function loadOwnerAppointments() {
   if (!pending.length) { list.innerHTML = '<div class="empty-state">No hay solicitudes de citas pendientes. Las confirmadas permanecen en tu calendario.</div>'; return; }
   pending.forEach(appt => {
     const item = document.createElement('article'); item.className = 'admin-item';
-    item.innerHTML = `<div class="admin-item-main"><strong>${escapeHtml(appt.client_name)}</strong><p>${escapeHtml(appt.service)} · ${formatDate(appt.appointment_date)} · ${String(appt.appointment_time).slice(0,5)}</p><small>${escapeHtml(appt.client_email || 'Cita manual')}${appt.client_phone ? ` · Tel: ${escapeHtml(appt.client_phone)}` : ''}</small></div><span class="status pending">Pendiente</span>`;
+    item.innerHTML = `<div class="admin-item-main"><strong>${escapeHtml(appt.client_name)}</strong><p>${escapeHtml(appt.service)} · ${formatDate(appt.appointment_date)} · ${formatTime12(appt.appointment_time)}</p><small>${escapeHtml(appt.client_email || 'Cita manual')}${appt.client_phone ? ` · Tel: ${escapeHtml(appt.client_phone)}` : ''}</small></div><span class="status pending">Pendiente</span>`;
     const actions = document.createElement('div'); actions.className = 'admin-actions';
     actions.append(actionButton('Confirmar', 'small-button', () => setApptStatus(appt.id, 'accepted')));
     actions.append(actionButton('Rechazar', 'small-button cancel', () => setApptStatus(appt.id, 'rejected')));
@@ -428,7 +434,7 @@ function renderOwnerCalendarSchedule(intervals, blocked, isPast) {
   if (blocked) { box.innerHTML = '<span class="empty-state">Día bloqueado completo.</span>'; return; }
   if (!intervals.length) { box.innerHTML = '<span class="empty-state">No hay atención programada ese día.</span>'; return; }
   const note = isPast ? '<span class="owner-calendar-note">Historial · </span>' : '';
-  box.innerHTML = `${note}${intervals.map(i => `<span class="owner-calendar-chip">${escapeHtml(String(i.start_time).slice(0,5))} – ${escapeHtml(String(i.end_time).slice(0,5))}</span>`).join('')}`;
+  box.innerHTML = `${note}${intervals.map(i => `<span class="owner-calendar-chip">${escapeHtml(formatTime12(i.start_time))} – ${escapeHtml(formatTime12(i.end_time))}</span>`).join('')}`;
 }
 
 function renderOwnerCalendarAppointments(appointments) {
@@ -443,11 +449,15 @@ function renderOwnerCalendarAppointments(appointments) {
     const item = document.createElement('article');
     item.className = 'admin-item owner-calendar-appointment';
     const status = statusLabel(appt.status);
-    item.innerHTML = `<div class="admin-item-main"><strong>${escapeHtml(String(appt.appointment_time).slice(0,5))} · ${escapeHtml(appt.client_name)}</strong><p>${escapeHtml(appt.service)} · ${DURATION_LABELS[appt.service] || `${Number(appt.duration_minutes)||60} min`}</p><small>${escapeHtml(appt.client_email || 'Cita agendada manualmente')}${appt.client_phone ? ` · Tel: ${escapeHtml(appt.client_phone)}` : ''}</small></div><span class="status ${appt.status}">${status}</span>`;
-    if (appt.status === 'pending') {
+    item.innerHTML = `<div class="admin-item-main"><strong>${escapeHtml(formatTime12(appt.appointment_time))} · ${escapeHtml(appt.client_name)}</strong><p>${escapeHtml(appt.service)} · ${DURATION_LABELS[appt.service] || `${Number(appt.duration_minutes)||60} min`}</p><small>${escapeHtml(appt.client_email || 'Cita agendada manualmente')}${appt.client_phone ? ` · Tel: ${escapeHtml(appt.client_phone)}` : ''}</small></div><span class="status ${appt.status}">${status}</span>`;
+    if (['pending','accepted'].includes(appt.status)) {
       const actions = document.createElement('div'); actions.className = 'admin-actions';
-      actions.append(actionButton('Confirmar', 'small-button', () => setApptStatus(appt.id, 'accepted')));
-      actions.append(actionButton('Rechazar', 'small-button cancel', () => setApptStatus(appt.id, 'rejected')));
+      if (appt.status === 'pending') {
+        actions.append(actionButton('Confirmar', 'small-button', () => setApptStatus(appt.id, 'accepted')));
+        actions.append(actionButton('Rechazar', 'small-button cancel', () => setApptStatus(appt.id, 'rejected')));
+      } else {
+        actions.append(actionButton('Cancelar cita', 'small-button cancel', () => setApptStatus(appt.id, 'cancelled')));
+      }
       item.appendChild(actions);
     }
     list.appendChild(item);
@@ -464,7 +474,7 @@ function renderOwnerCalendarFreeSlots(slots, service, blocked, isPast) {
   const intro = document.createElement('p'); intro.className = 'owner-calendar-note'; intro.textContent = `Espacios libres para ${service}:`;
   box.appendChild(intro);
   const wrap = document.createElement('div'); wrap.className = 'owner-calendar-free-grid';
-  slots.forEach(time => { const chip = document.createElement('span'); chip.className = 'owner-calendar-free-chip'; chip.textContent = time; wrap.appendChild(chip); });
+  slots.forEach(time => { const chip = document.createElement('span'); chip.className = 'owner-calendar-free-chip'; chip.textContent = formatTime12(time); wrap.appendChild(chip); });
   box.appendChild(wrap);
 }
 
@@ -488,7 +498,7 @@ async function loadOwnerSlots() {
     const data = await apiFetch(`/owner/slots?date=${encodeURIComponent(date)}&service=${service}`);
     select.innerHTML = '';
     if (!data.slots.length) { select.innerHTML = '<option value="">No hay horarios disponibles</option>'; return; }
-    data.slots.forEach(time => { const option = document.createElement('option'); option.value = time; option.textContent = time; select.appendChild(option); });
+    data.slots.forEach(time => { const option = document.createElement('option'); option.value = time; option.textContent = formatTime12(time); select.appendChild(option); });
   } catch (error) { select.innerHTML = `<option value="">${escapeHtml(error.message)}</option>`; }
 }
 
@@ -537,7 +547,7 @@ function renderScheduleOverrides(overrides) {
   if (!overrides.length) { list.innerHTML = '<div class="empty-state">No hay cambios especiales guardados.</div>'; return; }
   overrides.forEach(item => {
     const article = document.createElement('article'); article.className='override-item';
-    const intervals = item.is_open ? item.intervals.map(i => `${i.start_time}–${i.end_time}`).join(' · ') : 'Descanso todo el día';
+    const intervals = item.is_open ? item.intervals.map(i => `${formatTime12(i.start_time)}–${formatTime12(i.end_time)}`).join(' · ') : 'Descanso todo el día';
     article.innerHTML = `<div><strong>${escapeHtml(formatDate(item.date))}</strong><span>${escapeHtml(intervals)}${item.note ? ` · ${escapeHtml(item.note)}` : ''}</span></div><button type="button" class="small-button cancel" data-override-date="${item.date}">Quitar</button>`;
     list.appendChild(article);
   });
@@ -550,22 +560,150 @@ async function handleOverrideAction(event) {
   catch(error){ alert(error.message); }
 }
 
-async function loadBlockedDates() {
-  const data = await apiFetch('/owner/blocked-dates'); const list=$d('blockedDatesList'); list.innerHTML='';
-  $d('blockedDate').min=localISODate(new Date());
-  if(!data.dates.length){list.innerHTML='<div class="empty-state">No tienes fechas bloqueadas.</div>';return;}
-  data.dates.forEach(item=>{const article=document.createElement('article');article.className='blocked-date-item';article.innerHTML=`<div><strong>${escapeHtml(formatDate(item.date))}</strong><span>${escapeHtml(item.reason||'Sin motivo indicado')}</span></div><button type="button" class="small-button cancel" data-blocked-id="${item.id}">Desbloquear</button>`;list.appendChild(article);});
+function buildBlockedIntervalsEditor() {
+  const container = $d('blockedIntervalsEditor');
+  if (!container) return;
+  container.innerHTML = '';
+  addBlockedIntervalRow(container, { start_time: '09:00', end_time: '10:30' });
 }
 
-async function bloquearFecha(event){event.preventDefault();const date=$d('blockedDate').value;const reason=$d('blockedReason').value.trim();if(!date)return;try{await apiFetch('/owner/blocked-dates',{method:'POST',body:JSON.stringify({date,reason})});$d('blockedDateForm').reset();await loadBlockedDates();await loadScheduleEditor();}catch(error){alert(error.message);}}
+function addBlockedIntervalRow(container, values = { start_time: '09:00', end_time: '10:30' }) {
+  const row = document.createElement('div');
+  row.className = 'interval-row blocked-interval-row';
+  row.innerHTML = `
+    <div class="interval-selects">
+      <label>Desde${timeSelectHTML(values.start_time)}</label>
+      <span>—</span>
+      <label>Hasta${timeSelectHTML(values.end_time, true)}</label>
+    </div>
+    <button type="button" class="small-button ghost blocked-interval-remove">Quitar</button>`;
+  row.querySelector('.blocked-interval-remove').addEventListener('click', () => row.remove());
+  container.appendChild(row);
+}
 
-async function handleBlockedDateAction(event){const button=event.target.closest('[data-blocked-id]');if(!button)return;if(!confirm('¿Desbloquear este día?'))return;try{await apiFetch(`/owner/blocked-dates/${button.dataset.blockedId}`,{method:'DELETE'});await loadBlockedDates();await loadOwnerSlots();await loadScheduleEditor();}catch(error){alert(error.message);}}
+function handleBlockedIntervalEditorClick() {}
 
-async function loadOwnerGallery(){const data=await apiFetch('/portfolio');ownerPhotosCache=Array.isArray(data.photos)?data.photos:[];$d('photoCount').textContent=ownerPhotosCache.length;const gallery=$d('ownerGallery');gallery.innerHTML='';if(!data.photos.length){gallery.innerHTML='<div class="empty-state">Todavía no hay fotos publicadas.</div>';return;}data.photos.forEach((photo,index)=>{const figure=document.createElement('figure');figure.className='portfolio-photo owner-photo';figure.innerHTML=`<div class="owner-photo-number">${index+1}</div><img src="${escapeAttribute(photo.image_url)}" alt="${escapeAttribute(photo.title)}" loading="lazy"><figcaption>${escapeAttribute(photo.title)}</figcaption><div class="photo-actions"><button type="button" class="small-button ghost" ${index===0?'disabled':''} data-photo-action="move" data-id="${photo.id}" data-direction="up">↑</button><button type="button" class="small-button ghost" ${index===data.photos.length-1?'disabled':''} data-photo-action="move" data-id="${photo.id}" data-direction="down">↓</button><button type="button" class="remove-photo" data-photo-action="delete" data-id="${photo.id}">Eliminar</button></div>`;gallery.appendChild(figure);});}
+function toggleBlockedMode() {
+  const mode = $d('blockedMode')?.value || 'full';
+  const editor = $d('blockedIntervalsEditor');
+  const submit = $d('blockedSubmitButton');
+  if (!editor || !submit) return;
+  editor.classList.toggle('hidden-tool-panel', mode !== 'hours');
+  submit.textContent = mode === 'hours' ? 'Bloquear horas' : 'Bloquear día';
+}
+
+function collectBlockedIntervals() {
+  return [...document.querySelectorAll('#blockedIntervalsEditor .blocked-interval-row')].map(row => ({
+    start_time: row.querySelectorAll('[data-time]')[0].value,
+    end_time: row.querySelectorAll('[data-time]')[1].value
+  }));
+}
+
+async function loadBlockedDates() {
+  const data = await apiFetch('/owner/blocked-dates');
+  const list = $d('blockedDatesList');
+  list.innerHTML = '';
+  $d('blockedDate').min = localISODate(new Date());
+
+  const fullDates = Array.isArray(data.dates) ? data.dates : [];
+  const hours = Array.isArray(data.hours) ? data.hours : [];
+
+  if (!fullDates.length && !hours.length) {
+    list.innerHTML = '<div class="empty-state">No tienes días ni horas bloqueadas.</div>';
+    return;
+  }
+
+  fullDates.forEach(item => {
+    const article = document.createElement('article');
+    article.className = 'blocked-date-item';
+    article.innerHTML = `<div><strong>${escapeHtml(formatDate(item.date))}</strong><span>Día completo${item.reason ? ` · ${escapeHtml(item.reason)}` : ''}</span></div><button type="button" class="small-button cancel" data-blocked-id="${item.id}">Desbloquear</button>`;
+    list.appendChild(article);
+  });
+
+  hours.forEach(item => {
+    const article = document.createElement('article');
+    article.className = 'blocked-date-item';
+    article.innerHTML = `<div><strong>${escapeHtml(formatDate(item.date))}</strong><span>Bloqueado: ${formatTime12(item.start_time)} – ${formatTime12(item.end_time)}${item.reason ? ` · ${escapeHtml(item.reason)}` : ''}</span></div><button type="button" class="small-button cancel" data-blocked-hour-id="${item.id}">Quitar</button>`;
+    list.appendChild(article);
+  });
+}
+
+async function bloquearFecha(event) {
+  event.preventDefault();
+  const date = $d('blockedDate').value;
+  const reason = $d('blockedReason').value.trim();
+  const mode = $d('blockedMode')?.value || 'full';
+  if (!date) return;
+
+  const body = {
+    date,
+    reason,
+    mode,
+    intervals: mode === 'hours' ? collectBlockedIntervals() : []
+  };
+
+  try {
+    await apiFetch('/owner/blocked-dates', { method: 'POST', body: JSON.stringify(body) });
+    $d('blockedDateForm').reset();
+    $d('blockedDate').min = localISODate(new Date());
+    buildBlockedIntervalsEditor();
+    toggleBlockedMode();
+    await loadBlockedDates();
+    await loadOwnerSlots();
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function handleBlockedDateAction(event) {
+  const dayButton = event.target.closest('[data-blocked-id]');
+  const hourButton = event.target.closest('[data-blocked-hour-id]');
+
+  if (dayButton) {
+    if (!confirm('¿Desbloquear todo ese día?')) return;
+    try {
+      await apiFetch(`/owner/blocked-dates/${dayButton.dataset.blockedId}`, { method: 'DELETE' });
+      await loadBlockedDates();
+      await loadOwnerSlots();
+      await loadScheduleEditor();
+    } catch (error) {
+      alert(error.message);
+    }
+    return;
+  }
+
+  if (hourButton) {
+    if (!confirm('¿Quitar este bloqueo de horas?')) return;
+    try {
+      await apiFetch(`/owner/blocked-hours/${hourButton.dataset.blockedHourId}`, { method: 'DELETE' });
+      await loadBlockedDates();
+      await loadOwnerSlots();
+      await loadScheduleEditor();
+    } catch (error) {
+      alert(error.message);
+    }
+  }
+}
+
+async function loadOwnerGallery(){const data=await apiFetch('/owner/portfolio');ownerPhotosCache=Array.isArray(data.photos)?data.photos:[];$d('photoCount').textContent=ownerPhotosCache.length;const gallery=$d('ownerGallery');gallery.innerHTML='';if(!data.photos.length){gallery.innerHTML='<div class="empty-state">Todavía no hay fotos publicadas.</div>';return;}data.photos.forEach((photo,index)=>{const figure=document.createElement('figure');figure.className='portfolio-photo owner-photo';figure.innerHTML=`<div class="owner-photo-number">${index+1}</div><img src="${escapeAttribute(photo.image_url)}" alt="${escapeAttribute(photo.title)}" loading="lazy"><figcaption>${escapeAttribute(photo.title)}</figcaption><label class="photo-visibility">Mostrar en<select data-photo-visibility="${photo.id}"><option value="login" ${photo.visibility==='login'?'selected':''}>Inicio de sesión</option><option value="client" ${photo.visibility==='client'?'selected':''}>Página de clienta</option><option value="both" ${photo.visibility==='both'?'selected':''}>Ambos</option></select></label><div class="photo-actions"><button type="button" class="small-button ghost" ${index===0?'disabled':''} data-photo-action="move" data-id="${photo.id}" data-direction="up">↑</button><button type="button" class="small-button ghost" ${index===data.photos.length-1?'disabled':''} data-photo-action="move" data-id="${photo.id}" data-direction="down">↓</button><button type="button" class="remove-photo" data-photo-action="delete" data-id="${photo.id}">Eliminar</button></div>`;gallery.appendChild(figure);});}
+
+async function handlePhotoVisibilityChange(event) {
+  const select = event.target.closest('[data-photo-visibility]');
+  if (!select) return;
+  try {
+    await apiFetch(`/owner/portfolio/${select.dataset.photoVisibility}/visibility`, {
+      method: 'PATCH',
+      body: JSON.stringify({ visibility: select.value })
+    });
+  } catch (error) {
+    alert(error.message);
+    await loadOwnerGallery();
+  }
+}
 
 function handleGalleryAction(event){const button=event.target.closest('[data-photo-action]');if(!button||button.disabled)return;const id=Number(button.dataset.id);if(button.dataset.photoAction==='delete')eliminarFoto(id);if(button.dataset.photoAction==='move')moverFoto(id,button.dataset.direction);}
 
-async function subirFoto(event){const file=event.target.files[0];if(!file)return;const form=new FormData();form.append('photo',file);form.append('title','Diseño Suldery Nails');try{await apiFetch('/owner/portfolio',{method:'POST',body:form});await loadOwnerGallery();}catch(error){alert(error.message);}finally{event.target.value='';}}
+async function subirFoto(event){const file=event.target.files[0];if(!file)return;const form=new FormData();form.append('photo',file);form.append('title','Diseño Suldery Nails');form.append('visibility',$d('photoVisibilityPicker')?.value || 'both');try{await apiFetch('/owner/portfolio',{method:'POST',body:form});await loadOwnerGallery();}catch(error){alert(error.message);}finally{event.target.value='';}}
 async function eliminarFoto(id){if(!confirm('¿Eliminar esta foto?'))return;try{await apiFetch(`/owner/portfolio/${id}`,{method:'DELETE'});await loadOwnerGallery();}catch(error){alert(error.message);}}
 async function moverFoto(id,direction){try{await apiFetch(`/owner/portfolio/${id}/move`,{method:'PATCH',body:JSON.stringify({direction})});await loadOwnerGallery();}catch(error){alert(error.message);}}
 function actionButton(text,cls,handler){const button=document.createElement('button');button.type='button';button.className=cls;button.textContent=text;button.addEventListener('click',handler);return button;}

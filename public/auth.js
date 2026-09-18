@@ -87,6 +87,17 @@ function normalizeDateOnly(dateValue) {
   return match ? match[0] : text;
 }
 
+function formatTime12(timeValue) {
+  const text = String(timeValue || '').slice(0, 5);
+  const match = /^(\d{2}):(\d{2})$/.exec(text);
+  if (!match) return text || 'Hora pendiente';
+  let hour = Number(match[1]);
+  const minute = match[2];
+  const period = hour >= 12 ? 'PM' : 'AM';
+  hour = hour % 12 || 12;
+  return `${hour}:${minute} ${period}`;
+}
+
 function formatDate(dateValue) {
   const safe = normalizeDateOnly(dateValue);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(safe)) return 'Fecha pendiente';
@@ -123,6 +134,7 @@ window.clearSession = clearSession;
 window.setMessage = setMessage;
 window.shake = shake;
 window.formatDate = formatDate;
+window.formatTime12 = formatTime12;
 window.requireRole = requireRole;
 function updateThemeToggle() {
   const dark = document.body.classList.contains('dark-mode');

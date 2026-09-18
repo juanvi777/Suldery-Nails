@@ -3,18 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="application-name" content="Suldery Nails">
   <meta name="theme-color" content="#0c0b1d">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Suldery Nails">
+  <link rel="icon" type="image/png" sizes="48x48" href="assets/favicon-48.png">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="assets/suldery-nails-icon-180.png">
   <title>Suldery Nails | Panel de Suldery</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260919">
+  <link rel="stylesheet" href="style.css?v=20260922">
 </head>
 <body class="dashboard-page owner-page">
   <main class="dashboard-shell">
@@ -129,12 +131,14 @@
     </section>
 
     <section id="ownerToolBlocked" class="owner-tool-panel admin-card glass-card hidden-tool-panel">
-      <div class="card-heading"><div><p class="eyebrow">DÍAS NO DISPONIBLES</p><h2>Bloquea fechas completas</h2></div><button class="small-button ghost" type="button" data-close-owner-tool>Cerrar</button></div>
-      <p class="manager-note">Usa esto para vacaciones, eventos o un día completo libre. Si solamente sales unas horas, usa <strong>Horario de trabajo → Fecha especial</strong> para no bloquear todo el día.</p>
+      <div class="card-heading"><div><p class="eyebrow">BLOQUEOS</p><h2>Días y horas que no quieres ofrecer</h2></div><button class="small-button ghost" type="button" data-close-owner-tool>Cerrar</button></div>
+      <p class="manager-note">Puedes bloquear un día completo o solo algunas horas. Por ejemplo: un martes puedes atender normalmente, pero bloquear de 9:00 AM a 10:30 AM porque tienes una diligencia. El sistema retira esas horas de la agenda sin cerrar el resto del día.</p>
       <form id="blockedDateForm" class="blocked-date-form">
         <label>Fecha<input id="blockedDate" type="date" required></label>
-        <label>Motivo (opcional)<input id="blockedReason" type="text" maxlength="255" placeholder="Ej. Vacaciones"></label>
-        <button class="primary-button" type="submit">Bloquear día <span>→</span></button>
+        <label>¿Qué quieres bloquear?<select id="blockedMode"><option value="full">Todo el día</option><option value="hours">Solo algunas horas</option></select></label>
+        <label>Motivo (opcional)<input id="blockedReason" type="text" maxlength="255" placeholder="Ej. Diligencia personal"></label>
+        <div id="blockedIntervalsEditor" class="interval-editor hidden-tool-panel"></div>
+        <button id="blockedSubmitButton" class="primary-button" type="submit">Bloquear día <span>→</span></button>
       </form>
       <div id="blockedDatesList" class="blocked-dates-list"></div>
     </section>
@@ -142,7 +146,7 @@
     <section id="ownerToolPhotos" class="owner-tool-panel admin-card glass-card hidden-tool-panel">
       <div class="card-heading"><div><p class="eyebrow">PORTAFOLIO</p><h2>Fotos de tus diseños</h2></div><div class="admin-actions"><label class="small-button file-button" for="photoPicker">+ Elegir foto</label><button class="small-button ghost" type="button" data-close-owner-tool>Cerrar</button></div></div>
       <p class="manager-note">Hasta 6 fotos. Se muestran en el carrusel de inicio de sesión y en el apartado de clienta.</p>
-      <input id="photoPicker" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden">
+      <div class="photo-upload-options"><label>Mostrar la nueva foto en<select id="photoVisibilityPicker"><option value="login">Inicio de sesión</option><option value="client">Página de clienta</option><option value="both" selected>Ambos</option></select></label></div><input id="photoPicker" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden">
       <div id="ownerGallery" class="photo-gallery owner-gallery"></div>
     </section>
 
@@ -157,7 +161,7 @@
       </article>
     </section>
   </main>
-  <script src="auth.js?v=20260918"></script>
-  <script src="duena.js?v=20260920"></script>
+  <script src="auth.js?v=20260922"></script>
+  <script src="duena.js?v=20260922"></script>
 </body>
 </html>

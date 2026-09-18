@@ -522,3 +522,8 @@ button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .dark-mode .owner-calendar-chip,.dark-mode .owner-calendar-free-chip{background:rgba(255,255,255,.045);border-color:rgba(255,255,255,.12);color:#fff}
 @media(max-width:680px){.owner-calendar-day{min-height:58px}.owner-calendar-free-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.owner-calendar-day-card{padding:.85rem}.owner-calendar-day-card .card-heading h3{font-size:1.05rem}}
 @media(max-width:430px){.owner-calendar-free-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.owner-calendar-day small{font-size:.38rem}.owner-calendar-day{min-height:53px}}
+
+
+/* v3.3: bloqueos parciales y edición de visibilidad de fotos */
+.blocked-interval-row{margin-top:.55rem}.photo-upload-options{display:flex;gap:.7rem;align-items:end;margin:.8rem 0}.photo-upload-options label,.photo-visibility{display:grid;gap:.35rem;color:var(--muted);font-size:.68rem;font-weight:800}.photo-upload-options select,.photo-visibility select{padding:.62rem .7rem;border:1px solid var(--line);border-radius:11px;background:var(--surface-strong);color:var(--ink);font:inherit;font-weight:700}.photo-visibility{margin:.65rem 0}.dark-mode .photo-upload-options select,.dark-mode .photo-visibility select{background:rgba(15,14,34,.78);color:#fff;border-color:rgba(255,255,255,.14)}
+@media(max-width:680px){.photo-upload-options{align-items:stretch;flex-direction:column}.photo-upload-options select,.photo-visibility select{width:100%}}

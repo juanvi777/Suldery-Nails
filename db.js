@@ -76,7 +76,8 @@ async function ensureCompatibilityMigrations() {
     { table: 'users', column: 'phone', sql: "ALTER TABLE users ADD COLUMN phone VARCHAR(30) NULL AFTER email" },
     { table: 'appointments', column: 'client_phone', sql: "ALTER TABLE appointments ADD COLUMN client_phone VARCHAR(30) NULL AFTER client_name" },
     { table: 'portfolio_photos', column: 'image_data', sql: "ALTER TABLE portfolio_photos ADD COLUMN image_data MEDIUMBLOB NULL AFTER image_url" },
-    { table: 'portfolio_photos', column: 'image_mime', sql: "ALTER TABLE portfolio_photos ADD COLUMN image_mime VARCHAR(80) NULL AFTER image_data" }
+    { table: 'portfolio_photos', column: 'image_mime', sql: "ALTER TABLE portfolio_photos ADD COLUMN image_mime VARCHAR(80) NULL AFTER image_data" },
+    { table: 'portfolio_photos', column: 'visibility', sql: "ALTER TABLE portfolio_photos ADD COLUMN visibility ENUM('login','client','both') NOT NULL DEFAULT 'both' AFTER image_mime" }
   ];
   for (const migration of migrations) {
     const [rows] = await pool.query(
@@ -91,6 +92,20 @@ async function ensureCompatibilityMigrations() {
      SET a.client_phone=u.phone
      WHERE (a.client_phone IS NULL OR a.client_phone='') AND u.phone IS NOT NULL AND u.phone<>''`
   );
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS blocked_intervals (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      blocked_date DATE NOT NULL,
+      start_time TIME NOT NULL,
+      end_time TIME NOT NULL,
+      reason VARCHAR(255) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_blocked_intervals_date (blocked_date),
+      UNIQUE KEY uq_blocked_interval (blocked_date,start_time,end_time)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+  );
+
   await pool.query(
     `CREATE TABLE IF NOT EXISTS notification_log (
       id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,

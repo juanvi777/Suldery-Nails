@@ -437,6 +437,10 @@ async function validateScheduleAgainstAppointments(weeklySchedule, overrideDate 
     }
   ]));
   if (overrideDate && overrideSchedule) existingOverrides.set(overrideDate, overrideSchedule);
+  const blockedIntervalsMap = await getBlockedIntervalsMap(
+    colombiaTodayISO(),
+    (() => { const now = new Date(`${colombiaTodayISO()}T12:00:00-05:00`); now.setUTCDate(now.getUTCDate() + 365); return now.toISOString().slice(0,10); })()
+  );
 
   for (const appt of appointmentRows) {
     const date = appt.appointment_date instanceof Date ? appt.appointment_date.toISOString().slice(0,10) : String(appt.appointment_date).slice(0,10);
@@ -446,7 +450,7 @@ async function validateScheduleAgainstAppointments(weeklySchedule, overrideDate 
     const daySchedule = override || { is_open: Array.isArray(weeklySchedule[weekday]) && weeklySchedule[weekday].length > 0, intervals: weeklySchedule[weekday] || [] };
     const start = toMinutes(appt.appointment_time);
     const duration = Number(appt.duration_minutes) || 60;
-    if (!daySchedule.is_open || !slotFitsSchedule(start, start + duration, daySchedule)) {
+    if (!daySchedule.is_open || !slotFitsSchedule(start, start + duration, daySchedule, blockedIntervalsMap.get(date) || [])) {
       const error = new Error(`No se puede guardar el horario: ya existe una cita el ${date.split('-').reverse().join('/')} a las ${String(appt.appointment_time).slice(0,5)} que quedaría fuera del nuevo horario.`);
       error.statusCode = 409;
       throw error;
@@ -506,9 +510,18 @@ function slotOverlapsLunch(start, end) {
   return start < LUNCH_END && end > LUNCH_START;
 }
 
-function slotFitsSchedule(start, end, scheduleDay) {
+function slotOverlapsIntervals(start, end, intervals = []) {
+  return intervals.some(interval => {
+    const blockedStart = toMinutes(interval.start_time);
+    const blockedEnd = toMinutes(interval.end_time);
+    return start < blockedEnd && end > blockedStart;
+  });
+}
+
+function slotFitsSchedule(start, end, scheduleDay, blockedIntervals = []) {
   if (!scheduleDay?.is_open || !Array.isArray(scheduleDay.intervals)) return false;
   if (slotOverlapsLunch(start, end)) return false;
+  if (slotOverlapsIntervals(start, end, blockedIntervals)) return false;
   return scheduleDay.intervals.some(interval => {
     const intervalStart = toMinutes(interval.start_time);
     const intervalEnd = toMinutes(interval.end_time);
@@ -526,7 +539,60 @@ function slotIsFree(start, duration, appointments) {
   });
 }
 
-function slotsForDate(date, scheduleDay, appointments, duration = 60) {
+async function getBlockedIntervals(date) {
+  const [rows] = await pool.query(
+    `SELECT id, blocked_date, start_time, end_time, reason
+     FROM blocked_intervals
+     WHERE blocked_date=?
+     ORDER BY start_time`,
+    [date]
+  );
+  return rows.map(row => ({
+    id: row.id,
+    date: dateOnly(row.blocked_date),
+    start_time: formatDbTime(row.start_time),
+    end_time: formatDbTime(row.end_time),
+    reason: row.reason || ''
+  }));
+}
+
+async function getBlockedIntervalsMap(startDate, endDate) {
+  const [rows] = await pool.query(
+    `SELECT id, blocked_date, start_time, end_time, reason
+     FROM blocked_intervals
+     WHERE blocked_date BETWEEN ? AND ?
+     ORDER BY blocked_date,start_time`,
+    [startDate, endDate]
+  );
+  const map = new Map();
+  for (const row of rows) {
+    const date = dateOnly(row.blocked_date);
+    if (!map.has(date)) map.set(date, []);
+    map.get(date).push({
+      id: row.id,
+      date,
+      start_time: formatDbTime(row.start_time),
+      end_time: formatDbTime(row.end_time),
+      reason: row.reason || ''
+    });
+  }
+  return map;
+}
+
+async function hasAppointmentOverlap(date, start, end) {
+  const [rows] = await pool.query(
+    `SELECT id,client_name,appointment_time,duration_minutes
+     FROM appointments
+     WHERE appointment_date=? AND status IN ('pending','accepted')
+       AND appointment_time < ADDTIME(?, SEC_TO_TIME(?))
+       AND ADDTIME(appointment_time, SEC_TO_TIME(duration_minutes*60)) > ?
+     LIMIT 1`,
+    [date, `${String(Math.floor(start/60)).padStart(2,'0')}:${String(start%60).padStart(2,'0')}:00`, end - start, `${String(Math.floor(start/60)).padStart(2,'0')}:${String(start%60).padStart(2,'0')}:00`]
+  );
+  return rows[0] || null;
+}
+
+function slotsForDate(date, scheduleDay, appointments, duration = 60, blockedIntervals = []) {
   if (!scheduleDay?.is_open || !Array.isArray(scheduleDay.intervals)) return [];
   const slots = [];
   let earliest = 0;
@@ -541,7 +607,7 @@ function slotsForDate(date, scheduleDay, appointments, duration = 60) {
     for (let minute = start; minute + duration <= end; minute += SLOT_STEP) {
       if (minute < earliest) continue;
       const slotEnd = minute + duration;
-      if (!slotFitsSchedule(minute, slotEnd, scheduleDay)) continue;
+      if (!slotFitsSchedule(minute, slotEnd, scheduleDay, blockedIntervals)) continue;
       if (slotIsFree(minute, duration, appointments)) slots.push(toTime(minute).slice(0, 5));
     }
   }
@@ -595,7 +661,7 @@ app.post('/api/auth/register', async (req, res) => {
     void notifyNewClientAccount({ id: result.insertId, name, email, phone });
     const firstName = name.split(/\s+/)[0] || name;
     res.status(201).json({
-      message: `Hola ${firstName} 💕, tu solicitud para unirte a Suldery Nails ya fue enviada. Solo falta que Suldery la apruebe. Te avisaremos cuando haya una respuesta. ¡Gracias por confiar en Suldery! 💅✨`
+      message: `Hola ${firstName} 💕, ya recibimos tu solicitud para unirte a Suldery Nails. Solo falta que Suldery la apruebe. Te avisaremos apenas esté lista para ti. ¡Gracias por confiar en Suldery! 💅✨`
     });
   } catch (error) {
     console.error(error);
@@ -665,6 +731,7 @@ app.get('/api/calendar', authRequired, async (req, res) => {
     const endDate = `${year}-${String(monthNumber).padStart(2, '0')}-${String(totalDays).padStart(2, '0')}`;
     const blockedRows = await getBlockedDates(startDate, endDate);
     const blockedMap = new Map(blockedRows.map(row => [row.date, row]));
+    const blockedIntervalsMap = await getBlockedIntervalsMap(startDate, endDate);
     const [appointments] = await pool.query(
       `SELECT appointment_date, appointment_time, duration_minutes
        FROM appointments
@@ -703,7 +770,7 @@ app.get('/api/calendar', authRequired, async (req, res) => {
         continue;
       }
 
-      const slots = slotsForDate(date, scheduleDay, grouped.get(date) || [], duration);
+      const slots = slotsForDate(date, scheduleDay, grouped.get(date) || [], duration, blockedIntervalsMap.get(date) || []);
       if (!slots.length) {
         days.push({ date, status: 'full', slots: 0, message: 'Bebé, hoy ya tengo todas las citas agendadas.' });
       } else {
@@ -733,9 +800,12 @@ app.get('/api/appointments/slots', authRequired, async (req, res) => {
       return res.json({ date, service, duration, slots: [], message: 'Bebé, hoy estoy descansando. Nos vemos otro día. ♡' });
     }
 
-    const appointments = await getDayAppointments(date);
-    const slots = slotsForDate(date, scheduleDay, appointments, duration);
-    res.json({ date, service, duration, slots, message: dayMessage(date, scheduleDay, slots) });
+    const [appointments, blockedIntervals] = await Promise.all([
+      getDayAppointments(date),
+      getBlockedIntervals(date)
+    ]);
+    const slots = slotsForDate(date, scheduleDay, appointments, duration, blockedIntervals);
+    res.json({ date, service, duration, blocked_intervals: blockedIntervals, slots, message: dayMessage(date, scheduleDay, slots) });
   } catch {
     res.status(500).json({ message: 'No se pudieron cargar los horarios.' });
   }
@@ -835,15 +905,17 @@ function colombiaDateTime(date, time) {
 function getSmsConfig() {
   const accountSid = String(process.env.TWILIO_ACCOUNT_SID || '').trim();
   const authToken = String(process.env.TWILIO_AUTH_TOKEN || '').trim();
-  const to = normalizePhoneNumber(process.env.OWNER_SMS_TO || '3106319093');
+  const ownerPhone = normalizePhoneNumber(process.env.OWNER_SMS_TO || '3106319093');
   const from = normalizePhoneNumber(process.env.TWILIO_FROM || '');
   const messagingServiceSid = String(process.env.TWILIO_MESSAGING_SERVICE_SID || '').trim();
+
   const missing = [];
   if (!accountSid) missing.push('TWILIO_ACCOUNT_SID');
   if (!authToken) missing.push('TWILIO_AUTH_TOKEN');
-  if (!to) missing.push('OWNER_SMS_TO');
+  if (!ownerPhone) missing.push('OWNER_SMS_TO');
   if (!from && !messagingServiceSid) missing.push('TWILIO_FROM o TWILIO_MESSAGING_SERVICE_SID');
-  return { accountSid, authToken, to, from, messagingServiceSid, missing };
+
+  return { accountSid, authToken, ownerPhone, from, messagingServiceSid, missing };
 }
 
 function maskPhone(phone) {
@@ -853,40 +925,79 @@ function maskPhone(phone) {
   return `${value.slice(0, 4)}••••${value.slice(-2)}`;
 }
 
-async function sendOwnerSms(message) {
+function formatTime12(time) {
+  const text = String(time || '').slice(0, 5);
+  const match = /^(\d{2}):(\d{2})$/.exec(text);
+  if (!match) return text || 'hora pendiente';
+  let hour = Number(match[1]);
+  const minute = match[2];
+  const period = hour >= 12 ? 'PM' : 'AM';
+  hour = hour % 12 || 12;
+  return `${hour}:${minute} ${period}`;
+}
+
+function formatSmsDateTime(date, time) {
+  return `${formatHumanDate(date)} a las ${formatTime12(time)}`;
+}
+
+async function sendSms(to, message) {
   const config = getSmsConfig();
-  if (config.missing.length) return { sent: false, skipped: true, missing: config.missing };
+  if (config.missing.length) {
+    return { sent: false, skipped: true, missing: config.missing };
+  }
 
   const credentials = Buffer.from(`${config.accountSid}:${config.authToken}`).toString('base64');
-  const params = { To: config.to, Body: message };
+  const params = {
+    To: normalizePhoneNumber(to),
+    Body: message
+  };
+
   if (config.messagingServiceSid) params.MessagingServiceSid = config.messagingServiceSid;
   else params.From = config.from;
 
-  const body = new URLSearchParams(params);
-  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(config.accountSid)}/Messages.json`, {
-    method: 'POST',
-    headers: { Authorization: `Basic ${credentials}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body
-  });
+  if (!params.To) return { sent: false, skipped: true, missing: ['número destinatario'] };
+
+  const response = await fetch(
+    `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(config.accountSid)}/Messages.json`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${credentials}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: new URLSearchParams(params)
+    }
+  );
+
   if (!response.ok) {
     const detail = await response.text();
-    throw new Error(`Twilio ${response.status}: ${detail.slice(0, 300)}`);
+    throw new Error(`Twilio ${response.status}: ${detail.slice(0, 500)}`);
   }
+
   const data = await response.json().catch(() => ({}));
   return { sent: true, sid: data.sid || '' };
 }
 
-async function sendOwnerSmsOnce(notificationKey, notificationType, message) {
+async function sendSmsOnce(notificationKey, notificationType, to, message) {
+  const existing = await pool.query(
+    'SELECT id FROM notification_log WHERE notification_key=? LIMIT 1',
+    [notificationKey]
+  );
+  if (existing[0].length) return { sent: true, alreadySent: true };
+
   try {
-    const result = await sendOwnerSms(message);
+    const result = await sendSms(to, message);
     if (!result.sent) return result;
+
     await pool.query(
-      `INSERT INTO notification_log(notification_key,notification_type) VALUES(?,?) ON DUPLICATE KEY UPDATE notification_key=notification_key`,
+      `INSERT INTO notification_log(notification_key,notification_type)
+       VALUES(?,?)
+       ON DUPLICATE KEY UPDATE notification_key=notification_key`,
       [notificationKey, notificationType]
     );
     return result;
   } catch (error) {
-    console.error(`No se pudo enviar la notificación ${notificationType}:`, error.message);
+    console.error(`No se pudo enviar ${notificationType}:`, error.message);
     return { sent: false, error: error.message };
   }
 }
@@ -896,35 +1007,111 @@ function ownerPanelUrl() {
 }
 
 async function notifyNewClientAccount({ id, name, email, phone }) {
-  return sendOwnerSmsOnce(
-    `account-pending:${id}`,
-    'account_pending',
-    `Hola Suldery 💕, acaba de registrarse ${name} y su cuenta está esperando tu aprobación. Correo: ${email}. Tel: ${phone || 'sin teléfono'}. Puedes revisarla aquí: ${ownerPanelUrl()}`
+  const config = getSmsConfig();
+  return sendSmsOnce(
+    `account-pending:owner:${id}`,
+    'account_pending_owner',
+    config.ownerPhone,
+    `Hola Suldery 💕, ${name} acaba de registrarse en Suldery Nails y su cuenta está esperando aprobación. Correo: ${email}. Teléfono: ${phone || 'sin teléfono'}. Puedes revisarla aquí: ${ownerPanelUrl()}`
+  );
+}
+
+async function notifyClientAccountAccepted({ id, name, phone }) {
+  if (!phone) return { sent: false, skipped: true, missing: ['teléfono de la clienta'] };
+  const firstName = String(name || '').trim().split(/\s+/)[0] || name;
+  return sendSmsOnce(
+    `account-accepted:client:${id}`,
+    'account_accepted_client',
+    phone,
+    `Hola ${firstName} 💕, ¡qué alegría tenerte en Suldery Nails! Tu cuenta ya fue aprobada y está lista para que puedas iniciar sesión y reservar tu cita. Te esperamos con mucho cariño. 💅✨`
+  );
+}
+
+async function notifyClientAccountRejected({ id, name, phone }) {
+  if (!phone) return { sent: false, skipped: true, missing: ['teléfono de la clienta'] };
+  const firstName = String(name || '').trim().split(/\s+/)[0] || name;
+  return sendSmsOnce(
+    `account-rejected:client:${id}`,
+    'account_rejected_client',
+    phone,
+    `Hola ${firstName}, gracias por querer ser parte de Suldery Nails. Por ahora no pudimos aprobar tu cuenta. Puedes comunicarte con Suldery al 310 631 9093 si necesitas revisar algo. 💕`
   );
 }
 
 async function notifyNewClientAppointment({ id, clientName, phone, service, date, time }) {
-  return sendOwnerSmsOnce(
-    `appointment-pending:${id}`,
-    'appointment_pending',
-    `Hola Suldery 💕, ${clientName} acaba de solicitar una cita para el ${formatHumanDate(date)} a las ${time} por ${service}. Tel: ${phone || 'sin teléfono'}. Queda pendiente de tu confirmación. Revisa tu panel: ${ownerPanelUrl()}`
+  const config = getSmsConfig();
+  return sendSmsOnce(
+    `appointment-pending:owner:${id}`,
+    'appointment_pending_owner',
+    config.ownerPhone,
+    `Hola Suldery 💕, ${clientName} acaba de solicitar una cita para ${formatSmsDateTime(date, time)} por ${service}. Teléfono: ${phone || 'sin teléfono'}. Queda pendiente de tu confirmación. Revisa tu panel: ${ownerPanelUrl()}`
+  );
+}
+
+async function notifyClientAppointmentAccepted({ id, clientName, phone, service, date, time }) {
+  if (!phone) return { sent: false, skipped: true, missing: ['teléfono de la clienta'] };
+  const firstName = String(clientName || '').trim().split(/\s+/)[0] || clientName;
+  return sendSmsOnce(
+    `appointment-accepted:client:${id}`,
+    'appointment_accepted_client',
+    phone,
+    `Hola ${firstName} 💕, tu cita en Suldery Nails quedó confirmada. Te esperamos ${formatSmsDateTime(date, time)} para tu ${service}. Guarda este mensaje como recordatorio. 💅✨`
+  );
+}
+
+async function notifyClientAppointmentRejected({ id, clientName, phone, service, date, time }) {
+  if (!phone) return { sent: false, skipped: true, missing: ['teléfono de la clienta'] };
+  const firstName = String(clientName || '').trim().split(/\s+/)[0] || clientName;
+  return sendSmsOnce(
+    `appointment-rejected:client:${id}`,
+    'appointment_rejected_client',
+    phone,
+    `Hola ${firstName}, la solicitud de tu cita para ${formatSmsDateTime(date, time)} de ${service} no pudo ser confirmada. Puedes entrar a Suldery Nails y escoger otro espacio disponible. 💕`
+  );
+}
+
+async function notifyClientAppointmentCancelled({ id, clientName, phone, service, date, time }) {
+  if (!phone) return { sent: false, skipped: true, missing: ['teléfono de la clienta'] };
+  const firstName = String(clientName || '').trim().split(/\s+/)[0] || clientName;
+  return sendSmsOnce(
+    `appointment-cancelled:client:${id}`,
+    'appointment_cancelled_client',
+    phone,
+    `Hola ${firstName}, tu cita de ${service} para ${formatSmsDateTime(date, time)} fue cancelada. Si necesitas ayuda para encontrar otro horario, puedes comunicarte con Suldery al 310 631 9093. 💕`
+  );
+}
+
+async function notifyOwnerAppointmentCancelled({ id, clientName, phone, service, date, time }) {
+  const config = getSmsConfig();
+  return sendSmsOnce(
+    `appointment-cancelled:owner:${id}`,
+    'appointment_cancelled_owner',
+    config.ownerPhone,
+    `Hola Suldery 💕, ${clientName} canceló su cita de ${service} para ${formatSmsDateTime(date, time)}. Teléfono: ${phone || 'sin teléfono'}. Tu agenda ya quedó liberada.`
   );
 }
 
 async function sendPendingSummary() {
   try {
     const [users] = await pool.query(`SELECT COUNT(*) AS total FROM users WHERE role='client' AND status='pending'`);
-    const [appointments] = await pool.query(`SELECT COUNT(*) AS total FROM appointments WHERE status='pending' AND appointment_date >= ?`, [colombiaTodayISO()]);
+    const [appointments] = await pool.query(
+      `SELECT COUNT(*) AS total FROM appointments WHERE status='pending' AND appointment_date >= ?`,
+      [colombiaTodayISO()]
+    );
     const pendingUsers = Number(users[0]?.total || 0);
     const pendingAppointments = Number(appointments[0]?.total || 0);
     if (!pendingUsers && !pendingAppointments) return;
+
     const bucket = new Date().toISOString().slice(0, 13);
     const parts = [];
     if (pendingUsers) parts.push(`${pendingUsers} cuenta${pendingUsers === 1 ? '' : 's'} pendiente${pendingUsers === 1 ? '' : 's'} de aprobación`);
     if (pendingAppointments) parts.push(`${pendingAppointments} cita${pendingAppointments === 1 ? '' : 's'} pendiente${pendingAppointments === 1 ? '' : 's'} de confirmar`);
-    await sendOwnerSmsOnce(
-      `pending-summary:${bucket}`,
-      'pending_summary',
+
+    const config = getSmsConfig();
+    await sendSmsOnce(
+      `pending-summary:owner:${bucket}`,
+      'pending_summary_owner',
+      config.ownerPhone,
       `Hola Suldery 💕, tienes ${parts.join(' y ')}. Cuando tengas un momento, puedes revisarlas aquí: ${ownerPanelUrl()}`
     );
   } catch (error) {
@@ -938,32 +1125,61 @@ async function sendUpcomingAppointmentReminders() {
     const upper = new Date(`${today}T12:00:00-05:00`);
     upper.setUTCDate(upper.getUTCDate() + 2);
     const upperDate = upper.toISOString().slice(0, 10);
+
     const [rows] = await pool.query(
-      `SELECT id,client_name,client_phone,service,appointment_date,appointment_time
-       FROM appointments
-       WHERE status='accepted' AND appointment_date BETWEEN ? AND ?
-       ORDER BY appointment_date,appointment_time`,
+      `SELECT a.id,a.client_name,a.client_phone,a.service,a.appointment_date,a.appointment_time,
+              u.phone AS user_phone
+       FROM appointments a
+       LEFT JOIN users u ON u.id=a.user_id
+       WHERE a.status='accepted' AND a.appointment_date BETWEEN ? AND ?
+       ORDER BY a.appointment_date,a.appointment_time`,
       [today, upperDate]
     );
+
     const now = Date.now();
+    const config = getSmsConfig();
+
     for (const appt of rows) {
       const dateText = dateOnly(appt.appointment_date);
       const timeText = String(appt.appointment_time).slice(0, 5);
       const when = colombiaDateTime(dateText, timeText).getTime();
-      const hours = (when - now) / 3600000;
-      const phone = appt.client_phone || 'sin teléfono';
-      if (hours > 23 && hours <= 25) {
-        await sendOwnerSmsOnce(
-          `appointment-reminder-24h:${appt.id}`,
-          'appointment_reminder_24h',
-          `Hola Suldery 💕, recuerdito de agenda: mañana tienes a ${appt.client_name} a las ${timeText} para ${appt.service}. Tel: ${phone}. ${formatShortDate(dateText)}.`
+      const minutesAway = (when - now) / 60000;
+      const clientPhone = appt.client_phone || appt.user_phone || '';
+
+      if (minutesAway > 23 * 60 && minutesAway <= 25 * 60) {
+        await sendSmsOnce(
+          `appointment-reminder-24h:owner:${appt.id}`,
+          'appointment_reminder_24h_owner',
+          config.ownerPhone,
+          `Hola Suldery 💕, recuerdito de agenda: mañana tienes a ${appt.client_name} para ${appt.service} a las ${formatTime12(timeText)} (${formatShortDate(dateText)}). Teléfono: ${clientPhone || 'sin teléfono'}.`
         );
-      } else if (hours > 0.75 && hours <= 1.25) {
-        await sendOwnerSmsOnce(
-          `appointment-reminder-1h:${appt.id}`,
-          'appointment_reminder_1h',
-          `Hola Suldery 💕, en aproximadamente 1 hora tienes a ${appt.client_name} para ${appt.service}, a las ${timeText}. Tel: ${phone}. ¡Para que no se te pase! ✨`
+        if (clientPhone) {
+          const firstName = String(appt.client_name || '').trim().split(/\s+/)[0] || appt.client_name;
+          await sendSmsOnce(
+            `appointment-reminder-24h:client:${appt.id}`,
+            'appointment_reminder_24h_client',
+            clientPhone,
+            `Hola ${firstName} 💕, mañana tienes tu cita en Suldery Nails a las ${formatTime12(timeText)} para ${appt.service}. Te esperamos con mucho cariño. 💅✨`
+          );
+        }
+      }
+
+      if (minutesAway > 25 && minutesAway <= 35) {
+        await sendSmsOnce(
+          `appointment-reminder-30m:owner:${appt.id}`,
+          'appointment_reminder_30m_owner',
+          config.ownerPhone,
+          `Hola Suldery 💕, falta poquito: en unos 30 minutos tienes a ${appt.client_name} para ${appt.service}, a las ${formatTime12(timeText)}. Teléfono: ${clientPhone || 'sin teléfono'}. ✨`
         );
+        if (clientPhone) {
+          const firstName = String(appt.client_name || '').trim().split(/\s+/)[0] || appt.client_name;
+          await sendSmsOnce(
+            `appointment-reminder-30m:client:${appt.id}`,
+            'appointment_reminder_30m_client',
+            clientPhone,
+            `Hola ${firstName} 💕, tu cita en Suldery Nails es en unos 30 minutos: ${formatTime12(timeText)}, para ${appt.service}. ¡Te esperamos! 💅✨`
+          );
+        }
       }
     }
   } catch (error) {
@@ -976,107 +1192,9 @@ function startOwnerNotificationBot() {
     await sendPendingSummary();
     await sendUpcomingAppointmentReminders();
   };
-  setTimeout(run, 15000);
-  setInterval(run, 5 * 60 * 1000);
-}
 
-function ownerPanelUrl() {
-  return 'https://suldery-nails-production.up.railway.app/duena.html';
-}
-
-async function notifyNewClientAccount({ id, name, email, phone }) {
-  try {
-    return await sendOwnerSmsOnce(
-      `account-pending:${id}`,
-      'account_pending',
-      `Hola Suldery 💕, acaba de registrarse ${name} y su cuenta está esperando tu aprobación. Correo: ${email}. Tel: ${phone || 'sin teléfono'}. Puedes aceptarla o rechazarla aquí: ${ownerPanelUrl()}`
-    );
-  } catch (error) {
-    console.error('No se pudo enviar el SMS por nueva cuenta:', error.message);
-    return { sent: false, error: error.message };
-  }
-}
-
-async function notifyNewClientAppointment({ id, clientName, phone, service, date, time }) {
-  try {
-    return await sendOwnerSmsOnce(
-      `appointment-pending:${id}`,
-      'appointment_pending',
-      `Hola Suldery 💕, ${clientName} acaba de solicitar una cita para el ${formatHumanDate(date)} a las ${time} por ${service}. Tel: ${phone || 'sin teléfono'}. Queda pendiente de tu confirmación. Revisa tu panel: ${ownerPanelUrl()}`
-    );
-  } catch (error) {
-    console.error('No se pudo enviar el SMS a la dueña:', error.message);
-    return { sent: false, error: error.message };
-  }
-}
-
-async function sendPendingSummary() {
-  try {
-    const [users] = await pool.query(`SELECT COUNT(*) AS total FROM users WHERE role='client' AND status='pending'`);
-    const [appointments] = await pool.query(`SELECT COUNT(*) AS total FROM appointments WHERE status='pending' AND appointment_date >= ?`, [colombiaTodayISO()]);
-    const pendingUsers = Number(users[0]?.total || 0);
-    const pendingAppointments = Number(appointments[0]?.total || 0);
-    if (!pendingUsers && !pendingAppointments) return;
-    const bucket = new Date().toISOString().slice(0, 13);
-    const parts = [];
-    if (pendingUsers) parts.push(`${pendingUsers} cuenta${pendingUsers === 1 ? '' : 's'} pendiente${pendingUsers === 1 ? '' : 's'} de aprobación`);
-    if (pendingAppointments) parts.push(`${pendingAppointments} cita${pendingAppointments === 1 ? '' : 's'} pendiente${pendingAppointments === 1 ? '' : 's'} de confirmar`);
-    await sendOwnerSmsOnce(
-      `pending-summary:${bucket}`,
-      'pending_summary',
-      `Hola Suldery 💕, tienes ${parts.join(' y ')}. Cuando tengas un momento, puedes revisarlas aquí: ${ownerPanelUrl()}`
-    );
-  } catch (error) {
-    console.error('No se pudo enviar el resumen de pendientes:', error.message);
-  }
-}
-
-async function sendUpcomingAppointmentReminders() {
-  try {
-    const today = colombiaTodayISO();
-    const upper = new Date(`${today}T12:00:00-05:00`);
-    upper.setUTCDate(upper.getUTCDate() + 2);
-    const upperDate = upper.toISOString().slice(0, 10);
-    const [rows] = await pool.query(
-      `SELECT id,client_name,client_phone,service,appointment_date,appointment_time
-       FROM appointments
-       WHERE status='accepted' AND appointment_date BETWEEN ? AND ?
-       ORDER BY appointment_date,appointment_time`,
-      [today, upperDate]
-    );
-    const now = Date.now();
-    for (const appt of rows) {
-      const dateText = dateOnly(appt.appointment_date);
-      const timeText = String(appt.appointment_time).slice(0, 5);
-      const when = colombiaDateTime(dateText, timeText).getTime();
-      const hours = (when - now) / 3600000;
-      const phone = appt.client_phone || 'sin teléfono';
-      if (hours > 23 && hours <= 25) {
-        await sendOwnerSmsOnce(
-          `appointment-reminder-24h:${appt.id}`,
-          'appointment_reminder_24h',
-          `Hola Suldery 💕, recuerdito de agenda: mañana tienes a ${appt.client_name} a las ${timeText} para ${appt.service}. Tel: ${phone}. ${formatShortDate(dateText)}.`
-        );
-      } else if (hours > 0.75 && hours <= 1.25) {
-        await sendOwnerSmsOnce(
-          `appointment-reminder-1h:${appt.id}`,
-          'appointment_reminder_1h',
-          `Hola Suldery 💕, en aproximadamente 1 hora tienes a ${appt.client_name} para ${appt.service}, a las ${timeText}. Tel: ${phone}. ¡Para que no se te pase! ✨`
-        );
-      }
-    }
-  } catch (error) {
-    console.error('No se pudieron enviar recordatorios de citas:', error.message);
-  }
-}
-
-function startOwnerNotificationBot() {
-  const run = async () => {
-    await sendPendingSummary();
-    await sendUpcomingAppointmentReminders();
-  };
-  setTimeout(run, 15000);
-  setInterval(run, 5 * 60 * 1000);
+  setTimeout(run, 10000);
+  setInterval(run, 60 * 1000);
 }
 
 app.post('/api/appointments', authRequired, async (req, res) => {
@@ -1136,7 +1254,7 @@ app.post('/api/appointments', authRequired, async (req, res) => {
     const firstName = user.name.split(/\s+/)[0] || user.name;
     const prettyDate = date.split('-').reverse().join('/');
     res.status(201).json({
-      message: `Hola ${firstName} 💕, ya recibimos tu solicitud de cita para el ${prettyDate} a las ${time} para ${service}. Queda pendiente hasta que Suldery la confirme. Te avisaremos en cuanto haya una respuesta. 💕✨`
+      message: `Hola ${firstName} 💕, ya recibimos tu solicitud de cita para el ${prettyDate} a las ${formatTime12(time)} para ${service}. Queda pendiente hasta que Suldery la confirme. Te avisaremos en cuanto haya una respuesta. 💕✨`
     });
   } catch (error) {
     console.error(error);
@@ -1152,17 +1270,42 @@ app.patch('/api/appointments/:id/cancel', authRequired, async (req, res) => {
       [req.params.id, req.auth.id]
     );
     if (!result.affectedRows) return res.status(404).json({ message: 'No se encontró la cita.' });
+
+    const [rows] = await pool.query(
+      `SELECT client_name,client_phone,service,appointment_date,appointment_time
+       FROM appointments WHERE id=? LIMIT 1`,
+      [req.params.id]
+    );
+    if (rows[0]) {
+      void notifyOwnerAppointmentCancelled({
+        id: req.params.id,
+        clientName: rows[0].client_name,
+        phone: rows[0].client_phone || '',
+        service: rows[0].service,
+        date: dateOnly(rows[0].appointment_date),
+        time: formatDbTime(rows[0].appointment_time)
+      });
+    }
+
     res.json({ message: 'Cita cancelada.' });
   } catch {
     res.status(500).json({ message: 'No se pudo cancelar la cita.' });
   }
 });
 
-app.get('/api/portfolio', async (_req, res) => {
+app.get('/api/portfolio', async (req, res) => {
   try {
+    const visibility = String(req.query.visibility || 'client').trim();
+    const allowed = ['login','client','both'];
+    if (!allowed.includes(visibility)) return res.status(400).json({ message: 'Visibilidad inválida.' });
+
     const [rows] = await pool.query(
-      `SELECT id,title,image_url,image_data,image_mime,display_order,created_at
-       FROM portfolio_photos ORDER BY display_order ASC, created_at DESC LIMIT 6`
+      `SELECT id,title,image_url,image_data,image_mime,visibility,display_order,created_at
+       FROM portfolio_photos
+       WHERE visibility IN (?, 'both')
+       ORDER BY display_order ASC, created_at DESC
+       LIMIT 6`,
+      [visibility]
     );
     const photos = rows.map(row => ({
       id: row.id,
@@ -1170,6 +1313,7 @@ app.get('/api/portfolio', async (_req, res) => {
       image_url: row.image_data
         ? `data:${row.image_mime || 'image/jpeg'};base64,${Buffer.from(row.image_data).toString('base64')}`
         : row.image_url,
+      visibility: row.visibility || 'both',
       display_order: row.display_order,
       created_at: row.created_at
     }));
@@ -1184,7 +1328,7 @@ app.get('/api/owner/notifications/status', authRequired, ownerRequired, (_req, r
   const config = getSmsConfig();
   res.json({
     configured: config.missing.length === 0,
-    destination: maskPhone(config.to),
+    destination: maskPhone(config.ownerPhone),
     senderReady: Boolean(config.from || config.messagingServiceSid),
     mode: config.messagingServiceSid ? 'messaging_service' : 'phone',
     missing: config.missing
@@ -1192,12 +1336,13 @@ app.get('/api/owner/notifications/status', authRequired, ownerRequired, (_req, r
 });
 
 app.post('/api/owner/notifications/test', authRequired, ownerRequired, async (_req, res) => {
-  const result = await sendOwnerSms('Hola Suldery 💕, este es un mensaje de prueba de SULDERY NAILS. Tus avisos por SMS ya están listos. ✨');
+  const config = getSmsConfig();
+  const result = await sendSms(config.ownerPhone, 'Hola Suldery 💕, este es un mensaje de prueba de SULDERY NAILS. Tus avisos por SMS ya están listos. ✨');
   if (!result.sent) {
     if (result.skipped) return res.status(503).json({ message: `Los SMS todavía no están configurados. Falta: ${result.missing.join(', ')}.` });
     return res.status(502).json({ message: result.error || 'Twilio no pudo enviar el mensaje.' });
   }
-  res.json({ message: `Mensaje de prueba enviado a ${maskPhone(getSmsConfig().to)}.` });
+  res.json({ message: `Mensaje de prueba enviado a ${maskPhone(getSmsConfig().ownerPhone)}.` });
 });
 
 app.get('/api/owner/users', authRequired, ownerRequired, async (_req, res) => {
@@ -1217,11 +1362,22 @@ app.patch('/api/owner/users/:id/status', authRequired, ownerRequired, async (req
   try {
     const status = String(req.body.status || '').trim();
     if (!['accepted', 'rejected', 'pending'].includes(status)) return res.status(400).json({ message: 'Estado inválido.' });
+    const [rows] = await pool.query(
+      `SELECT id,name,email,phone,role,status FROM users WHERE id=? AND role='client' LIMIT 1`,
+      [req.params.id]
+    );
+    const user = rows[0];
+    if (!user) return res.status(404).json({ message: 'Clienta no encontrada.' });
+
     const [result] = await pool.query(
       `UPDATE users SET status=? WHERE id=? AND role='client'`,
       [status, req.params.id]
     );
     if (!result.affectedRows) return res.status(404).json({ message: 'Clienta no encontrada.' });
+
+    if (status === 'accepted') void notifyClientAccountAccepted({ id: user.id, name: user.name, phone: user.phone });
+    if (status === 'rejected') void notifyClientAccountRejected({ id: user.id, name: user.name, phone: user.phone });
+
     res.json({ message: 'Estado actualizado correctamente.' });
   } catch {
     res.status(500).json({ message: 'No se pudo actualizar la cuenta.' });
@@ -1245,9 +1401,36 @@ app.patch('/api/owner/appointments/:id/status', authRequired, ownerRequired, asy
   try {
     const status = String(req.body.status || '').trim();
     if (!['accepted', 'rejected', 'cancelled', 'pending'].includes(status)) return res.status(400).json({ message: 'Estado inválido.' });
+
+    const [rows] = await pool.query(
+      `SELECT a.id,a.client_name,a.client_phone,a.service,a.appointment_date,a.appointment_time,a.user_id,
+              u.phone AS user_phone
+       FROM appointments a
+       LEFT JOIN users u ON u.id=a.user_id
+       WHERE a.id=? LIMIT 1`,
+      [req.params.id]
+    );
+    const appointment = rows[0];
+    if (!appointment) return res.status(404).json({ message: 'Cita no encontrada.' });
+
     const [result] = await pool.query('UPDATE appointments SET status=? WHERE id=?', [status, req.params.id]);
     if (!result.affectedRows) return res.status(404).json({ message: 'Cita no encontrada.' });
-    res.json({ message: 'Estado de la cita actualizado.' });
+
+    const phone = appointment.client_phone || appointment.user_phone || '';
+    const details = {
+      id: appointment.id,
+      clientName: appointment.client_name,
+      phone,
+      service: appointment.service,
+      date: dateOnly(appointment.appointment_date),
+      time: formatDbTime(appointment.appointment_time)
+    };
+
+    if (status === 'accepted') void notifyClientAppointmentAccepted(details);
+    if (status === 'rejected') void notifyClientAppointmentRejected(details);
+    if (status === 'cancelled') void notifyClientAppointmentCancelled(details);
+
+    res.json({ message: status === 'accepted' ? 'Cita confirmada. La clienta recibirá un SMS si tiene teléfono registrado.' : 'Estado de la cita actualizado.' });
   } catch {
     res.status(500).json({ message: 'No se pudo actualizar la cita.' });
   }
@@ -1324,6 +1507,7 @@ app.get('/api/owner/calendar', authRequired, ownerRequired, async (req, res) => 
 
     const blockedRows = await getBlockedDates(startDate, endDate);
     const blockedMap = new Map(blockedRows.map(row => [row.date, row]));
+    const blockedIntervalsMap = await getBlockedIntervalsMap(startDate, endDate);
 
     const days = [];
     for (const date of dates) {
@@ -1342,6 +1526,9 @@ app.get('/api/owner/calendar', authRequired, ownerRequired, async (req, res) => 
         const pending = appointments.filter(item => item.status === 'pending').length;
         status = pending ? 'pending' : 'appointments';
         label = pending ? `${pending} pendiente${pending === 1 ? '' : 's'}` : `${appointments.length} cita${appointments.length === 1 ? '' : 's'}`;
+      } else if ((blockedIntervalsMap.get(date) || []).length) {
+        status = 'available';
+        label = 'Con horas bloqueadas';
       }
 
       days.push({
@@ -1371,10 +1558,11 @@ app.get('/api/owner/calendar/day', authRequired, ownerRequired, async (req, res)
     const blocked = await isDateBlocked(date);
     const scheduleDay = await getScheduleDay(dateWeekday(date), date);
     const appointments = await getOwnerDayAppointments(date);
+    const blockedIntervals = await getBlockedIntervals(date);
     const isPast = isDateInPast(date);
     const freeSlots = blocked || !scheduleDay?.is_open || dateWeekday(date) === 7 || isPast
       ? []
-      : slotsForDate(date, scheduleDay, appointments, duration);
+      : slotsForDate(date, scheduleDay, appointments, duration, blockedIntervals);
 
     res.json({
       date,
@@ -1382,6 +1570,7 @@ app.get('/api/owner/calendar/day', authRequired, ownerRequired, async (req, res)
       duration,
       is_past: isPast,
       blocked: blocked || null,
+      blocked_intervals: blockedIntervals,
       schedule: scheduleDay?.intervals || [],
       appointments,
       free_slots: freeSlots
@@ -1450,16 +1639,33 @@ app.delete('/api/owner/schedule-overrides/:date', authRequired, ownerRequired, a
 
 app.get('/api/owner/blocked-dates', authRequired, ownerRequired, async (_req, res) => {
   try {
-    const [rows] = await pool.query('SELECT id, blocked_date, reason FROM blocked_dates ORDER BY blocked_date');
+    const [fullRows] = await pool.query(
+      'SELECT id,blocked_date,reason FROM blocked_dates ORDER BY blocked_date'
+    );
+    const [partialRows] = await pool.query(
+      'SELECT id,blocked_date,start_time,end_time,reason FROM blocked_intervals ORDER BY blocked_date,start_time'
+    );
+
     res.json({
-      dates: rows.map(row => ({
+      dates: fullRows.map(row => ({
         id: row.id,
-        date: row.blocked_date instanceof Date ? row.blocked_date.toISOString().slice(0, 10) : String(row.blocked_date).slice(0, 10),
+        type: 'full',
+        date: dateOnly(row.blocked_date),
+        reason: row.reason || '',
+        intervals: []
+      })),
+      hours: partialRows.map(row => ({
+        id: row.id,
+        type: 'hours',
+        date: dateOnly(row.blocked_date),
+        start_time: formatDbTime(row.start_time),
+        end_time: formatDbTime(row.end_time),
         reason: row.reason || ''
       }))
     });
-  } catch {
-    res.status(500).json({ message: 'No se pudieron cargar los días bloqueados.' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'No se pudieron cargar los bloqueos.' });
   }
 });
 
@@ -1467,19 +1673,66 @@ app.post('/api/owner/blocked-dates', authRequired, ownerRequired, async (req, re
   try {
     const date = toISODate(req.body.date);
     const reason = String(req.body.reason || '').trim().slice(0, 255);
+    const mode = req.body.mode === 'hours' ? 'hours' : 'full';
     if (!date) return res.status(400).json({ message: 'Selecciona una fecha válida.' });
     if (isDateInPast(date)) return res.status(400).json({ message: 'No puedes bloquear una fecha que ya pasó.' });
+
     const existingAppointments = await getDayAppointments(date);
-    if (existingAppointments.length) return res.status(409).json({ message: 'No puedes bloquear ese día porque ya tiene citas pendientes o confirmadas. Primero cancélalas o reubícalas.' });
-    const result = await pool.query(
-      `INSERT INTO blocked_dates(blocked_date,reason) VALUES(?,?)
-       ON DUPLICATE KEY UPDATE reason=VALUES(reason)`,
-      [date, reason || null]
-    );
-    res.status(201).json({ message: 'Día bloqueado correctamente.', date, reason, result: result[0] });
+
+    if (mode === 'full') {
+      if (existingAppointments.length) {
+        return res.status(409).json({ message: 'No puedes bloquear todo el día porque ya tiene citas. Primero cancélalas o reubícalas.' });
+      }
+
+      await pool.query(
+        `INSERT INTO blocked_dates(blocked_date,reason) VALUES(?,?)
+         ON DUPLICATE KEY UPDATE reason=VALUES(reason)`,
+        [date, reason || null]
+      );
+      await pool.query('DELETE FROM blocked_intervals WHERE blocked_date=?', [date]);
+
+      return res.status(201).json({ message: 'Día bloqueado correctamente.', date, reason });
+    }
+
+    const rawIntervals = Array.isArray(req.body.intervals) ? req.body.intervals : [];
+    if (!rawIntervals.length) return res.status(400).json({ message: 'Agrega al menos un tramo de horas para bloquear.' });
+    if (await isDateBlocked(date)) return res.status(409).json({ message: 'Ese día ya está bloqueado completo.' });
+
+    const intervals = sanitizeIntervals(rawIntervals);
+    const ordered = intervals.map(item => ({
+      start_time: item.start_time,
+      end_time: item.end_time,
+      start: toMinutes(item.start_time),
+      end: toMinutes(item.end_time)
+    }));
+
+    for (let i = 0; i < ordered.length; i++) {
+      const block = ordered[i];
+      const overlappingAppointment = existingAppointments.find(appt => {
+        const apptStart = toMinutes(formatDbTime(appt.appointment_time));
+        const apptEnd = apptStart + (Number(appt.duration_minutes) || 60);
+        return block.start < apptEnd && block.end > apptStart;
+      });
+      if (overlappingAppointment) {
+        return res.status(409).json({ message: `No puedes bloquear ${block.start_time}–${block.end_time} porque se cruza con una cita ya agendada.` });
+      }
+      const duplicate = ordered.slice(i + 1).some(other => block.start < other.end && block.end > other.start);
+      if (duplicate) return res.status(400).json({ message: 'Los bloqueos de horas no pueden cruzarse entre sí.' });
+    }
+
+    for (const interval of ordered) {
+      await pool.query(
+        `INSERT INTO blocked_intervals(blocked_date,start_time,end_time,reason)
+         VALUES(?,?,?,?)
+         ON DUPLICATE KEY UPDATE reason=VALUES(reason)`,
+        [date, `${interval.start_time}:00`, `${interval.end_time}:00`, reason || null]
+      );
+    }
+
+    res.status(201).json({ message: 'Horas bloqueadas correctamente.', date, intervals, reason });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'No se pudo bloquear el día.' });
+    res.status(error.statusCode || 500).json({ message: error.message || 'No se pudo guardar el bloqueo.' });
   }
 });
 
@@ -1490,6 +1743,16 @@ app.delete('/api/owner/blocked-dates/:id', authRequired, ownerRequired, async (r
     res.json({ message: 'Día desbloqueado correctamente.' });
   } catch {
     res.status(500).json({ message: 'No se pudo desbloquear el día.' });
+  }
+});
+
+app.delete('/api/owner/blocked-hours/:id', authRequired, ownerRequired, async (req, res) => {
+  try {
+    const [result] = await pool.query('DELETE FROM blocked_intervals WHERE id=?', [req.params.id]);
+    if (!result.affectedRows) return res.status(404).json({ message: 'Bloqueo de horas no encontrado.' });
+    res.json({ message: 'Bloqueo de horas eliminado.' });
+  } catch {
+    res.status(500).json({ message: 'No se pudo quitar el bloqueo de horas.' });
   }
 });
 
@@ -1505,8 +1768,8 @@ app.get('/api/owner/slots', authRequired, ownerRequired, async (req, res) => {
     if (blocked) return res.json({ date, service, duration, slots: [] });
     const scheduleDay = await getScheduleDay(dateWeekday(date), date);
     if (!scheduleDay?.is_open || dateWeekday(date) === 7) return res.json({ date, service, duration, slots: [] });
-    const appointments = await getDayAppointments(date);
-    res.json({ date, service, duration, slots: slotsForDate(date, scheduleDay, appointments, duration) });
+    const [appointments, blockedIntervals] = await Promise.all([getDayAppointments(date), getBlockedIntervals(date)]);
+    res.json({ date, service, duration, slots: slotsForDate(date, scheduleDay, appointments, duration, blockedIntervals) });
   } catch {
     res.status(500).json({ message: 'No se pudieron cargar los horarios.' });
   }
@@ -1559,6 +1822,32 @@ app.post('/api/owner/appointments', authRequired, ownerRequired, async (req, res
   }
 });
 
+app.get('/api/owner/portfolio', authRequired, ownerRequired, async (_req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id,title,image_url,image_data,image_mime,visibility,display_order,created_at
+       FROM portfolio_photos
+       ORDER BY display_order ASC, created_at DESC`
+    );
+
+    const photos = rows.map(row => ({
+      id: row.id,
+      title: row.title,
+      visibility: row.visibility || 'both',
+      image_url: row.image_data
+        ? `data:${row.image_mime || 'image/jpeg'};base64,${Buffer.from(row.image_data).toString('base64')}`
+        : row.image_url,
+      display_order: row.display_order,
+      created_at: row.created_at
+    }));
+
+    res.json({ photos });
+  } catch (error) {
+    console.error('No se pudo cargar el portafolio de Suldery:', error.message);
+    res.status(500).json({ message: 'No se pudo cargar el portafolio.' });
+  }
+});
+
 app.post('/api/owner/portfolio', authRequired, ownerRequired, upload.single('photo'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: 'Selecciona una imagen.' });
@@ -1568,16 +1857,18 @@ app.post('/api/owner/portfolio', authRequired, ownerRequired, upload.single('pho
     }
 
     const title = String(req.body.title || 'Diseño Suldery Nails').trim().slice(0, 120) || 'Diseño Suldery Nails';
+    const visibility = ['login','client','both'].includes(String(req.body.visibility || 'both')) ? String(req.body.visibility || 'both') : 'both';
     const [orderRows] = await pool.query('SELECT COALESCE(MAX(display_order),0) + 1 AS next_order FROM portfolio_photos');
     const displayOrder = Number(orderRows[0].next_order) || 1;
     const [result] = await pool.query(
-      'INSERT INTO portfolio_photos(title,image_url,image_data,image_mime,display_order) VALUES(?,?,?, ?,?)',
-      [title, '', req.file.buffer, req.file.mimetype, displayOrder]
+      'INSERT INTO portfolio_photos(title,image_url,image_data,image_mime,visibility,display_order) VALUES(?,?,?,?,?,?)',
+      [title, '', req.file.buffer, req.file.mimetype, visibility, displayOrder]
     );
     res.status(201).json({
       photo: {
         id: result.insertId,
         title,
+        visibility,
         image_url: `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
         display_order: displayOrder
       }
@@ -1585,6 +1876,25 @@ app.post('/api/owner/portfolio', authRequired, ownerRequired, upload.single('pho
   } catch (error) {
     console.error('No se pudo subir la foto:', error);
     res.status(500).json({ message: error.message || 'No se pudo subir la foto.' });
+  }
+});
+
+app.patch('/api/owner/portfolio/:id/visibility', authRequired, ownerRequired, async (req, res) => {
+  try {
+    const visibility = String(req.body.visibility || '').trim();
+    if (!['login','client','both'].includes(visibility)) {
+      return res.status(400).json({ message: 'Visibilidad inválida.' });
+    }
+
+    const [result] = await pool.query(
+      'UPDATE portfolio_photos SET visibility=? WHERE id=?',
+      [visibility, req.params.id]
+    );
+    if (!result.affectedRows) return res.status(404).json({ message: 'Foto no encontrada.' });
+    res.json({ message: 'Dónde se muestra la foto actualizado.', visibility });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'No se pudo actualizar la visibilidad de la foto.' });
   }
 });
 
@@ -1654,13 +1964,19 @@ app.use((error, _req, res, _next) => {
     ensureUploadDirectory();
     await initDatabase();
     await ensureDefaultSchedule();
+    await pool.query(`ALTER TABLE portfolio_photos ADD COLUMN visibility ENUM('login','client','both') NOT NULL DEFAULT 'both' AFTER image_mime`)
+      .catch(error => {
+        if (error.code !== 'ER_DUP_FIELDNAME') throw error;
+      });
     await pool.query(`ALTER TABLE portfolio_photos ADD COLUMN display_order INT NOT NULL DEFAULT 0`)
       .catch(error => {
         if (error.code !== 'ER_DUP_FIELDNAME') throw error;
       });
     await normalizePortfolioOrder();
     app.listen(PORT, () => {
+      const sms = getSmsConfig();
       console.log(`Suldery Nails funcionando en el puerto ${PORT}`);
+      console.log(`Avisos SMS para Suldery: ${sms.ownerPhone || 'sin número'}${sms.missing.length ? ` · pendientes: ${sms.missing.join(', ')}` : ' · configurados'}`);
       startOwnerNotificationBot();
     });
   } catch (error) {

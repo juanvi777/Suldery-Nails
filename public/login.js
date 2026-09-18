@@ -3,7 +3,7 @@ async function loadLoginGallery() {
   const gallery = document.getElementById('loginGallery');
   if (!gallery) return;
   try {
-    const data = await apiFetch('/portfolio');
+    const data = await apiFetch('/portfolio?visibility=login');
 
     gallery.innerHTML = '';
     if (!data.photos?.length) {

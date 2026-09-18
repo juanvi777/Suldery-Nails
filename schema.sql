@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS portfolio_photos (
   image_url VARCHAR(500) NOT NULL,
   image_data MEDIUMBLOB NULL,
   image_mime VARCHAR(80) NULL,
+  visibility ENUM('login','client','both') NOT NULL DEFAULT 'both',
   display_order INT NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
@@ -93,6 +94,20 @@ CREATE TABLE IF NOT EXISTS schedule_overrides (
   PRIMARY KEY (override_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+
+
+
+CREATE TABLE IF NOT EXISTS blocked_intervals (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  blocked_date DATE NOT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  reason VARCHAR(255) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_blocked_intervals_date (blocked_date),
+  UNIQUE KEY uq_blocked_interval (blocked_date,start_time,end_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS notification_log (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
