@@ -74,7 +74,9 @@ function ensureUploadDirectory() {
 async function ensureCompatibilityMigrations() {
   const migrations = [
     { table: 'users', column: 'phone', sql: "ALTER TABLE users ADD COLUMN phone VARCHAR(30) NULL AFTER email" },
-    { table: 'appointments', column: 'client_phone', sql: "ALTER TABLE appointments ADD COLUMN client_phone VARCHAR(30) NULL AFTER client_name" }
+    { table: 'appointments', column: 'client_phone', sql: "ALTER TABLE appointments ADD COLUMN client_phone VARCHAR(30) NULL AFTER client_name" },
+    { table: 'portfolio_photos', column: 'image_data', sql: "ALTER TABLE portfolio_photos ADD COLUMN image_data MEDIUMBLOB NULL AFTER image_url" },
+    { table: 'portfolio_photos', column: 'image_mime', sql: "ALTER TABLE portfolio_photos ADD COLUMN image_mime VARCHAR(80) NULL AFTER image_data" }
   ];
   for (const migration of migrations) {
     const [rows] = await pool.query(

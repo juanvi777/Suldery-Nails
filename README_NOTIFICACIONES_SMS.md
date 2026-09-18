@@ -7,3 +7,12 @@
 - Los mensajes de confirmación para la clienta ya no muestran su propio número; el teléfono queda disponible en el panel de Suldery y en los avisos que recibe ella.
 
 Configura en Railway: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM y OWNER_SMS_TO. El número 3106319093 se usa como valor de respaldo para OWNER_SMS_TO y se normaliza a +57 si se escribe sin prefijo. En cuentas de prueba de Twilio, el destinatario debe estar verificado.
+
+
+## Prueba rápida
+En el panel de Suldery aparece **Probar SMS**. Esa prueba muestra si falta alguna variable o si Twilio devuelve un error.
+
+El código admite `TWILIO_FROM` o `TWILIO_MESSAGING_SERVICE_SID`. No marca una notificación como enviada si Twilio está sin configurar o si el envío falla, para que los resúmenes y recordatorios puedan volver a intentarse.
+
+## Fotos
+Las fotos nuevas del portafolio se guardan en MySQL como datos binarios, así no desaparecen cuando Railway reemplaza el contenedor.

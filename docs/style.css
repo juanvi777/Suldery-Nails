@@ -471,3 +471,27 @@ button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   .time-slots { gap: .45rem; }
   .time-slot { min-height: 42px; font-size: .72rem; }
 }
+
+
+/* v3.1 · Contraste cálido y legible en modo oscuro */
+.dark-mode .experience-cloud {
+  background: linear-gradient(145deg, rgba(48,33,67,.96), rgba(30,23,50,.94));
+  border-color: rgba(255,255,255,.15);
+  box-shadow: 0 20px 42px rgba(0,0,0,.30);
+}
+.dark-mode .experience-cloud strong { color: #fff7fc; }
+.dark-mode .experience-cloud p { color: #eee5f5; }
+.dark-mode .feature-chip { background: linear-gradient(145deg, rgba(39,31,61,.92), rgba(24,21,43,.88)); }
+.dark-mode .feature-chip b { color:#fff; }
+.dark-mode .feature-chip small { color:#d7cee2; }
+.sms-status-card { margin-top: .7rem; padding: .8rem .9rem; border:1px solid rgba(198,40,104,.16); border-radius:16px; background:rgba(198,40,104,.045); }
+.sms-status-card strong { display:block; font-size:.76rem; color:var(--ink); }
+.sms-status-card small { display:block; margin-top:.2rem; color:var(--muted); font-size:.65rem; line-height:1.4; }
+.sms-status-card .small-button { margin-top:.55rem; }
+.dark-mode .sms-status-card { background:rgba(255,255,255,.045); border-color:rgba(255,255,255,.12); }
+.dark-mode .sms-status-card strong { color:#fff; }
+@media(max-width:680px){
+  .experience-cloud { padding:1rem; gap:.7rem; border-radius:24px; }
+  .experience-cloud p { font-size:.78rem; }
+  .sms-status-card { padding:.72rem; }
+}

@@ -131,6 +131,7 @@ async function initDuena() {
   $d('scheduleOverrideForm').addEventListener('submit', saveScheduleOverride);
   $d('scheduleOverrideOpen').addEventListener('change', toggleOverrideIntervals);
   $d('scheduleOverridesList').addEventListener('click', handleOverrideAction);
+  $d('testSmsButton')?.addEventListener('click', testOwnerSms);
 
   updateOwnerServiceDurationHint();
   buildOverrideIntervals();
@@ -151,6 +152,43 @@ function openOwnerTool(name) {
 
 function closeOwnerTools() {
   document.querySelectorAll('.owner-tool-panel').forEach(panel => panel.classList.add('hidden-tool-panel'));
+}
+
+async function loadSmsStatus() {
+  const title = $d('smsStatusTitle');
+  const text = $d('smsStatusText');
+  if (!title || !text) return;
+  try {
+    const data = await apiFetch('/owner/notifications/status');
+    if (data.configured) {
+      title.textContent = 'Avisos por SMS · activos';
+      text.textContent = `Se enviarán avisos a ${data.destination}.`;
+    } else {
+      title.textContent = 'Avisos por SMS · pendientes';
+      text.textContent = `Falta configurar: ${data.missing.join(', ')}.`;
+    }
+  } catch (error) {
+    title.textContent = 'Avisos por SMS';
+    text.textContent = error.message;
+  }
+}
+
+async function testOwnerSms() {
+  const button = $d('testSmsButton');
+  if (!button) return;
+  button.disabled = true;
+  const original = button.textContent;
+  button.textContent = 'Enviando…';
+  try {
+    const data = await apiFetch('/owner/notifications/test', { method:'POST' });
+    alert(data.message);
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = original;
+    await loadSmsStatus();
+  }
 }
 
 async function refreshOwnerData() {

@@ -90,14 +90,10 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(express.static(path.join(__dirname, 'public')));
 
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, uploadDir),
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
-      cb(null, `${Date.now()}-${crypto.randomBytes(6).toString('hex')}${ext}`);
-    }
-  }),
-  limits: { fileSize: 8 * 1024 * 1024 },
+  // Las fotos del portafolio se guardan en MySQL para que no desaparezcan
+  // cuando Railway crea un nuevo contenedor o vuelve a desplegar la app.
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 6 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     if (!/^image\/(jpeg|png|webp|gif|avif)$/.test(file.mimetype)) {
       return cb(new Error('Solo se permiten imágenes JPG, PNG, WEBP, GIF o AVIF.'));
@@ -836,16 +832,38 @@ function colombiaDateTime(date, time) {
   return new Date(`${safeDate}T${safeTime}:00-05:00`);
 }
 
-async function sendOwnerSms(message) {
+function getSmsConfig() {
   const accountSid = String(process.env.TWILIO_ACCOUNT_SID || '').trim();
   const authToken = String(process.env.TWILIO_AUTH_TOKEN || '').trim();
   const to = normalizePhoneNumber(process.env.OWNER_SMS_TO || '3106319093');
   const from = normalizePhoneNumber(process.env.TWILIO_FROM || '');
-  if (!accountSid || !authToken || !to || !from) return { sent: false, skipped: true };
+  const messagingServiceSid = String(process.env.TWILIO_MESSAGING_SERVICE_SID || '').trim();
+  const missing = [];
+  if (!accountSid) missing.push('TWILIO_ACCOUNT_SID');
+  if (!authToken) missing.push('TWILIO_AUTH_TOKEN');
+  if (!to) missing.push('OWNER_SMS_TO');
+  if (!from && !messagingServiceSid) missing.push('TWILIO_FROM o TWILIO_MESSAGING_SERVICE_SID');
+  return { accountSid, authToken, to, from, messagingServiceSid, missing };
+}
 
-  const credentials = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
-  const body = new URLSearchParams({ To: to, From: from, Body: message });
-  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(accountSid)}/Messages.json`, {
+function maskPhone(phone) {
+  const value = normalizePhoneNumber(phone);
+  if (!value) return 'sin teléfono';
+  if (value.length <= 6) return value;
+  return `${value.slice(0, 4)}••••${value.slice(-2)}`;
+}
+
+async function sendOwnerSms(message) {
+  const config = getSmsConfig();
+  if (config.missing.length) return { sent: false, skipped: true, missing: config.missing };
+
+  const credentials = Buffer.from(`${config.accountSid}:${config.authToken}`).toString('base64');
+  const params = { To: config.to, Body: message };
+  if (config.messagingServiceSid) params.MessagingServiceSid = config.messagingServiceSid;
+  else params.From = config.from;
+
+  const body = new URLSearchParams(params);
+  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(config.accountSid)}/Messages.json`, {
     method: 'POST',
     headers: { Authorization: `Basic ${credentials}`, 'Content-Type': 'application/x-www-form-urlencoded' },
     body
@@ -854,21 +872,112 @@ async function sendOwnerSms(message) {
     const detail = await response.text();
     throw new Error(`Twilio ${response.status}: ${detail.slice(0, 300)}`);
   }
-  return { sent: true };
+  const data = await response.json().catch(() => ({}));
+  return { sent: true, sid: data.sid || '' };
 }
 
 async function sendOwnerSmsOnce(notificationKey, notificationType, message) {
-  const [result] = await pool.query(
-    `INSERT INTO notification_log(notification_key,notification_type) VALUES(?,?) ON DUPLICATE KEY UPDATE notification_key=notification_key`,
-    [notificationKey, notificationType]
-  );
-  if (!result.affectedRows) return { sent: false, duplicate: true };
   try {
-    return await sendOwnerSms(message);
+    const result = await sendOwnerSms(message);
+    if (!result.sent) return result;
+    await pool.query(
+      `INSERT INTO notification_log(notification_key,notification_type) VALUES(?,?) ON DUPLICATE KEY UPDATE notification_key=notification_key`,
+      [notificationKey, notificationType]
+    );
+    return result;
   } catch (error) {
-    await pool.query('DELETE FROM notification_log WHERE notification_key=?', [notificationKey]).catch(() => {});
-    throw error;
+    console.error(`No se pudo enviar la notificación ${notificationType}:`, error.message);
+    return { sent: false, error: error.message };
   }
+}
+
+function ownerPanelUrl() {
+  return 'https://suldery-nails-production.up.railway.app/duena.html';
+}
+
+async function notifyNewClientAccount({ id, name, email, phone }) {
+  return sendOwnerSmsOnce(
+    `account-pending:${id}`,
+    'account_pending',
+    `Hola Suldery 💕, acaba de registrarse ${name} y su cuenta está esperando tu aprobación. Correo: ${email}. Tel: ${phone || 'sin teléfono'}. Puedes revisarla aquí: ${ownerPanelUrl()}`
+  );
+}
+
+async function notifyNewClientAppointment({ id, clientName, phone, service, date, time }) {
+  return sendOwnerSmsOnce(
+    `appointment-pending:${id}`,
+    'appointment_pending',
+    `Hola Suldery 💕, ${clientName} acaba de solicitar una cita para el ${formatHumanDate(date)} a las ${time} por ${service}. Tel: ${phone || 'sin teléfono'}. Queda pendiente de tu confirmación. Revisa tu panel: ${ownerPanelUrl()}`
+  );
+}
+
+async function sendPendingSummary() {
+  try {
+    const [users] = await pool.query(`SELECT COUNT(*) AS total FROM users WHERE role='client' AND status='pending'`);
+    const [appointments] = await pool.query(`SELECT COUNT(*) AS total FROM appointments WHERE status='pending' AND appointment_date >= ?`, [colombiaTodayISO()]);
+    const pendingUsers = Number(users[0]?.total || 0);
+    const pendingAppointments = Number(appointments[0]?.total || 0);
+    if (!pendingUsers && !pendingAppointments) return;
+    const bucket = new Date().toISOString().slice(0, 13);
+    const parts = [];
+    if (pendingUsers) parts.push(`${pendingUsers} cuenta${pendingUsers === 1 ? '' : 's'} pendiente${pendingUsers === 1 ? '' : 's'} de aprobación`);
+    if (pendingAppointments) parts.push(`${pendingAppointments} cita${pendingAppointments === 1 ? '' : 's'} pendiente${pendingAppointments === 1 ? '' : 's'} de confirmar`);
+    await sendOwnerSmsOnce(
+      `pending-summary:${bucket}`,
+      'pending_summary',
+      `Hola Suldery 💕, tienes ${parts.join(' y ')}. Cuando tengas un momento, puedes revisarlas aquí: ${ownerPanelUrl()}`
+    );
+  } catch (error) {
+    console.error('No se pudo preparar el resumen de pendientes:', error.message);
+  }
+}
+
+async function sendUpcomingAppointmentReminders() {
+  try {
+    const today = colombiaTodayISO();
+    const upper = new Date(`${today}T12:00:00-05:00`);
+    upper.setUTCDate(upper.getUTCDate() + 2);
+    const upperDate = upper.toISOString().slice(0, 10);
+    const [rows] = await pool.query(
+      `SELECT id,client_name,client_phone,service,appointment_date,appointment_time
+       FROM appointments
+       WHERE status='accepted' AND appointment_date BETWEEN ? AND ?
+       ORDER BY appointment_date,appointment_time`,
+      [today, upperDate]
+    );
+    const now = Date.now();
+    for (const appt of rows) {
+      const dateText = dateOnly(appt.appointment_date);
+      const timeText = String(appt.appointment_time).slice(0, 5);
+      const when = colombiaDateTime(dateText, timeText).getTime();
+      const hours = (when - now) / 3600000;
+      const phone = appt.client_phone || 'sin teléfono';
+      if (hours > 23 && hours <= 25) {
+        await sendOwnerSmsOnce(
+          `appointment-reminder-24h:${appt.id}`,
+          'appointment_reminder_24h',
+          `Hola Suldery 💕, recuerdito de agenda: mañana tienes a ${appt.client_name} a las ${timeText} para ${appt.service}. Tel: ${phone}. ${formatShortDate(dateText)}.`
+        );
+      } else if (hours > 0.75 && hours <= 1.25) {
+        await sendOwnerSmsOnce(
+          `appointment-reminder-1h:${appt.id}`,
+          'appointment_reminder_1h',
+          `Hola Suldery 💕, en aproximadamente 1 hora tienes a ${appt.client_name} para ${appt.service}, a las ${timeText}. Tel: ${phone}. ¡Para que no se te pase! ✨`
+        );
+      }
+    }
+  } catch (error) {
+    console.error('No se pudieron enviar recordatorios de citas:', error.message);
+  }
+}
+
+function startOwnerNotificationBot() {
+  const run = async () => {
+    await sendPendingSummary();
+    await sendUpcomingAppointmentReminders();
+  };
+  setTimeout(run, 15000);
+  setInterval(run, 5 * 60 * 1000);
 }
 
 function ownerPanelUrl() {
@@ -1052,13 +1161,43 @@ app.patch('/api/appointments/:id/cancel', authRequired, async (req, res) => {
 app.get('/api/portfolio', async (_req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id,title,image_url,display_order,created_at
+      `SELECT id,title,image_url,image_data,image_mime,display_order,created_at
        FROM portfolio_photos ORDER BY display_order ASC, created_at DESC LIMIT 6`
     );
-    res.json({ photos: rows });
-  } catch {
+    const photos = rows.map(row => ({
+      id: row.id,
+      title: row.title,
+      image_url: row.image_data
+        ? `data:${row.image_mime || 'image/jpeg'};base64,${Buffer.from(row.image_data).toString('base64')}`
+        : row.image_url,
+      display_order: row.display_order,
+      created_at: row.created_at
+    }));
+    res.json({ photos });
+  } catch (error) {
+    console.error('No se pudo cargar el portafolio:', error.message);
     res.status(500).json({ message: 'No se pudo cargar el portafolio.' });
   }
+});
+
+app.get('/api/owner/notifications/status', authRequired, ownerRequired, (_req, res) => {
+  const config = getSmsConfig();
+  res.json({
+    configured: config.missing.length === 0,
+    destination: maskPhone(config.to),
+    senderReady: Boolean(config.from || config.messagingServiceSid),
+    mode: config.messagingServiceSid ? 'messaging_service' : 'phone',
+    missing: config.missing
+  });
+});
+
+app.post('/api/owner/notifications/test', authRequired, ownerRequired, async (_req, res) => {
+  const result = await sendOwnerSms('Hola Suldery 💕, este es un mensaje de prueba de SULDERY NAILS. Tus avisos por SMS ya están listos. ✨');
+  if (!result.sent) {
+    if (result.skipped) return res.status(503).json({ message: `Los SMS todavía no están configurados. Falta: ${result.missing.join(', ')}.` });
+    return res.status(502).json({ message: result.error || 'Twilio no pudo enviar el mensaje.' });
+  }
+  res.json({ message: `Mensaje de prueba enviado a ${maskPhone(getSmsConfig().to)}.` });
 });
 
 app.get('/api/owner/users', authRequired, ownerRequired, async (_req, res) => {
@@ -1286,35 +1425,42 @@ app.post('/api/owner/portfolio', authRequired, ownerRequired, upload.single('pho
     if (!req.file) return res.status(400).json({ message: 'Selecciona una imagen.' });
     const [countRows] = await pool.query('SELECT COUNT(*) AS total FROM portfolio_photos');
     if (Number(countRows[0].total) >= 6) {
-      fs.unlinkSync(req.file.path);
       return res.status(409).json({ message: 'Ya tienes 6 fotos. Elimina una antes de subir otra.' });
     }
 
     const title = String(req.body.title || 'Diseño Suldery Nails').trim().slice(0, 120) || 'Diseño Suldery Nails';
-    const imageUrl = `/uploads/portfolio/${encodeURIComponent(req.file.filename)}`;
     const [orderRows] = await pool.query('SELECT COALESCE(MAX(display_order),0) + 1 AS next_order FROM portfolio_photos');
     const displayOrder = Number(orderRows[0].next_order) || 1;
     const [result] = await pool.query(
-      'INSERT INTO portfolio_photos(title,image_url,display_order) VALUES(?,?,?)',
-      [title, imageUrl, displayOrder]
+      'INSERT INTO portfolio_photos(title,image_url,image_data,image_mime,display_order) VALUES(?,?,?, ?,?)',
+      [title, '', req.file.buffer, req.file.mimetype, displayOrder]
     );
-    res.status(201).json({ photo: { id: result.insertId, title, image_url: imageUrl, display_order: displayOrder } });
+    res.status(201).json({
+      photo: {
+        id: result.insertId,
+        title,
+        image_url: `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
+        display_order: displayOrder
+      }
+    });
   } catch (error) {
-    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    console.error('No se pudo subir la foto:', error);
     res.status(500).json({ message: error.message || 'No se pudo subir la foto.' });
   }
 });
 
-app.delete('/api/owner/portfolio/:id', authRequired, ownerRequired, async (req, res) => {
+app.delete('/api/owner/portfolio/:id' , authRequired, ownerRequired, async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT image_url FROM portfolio_photos WHERE id=?', [req.params.id]);
     const photo = rows[0];
     if (!photo) return res.status(404).json({ message: 'Foto no encontrada.' });
 
     await pool.query('DELETE FROM portfolio_photos WHERE id=?', [req.params.id]);
-    const fileName = decodeURIComponent(photo.image_url.replace('/uploads/portfolio/', ''));
-    const filePath = path.join(uploadDir, fileName);
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    if (photo.image_url && photo.image_url.startsWith('/uploads/portfolio/')) {
+      const fileName = decodeURIComponent(photo.image_url.replace('/uploads/portfolio/', ''));
+      const filePath = path.join(uploadDir, fileName);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    }
 
     await normalizePortfolioOrder();
     res.json({ message: 'Foto eliminada.' });
@@ -1375,7 +1521,7 @@ app.use((error, _req, res, _next) => {
       });
     await normalizePortfolioOrder();
     app.listen(PORT, () => {
-      console.log(`Suldery Nails funcionando en http://localhost:${PORT}`);
+      console.log(`Suldery Nails funcionando en el puerto ${PORT}`);
       startOwnerNotificationBot();
     });
   } catch (error) {
