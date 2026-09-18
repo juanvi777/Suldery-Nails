@@ -75,8 +75,23 @@ function shake(element) {
   window.setTimeout(() => element.classList.remove('shake'), 500);
 }
 
+function normalizeDateOnly(dateValue) {
+  if (dateValue instanceof Date) {
+    const y = dateValue.getFullYear();
+    const m = String(dateValue.getMonth() + 1).padStart(2, '0');
+    const d = String(dateValue.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  const text = String(dateValue ?? '').trim();
+  const match = text.match(/(\d{4})-(\d{2})-(\d{2})/);
+  return match ? match[0] : text;
+}
+
 function formatDate(dateValue) {
-  const d = new Date(`${dateValue}T12:00:00`);
+  const safe = normalizeDateOnly(dateValue);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(safe)) return 'Fecha pendiente';
+  const d = new Date(`${safe}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return 'Fecha pendiente';
   return d.toLocaleDateString('es-CO', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
   });
@@ -172,7 +187,7 @@ document.addEventListener('click', async event => {
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js?v=20260917', { scope: './' }).catch(() => {});
+    navigator.serviceWorker.register('sw.js?v=20260918', { scope: './' }).catch(() => {});
   });
 }
 

@@ -377,3 +377,97 @@ body.dark-mode .install-app-button {
 
 .field-help{display:block;margin-top:6px;font-size:.78rem;line-height:1.45;opacity:.72}
 .optional-label{font-size:.75rem;opacity:.7}
+
+
+/* v3.0 · Ajustes de fecha y experiencia móvil */
+html { -webkit-text-size-adjust: 100%; }
+button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+
+@media (max-width: 680px) {
+  body { min-width: 0; overflow-x: hidden; }
+  .dashboard-shell { width: min(100% - 18px, 960px); margin-inline: auto; }
+  .dashboard-header {
+    top: .4rem;
+    padding: .7rem;
+    gap: .55rem;
+    border-radius: 18px;
+    flex-wrap: wrap;
+  }
+  .dashboard-header .logo { min-width: 0; }
+  .dashboard-header .logo img { width: 40px; height: 40px; }
+  .dashboard-header .logo span { font-size: .9rem; }
+  .user-menu { width: 100%; justify-content: space-between; gap: .45rem; flex-wrap: wrap; }
+  .user-menu > span { font-size: .67rem; }
+  .secondary-button, .theme-toggle, .install-app-button { min-height: 40px; }
+
+  .hero-dashboard {
+    grid-template-columns: 1fr;
+    gap: .75rem;
+    padding: 1rem;
+    border-radius: 22px;
+  }
+  .hero-dashboard h1 { font-size: clamp(2.1rem, 11vw, 3rem); line-height: .98; }
+  .hero-dashboard p { font-size: .78rem; line-height: 1.5; }
+  .owner-mini-card { width: 100%; }
+
+  .stats-grid { gap: .65rem; }
+  .stat-card { padding: .95rem; border-radius: 18px; }
+  .stat-card strong { font-size: 1.8rem; }
+  .stat-card small { font-size: .62rem; }
+
+  .owner-tool-grid { gap: .6rem; }
+  .owner-tool-button { min-height: 70px; padding: .78rem; border-radius: 17px; }
+  .owner-tool-icon { width: 34px; height: 34px; border-radius: 12px; }
+  .owner-tool-button strong { font-size: .78rem; }
+  .owner-tool-button small { font-size: .62rem; }
+
+  .booking-layout { display: block; }
+  .booking-card, .calendar-card, .time-selection, .appointments-card, .admin-card { border-radius: 20px; }
+  .calendar-brand { grid-template-columns: auto 1fr; }
+  .calendar-brand-logo { width: 50px; height: 50px; }
+  .calendar-theme-mark { grid-column: 1 / -1; justify-self: start; }
+  .calendar-title { align-items: center; gap: .45rem; }
+  .calendar-title h3 { font-size: 1.05rem; }
+  .calendar-title span { font-size: .58rem; }
+  .month-button { min-width: 38px; min-height: 38px; padding: .45rem .6rem; }
+  .calendar-weekdays { gap: .2rem; font-size: .52rem; }
+  .calendar-days { gap: .2rem; }
+  .calendar-day, .calendar-empty { min-height: 58px; }
+  .calendar-day { padding: .34rem .18rem; border-radius: 13px; }
+  .calendar-day strong { font-size: .88rem; }
+  .calendar-day .calendar-weekday { font-size: .46rem; }
+  .calendar-day small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: .42rem; }
+
+  .time-slots { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+  .time-slot { width: 100%; min-height: 44px; padding: .7rem .45rem; font-size: .76rem; }
+  .booking-summary { padding: .9rem; }
+  .booking-summary h3 { font-size: 1.15rem; }
+  .booking-summary p { font-size: .74rem; }
+  .primary-button, .secondary-button, .small-button { max-width: 100%; }
+
+  .owner-tool-panel { padding: .9rem; }
+  .schedule-override-form { gap: .6rem; }
+  .interval-row { padding: .55rem; }
+  .interval-selects { gap: .35rem; }
+  .interval-time { min-height: 42px; font-size: .9rem; }
+
+  .admin-item { flex-direction: column; }
+  .admin-item > .status { align-self: flex-start; }
+}
+
+@media (max-width: 430px) {
+  .dashboard-shell { width: min(100% - 12px, 960px); }
+  .dashboard-header { padding: .6rem; }
+  .dashboard-header .logo img { width: 36px; height: 36px; }
+  .dashboard-header .logo span { font-size: .82rem; }
+  .user-menu { justify-content: flex-start; }
+  .user-menu > span { width: 100%; order: 3; }
+  .calendar-card { padding: .7rem; }
+  .calendar-days, .calendar-weekdays { gap: .15rem; }
+  .calendar-day, .calendar-empty { min-height: 52px; }
+  .calendar-day strong { font-size: .78rem; }
+  .calendar-day .calendar-weekday { display: none; }
+  .calendar-day small { font-size: .36rem; padding: .14rem .22rem; }
+  .time-slots { gap: .45rem; }
+  .time-slot { min-height: 42px; font-size: .72rem; }
+}

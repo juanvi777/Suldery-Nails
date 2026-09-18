@@ -40,7 +40,9 @@ function createPool() {
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
-    charset: 'utf8mb4'
+    charset: 'utf8mb4',
+    // Mantén DATE como YYYY-MM-DD para evitar desfases e Invalid Date en el navegador.
+    dateStrings: true
   });
   return pool;
 }
