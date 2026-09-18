@@ -11,6 +11,9 @@ const DURATION_LABELS = {
 let ownerUsersCache = [];
 let ownerAppointmentsCache = [];
 let ownerPhotosCache = [];
+let ownerCalendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let ownerCalendarData = new Map();
+let ownerCalendarSelectedDate = '';
 
 function localISODate(date) {
   return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
@@ -132,6 +135,11 @@ async function initDuena() {
   $d('scheduleOverrideOpen').addEventListener('change', toggleOverrideIntervals);
   $d('scheduleOverridesList').addEventListener('click', handleOverrideAction);
   $d('testSmsButton')?.addEventListener('click', testOwnerSms);
+  $d('ownerCalendarPrevious')?.addEventListener('click', () => changeOwnerCalendarMonth(-1));
+  $d('ownerCalendarNext')?.addEventListener('click', () => changeOwnerCalendarMonth(1));
+  $d('ownerCalendarToday')?.addEventListener('click', goToOwnerCalendarToday);
+  $d('ownerCalendarService')?.addEventListener('change', () => { if (ownerCalendarSelectedDate) loadOwnerCalendarDay(ownerCalendarSelectedDate); });
+  $d('ownerCalendarAppointments')?.addEventListener('click', handleOwnerCalendarAppointmentAction);
 
   updateOwnerServiceDurationHint();
   buildOverrideIntervals();
@@ -148,6 +156,7 @@ function openOwnerTool(name) {
   if (name === 'manual') loadOwnerSlots();
   if (name === 'blocked') loadBlockedDates();
   if (name === 'photos') loadOwnerGallery();
+  if (name === 'calendar') loadOwnerCalendar();
 }
 
 function closeOwnerTools() {
@@ -211,8 +220,8 @@ function openOwnerStat(name) {
     renderScheduledAppointments();
     $d('ownerStatAppointments').classList.remove('hidden-tool-panel');
     $d('ownerStatAppointments').scrollIntoView({ behavior:'smooth', block:'start' });
-  } else if (name === 'portfolio') {
-    openOwnerTool('photos');
+  } else if (name === 'calendar') {
+    openOwnerTool('calendar');
   }
 }
 
@@ -223,8 +232,7 @@ function closeOwnerStats() {
 function renderOwnerStatsDetails() {
   $d('activeClientCount').textContent = ownerUsersCache.filter(user => user.role === 'client' && user.status === 'accepted').length;
   const today = localISODate(new Date());
-  $d('scheduledCount').textContent = ownerAppointmentsCache.filter(a => ['pending','accepted'].includes(a.status) && String(a.appointment_date).slice(0,10) >= today).length;
-  $d('photoCount').textContent = ownerPhotosCache.length;
+  $d('scheduledCount').textContent = ownerAppointmentsCache.filter(a => a.status === 'accepted' && String(a.appointment_date).slice(0,10) >= today).length;
   renderActiveClients();
   renderScheduledAppointments();
 }
@@ -248,19 +256,15 @@ function renderScheduledAppointments() {
   if (!list) return;
   const today = localISODate(new Date());
   const appointments = ownerAppointmentsCache
-    .filter(appt => ['pending','accepted'].includes(appt.status) && String(appt.appointment_date).slice(0,10) >= today)
+    .filter(appt => appt.status === 'accepted' && String(appt.appointment_date).slice(0,10) >= today)
     .sort((a,b) => `${a.appointment_date}T${a.appointment_time}`.localeCompare(`${b.appointment_date}T${b.appointment_time}`));
   list.innerHTML = '';
-  if (!appointments.length) { list.innerHTML = '<div class="empty-state">No hay citas agendadas de hoy en adelante.</div>'; return; }
+  if (!appointments.length) { list.innerHTML = '<div class="empty-state">No hay citas confirmadas de hoy en adelante.</div>'; return; }
   appointments.forEach(appt => {
     const item = document.createElement('article');
     item.className = 'admin-item';
-    item.innerHTML = `<strong>${escapeHtml(appt.client_name)}</strong><p>${escapeHtml(appt.service)} · ${formatDate(appt.appointment_date)} · ${String(appt.appointment_time).slice(0,5)} · ${DURATION_LABELS[appt.service] || `${Number(appt.duration_minutes)||60} min`}</p><span class="status ${appt.status}">${statusLabel(appt.status)}</span><small>${escapeHtml(appt.client_email || 'Cita manual')}${appt.client_phone ? ` · Tel: ${escapeHtml(appt.client_phone)}` : ''}</small>`;
-    const actions = document.createElement('div');
-    actions.className = 'admin-actions';
-    if (appt.status === 'pending') actions.append(actionButton('Confirmar', 'small-button', () => setApptStatus(appt.id, 'accepted')));
-    if (['pending','accepted'].includes(appt.status)) actions.append(actionButton('Cancelar', 'small-button cancel', () => setApptStatus(appt.id, 'cancelled')));
-    item.appendChild(actions);
+    const source = appt.user_id ? 'Clienta registrada' : 'Cita agendada manualmente';
+    item.innerHTML = `<div class="admin-item-main"><strong>${escapeHtml(appt.client_name)}</strong><p>${escapeHtml(appt.service)} · ${formatDate(appt.appointment_date)} · ${String(appt.appointment_time).slice(0,5)} · ${DURATION_LABELS[appt.service] || `${Number(appt.duration_minutes)||60} min`}</p><small>${escapeHtml(source)}${appt.client_email ? ` · ${escapeHtml(appt.client_email)}` : ''}${appt.client_phone ? ` · Tel: ${escapeHtml(appt.client_phone)}` : ''}</small></div><span class="status accepted">Confirmada</span>`;
     list.appendChild(item);
   });
 }
@@ -269,18 +273,16 @@ async function loadPendingUsers() {
   const data = await apiFetch('/owner/users');
   ownerUsersCache = Array.isArray(data.users) ? data.users : [];
   const list = $d('pendingUsersList');
-  const pending = data.users.filter(user => user.status === 'pending');
+  const pending = ownerUsersCache.filter(user => user.status === 'pending');
   $d('activeClientCount').textContent = ownerUsersCache.filter(user => user.role === 'client' && user.status === 'accepted').length;
   list.innerHTML = '';
-  if (!data.users.length) { list.innerHTML = '<div class="empty-state">No hay solicitudes todavía.</div>'; return; }
-  data.users.forEach(user => {
+  if (!pending.length) { list.innerHTML = '<div class="empty-state">No hay cuentas esperando aprobación. Las clientas aceptadas aparecen en “Clientas activas”.</div>'; return; }
+  pending.forEach(user => {
     const item = document.createElement('article'); item.className = 'admin-item';
-    const label = user.status === 'pending' ? 'Pendiente' : user.status === 'accepted' ? 'Aceptada' : 'Rechazada';
-    item.innerHTML = `<strong>${escapeHtml(user.name)}</strong><p>${escapeHtml(user.email)}</p><span class="status ${user.status}">${label}</span>`;
+    item.innerHTML = `<div class="admin-item-main"><strong>${escapeHtml(user.name)}</strong><p>${escapeHtml(user.email)}${user.phone ? ` · Tel: ${escapeHtml(user.phone)}` : ''}</p><small>Solicitud recibida ${formatDate(String(user.created_at).slice(0,10))}</small></div><span class="status pending">Pendiente</span>`;
     const actions = document.createElement('div'); actions.className = 'admin-actions';
-    if (user.status !== 'accepted') actions.append(actionButton('Aceptar', 'small-button', () => setUserStatus(user.id, 'accepted')));
-    if (user.status !== 'rejected') actions.append(actionButton('Rechazar', 'small-button cancel', () => setUserStatus(user.id, 'rejected')));
-    if (user.status !== 'pending') actions.append(actionButton('Pendiente', 'small-button ghost', () => setUserStatus(user.id, 'pending')));
+    actions.append(actionButton('Aceptar', 'small-button', () => setUserStatus(user.id, 'accepted')));
+    actions.append(actionButton('Rechazar', 'small-button cancel', () => setUserStatus(user.id, 'rejected')));
     item.appendChild(actions); list.appendChild(item);
   });
 }
@@ -295,24 +297,185 @@ async function loadOwnerAppointments() {
   const data = await apiFetch('/owner/appointments');
   ownerAppointmentsCache = Array.isArray(data.appointments) ? data.appointments : [];
   const list = $d('ownerAppointmentsList');
-  const today = localISODate(new Date());
-  $d('scheduledCount').textContent = ownerAppointmentsCache.filter(a => ['pending','accepted'].includes(a.status) && String(a.appointment_date).slice(0,10) >= today).length;
+  const pending = ownerAppointmentsCache.filter(appt => appt.status === 'pending');
   list.innerHTML = '';
-  if (!data.appointments.length) { list.innerHTML = '<div class="empty-state">No hay citas registradas.</div>'; return; }
-  data.appointments.forEach(appt => {
+  if (!pending.length) { list.innerHTML = '<div class="empty-state">No hay solicitudes de citas pendientes. Las confirmadas permanecen en tu calendario.</div>'; return; }
+  pending.forEach(appt => {
     const item = document.createElement('article'); item.className = 'admin-item';
-    item.innerHTML = `<strong>${escapeHtml(appt.client_name)}</strong><p>${escapeHtml(appt.service)} · ${formatDate(appt.appointment_date)} · ${String(appt.appointment_time).slice(0,5)}</p><span class="status ${appt.status}">${statusLabel(appt.status)}</span><small>${escapeHtml(appt.client_email || 'Cita manual')}${appt.client_phone ? ` · Tel: ${escapeHtml(appt.client_phone)}` : ''}</small>`;
+    item.innerHTML = `<div class="admin-item-main"><strong>${escapeHtml(appt.client_name)}</strong><p>${escapeHtml(appt.service)} · ${formatDate(appt.appointment_date)} · ${String(appt.appointment_time).slice(0,5)}</p><small>${escapeHtml(appt.client_email || 'Cita manual')}${appt.client_phone ? ` · Tel: ${escapeHtml(appt.client_phone)}` : ''}</small></div><span class="status pending">Pendiente</span>`;
     const actions = document.createElement('div'); actions.className = 'admin-actions';
-    if (appt.status === 'pending') actions.append(actionButton('Confirmar', 'small-button', () => setApptStatus(appt.id, 'accepted')));
-    if (['pending','accepted'].includes(appt.status)) actions.append(actionButton('Cancelar', 'small-button cancel', () => setApptStatus(appt.id, 'cancelled')));
-    if (appt.status !== 'rejected') actions.append(actionButton('Rechazar', 'small-button ghost', () => setApptStatus(appt.id, 'rejected')));
+    actions.append(actionButton('Confirmar', 'small-button', () => setApptStatus(appt.id, 'accepted')));
+    actions.append(actionButton('Rechazar', 'small-button cancel', () => setApptStatus(appt.id, 'rejected')));
     item.appendChild(actions); list.appendChild(item);
   });
+  renderOwnerStatsDetails();
 }
 
 async function setApptStatus(id, status) {
-  try { await apiFetch(`/owner/appointments/${id}/status`, {method:'PATCH',body:JSON.stringify({status})}); await loadOwnerAppointments(); renderOwnerStatsDetails(); }
-  catch (error) { alert(error.message); }
+  try {
+    await apiFetch(`/owner/appointments/${id}/status`, {method:'PATCH',body:JSON.stringify({status})});
+    await loadOwnerAppointments();
+    renderOwnerStatsDetails();
+    if (ownerCalendarSelectedDate) await loadOwnerCalendarDay(ownerCalendarSelectedDate);
+  } catch (error) { alert(error.message); }
+}
+
+
+function ownerCalendarMonthKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2, '0')}`;
+}
+
+function ownerCalendarDateLabel(value) {
+  return formatDate(value);
+}
+
+function ownerCalendarStatusText(meta) {
+  if (!meta) return 'Sin información';
+  if (meta.status === 'blocked') return 'Bloqueado';
+  if (meta.status === 'rest') return 'Descanso';
+  if (meta.status === 'pending') return meta.label || 'Pendiente';
+  if (meta.status === 'appointments') return meta.label || 'Citas';
+  return 'Libre';
+}
+
+async function loadOwnerCalendar() {
+  const month = ownerCalendarMonthKey(ownerCalendarMonth);
+  const label = $d('ownerCalendarMonthLabel');
+  if (label) label.textContent = ownerCalendarMonth.toLocaleDateString('es-CO', {month:'long', year:'numeric'});
+  try {
+    const data = await apiFetch(`/owner/calendar?month=${encodeURIComponent(month)}`);
+    ownerCalendarData = new Map((data.days || []).map(day => [day.date, day]));
+    renderOwnerCalendar();
+    if (ownerCalendarSelectedDate && ownerCalendarSelectedDate.startsWith(month)) {
+      await loadOwnerCalendarDay(ownerCalendarSelectedDate);
+    } else {
+      const today = localISODate(new Date());
+      const defaultDate = ownerCalendarData.has(today) ? today : (data.days?.find(day => ['available','appointments','pending'].includes(day.status))?.date || data.days?.[0]?.date);
+      if (defaultDate) await loadOwnerCalendarDay(defaultDate);
+    }
+  } catch (error) {
+    const feedback = $d('ownerCalendarFeedback');
+    if (feedback) feedback.textContent = error.message;
+  }
+}
+
+function renderOwnerCalendar() {
+  const grid = $d('ownerCalendarDays');
+  if (!grid) return;
+  const year = ownerCalendarMonth.getFullYear();
+  const month = ownerCalendarMonth.getMonth();
+  const first = (new Date(year, month, 1).getDay() + 6) % 7;
+  const total = new Date(year, month + 1, 0).getDate();
+  grid.innerHTML = '';
+  for (let i = 0; i < first; i++) {
+    const empty = document.createElement('span');
+    empty.className = 'calendar-empty';
+    grid.appendChild(empty);
+  }
+  const today = localISODate(new Date());
+  for (let day = 1; day <= total; day++) {
+    const date = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const meta = ownerCalendarData.get(date) || {status:'available', label:'Libre'};
+    const localDate = new Date(year, month, day);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `calendar-day owner-calendar-day ${meta.status}`;
+    if (date === ownerCalendarSelectedDate) button.classList.add('selected');
+    if (date === today) button.classList.add('today');
+    button.innerHTML = `<strong>${day}</strong><span class="calendar-weekday">${localDate.toLocaleDateString('es-CO',{weekday:'short'}).replace('.','')}</span><small>${escapeHtml(ownerCalendarStatusText(meta))}</small>`;
+    button.addEventListener('click', () => loadOwnerCalendarDay(date));
+    grid.appendChild(button);
+  }
+}
+
+function changeOwnerCalendarMonth(offset) {
+  ownerCalendarMonth = new Date(ownerCalendarMonth.getFullYear(), ownerCalendarMonth.getMonth() + offset, 1);
+  ownerCalendarSelectedDate = '';
+  loadOwnerCalendar();
+}
+
+function goToOwnerCalendarToday() {
+  const now = new Date();
+  ownerCalendarMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  ownerCalendarSelectedDate = localISODate(now);
+  loadOwnerCalendar();
+}
+
+async function loadOwnerCalendarDay(date) {
+  ownerCalendarSelectedDate = date;
+  renderOwnerCalendar();
+  const service = $d('ownerCalendarService')?.value || 'Manicure semipermanente';
+  try {
+    const data = await apiFetch(`/owner/calendar/day?date=${encodeURIComponent(date)}&service=${encodeURIComponent(service)}`);
+    const title = $d('ownerCalendarDayTitle');
+    if (title) title.textContent = ownerCalendarDateLabel(data.date);
+    const feedback = $d('ownerCalendarFeedback');
+    if (feedback) feedback.textContent = data.blocked ? `Día bloqueado${data.blocked.reason ? `: ${data.blocked.reason}` : ''}.` : data.is_past ? 'Estás consultando una fecha pasada. Las citas quedan visibles para tu historial.' : 'Aquí puedes ver tus citas y los espacios que todavía están libres.';
+    renderOwnerCalendarSchedule(data.schedule || [], Boolean(data.blocked), Boolean(data.is_past));
+    renderOwnerCalendarAppointments(data.appointments || []);
+    renderOwnerCalendarFreeSlots(data.free_slots || [], service, Boolean(data.blocked), Boolean(data.is_past));
+  } catch (error) {
+    const feedback = $d('ownerCalendarFeedback');
+    if (feedback) feedback.textContent = error.message;
+    $d('ownerCalendarAppointments').innerHTML = '';
+    $d('ownerCalendarFreeSlots').innerHTML = '';
+  }
+}
+
+function renderOwnerCalendarSchedule(intervals, blocked, isPast) {
+  const box = $d('ownerCalendarSchedule');
+  if (!box) return;
+  if (blocked) { box.innerHTML = '<span class="empty-state">Día bloqueado completo.</span>'; return; }
+  if (!intervals.length) { box.innerHTML = '<span class="empty-state">No hay atención programada ese día.</span>'; return; }
+  const note = isPast ? '<span class="owner-calendar-note">Historial · </span>' : '';
+  box.innerHTML = `${note}${intervals.map(i => `<span class="owner-calendar-chip">${escapeHtml(String(i.start_time).slice(0,5))} – ${escapeHtml(String(i.end_time).slice(0,5))}</span>`).join('')}`;
+}
+
+function renderOwnerCalendarAppointments(appointments) {
+  const list = $d('ownerCalendarAppointments');
+  if (!list) return;
+  list.innerHTML = '';
+  if (!appointments.length) {
+    list.innerHTML = '<div class="empty-state">No hay citas agendadas para este día.</div>';
+    return;
+  }
+  appointments.forEach(appt => {
+    const item = document.createElement('article');
+    item.className = 'admin-item owner-calendar-appointment';
+    const status = statusLabel(appt.status);
+    item.innerHTML = `<div class="admin-item-main"><strong>${escapeHtml(String(appt.appointment_time).slice(0,5))} · ${escapeHtml(appt.client_name)}</strong><p>${escapeHtml(appt.service)} · ${DURATION_LABELS[appt.service] || `${Number(appt.duration_minutes)||60} min`}</p><small>${escapeHtml(appt.client_email || 'Cita agendada manualmente')}${appt.client_phone ? ` · Tel: ${escapeHtml(appt.client_phone)}` : ''}</small></div><span class="status ${appt.status}">${status}</span>`;
+    if (appt.status === 'pending') {
+      const actions = document.createElement('div'); actions.className = 'admin-actions';
+      actions.append(actionButton('Confirmar', 'small-button', () => setApptStatus(appt.id, 'accepted')));
+      actions.append(actionButton('Rechazar', 'small-button cancel', () => setApptStatus(appt.id, 'rejected')));
+      item.appendChild(actions);
+    }
+    list.appendChild(item);
+  });
+}
+
+function renderOwnerCalendarFreeSlots(slots, service, blocked, isPast) {
+  const box = $d('ownerCalendarFreeSlots');
+  if (!box) return;
+  box.innerHTML = '';
+  if (blocked) { box.innerHTML = '<div class="empty-state">No hay espacios porque el día está bloqueado.</div>'; return; }
+  if (isPast) { box.innerHTML = '<div class="empty-state">Los espacios libres no se calculan para fechas pasadas.</div>'; return; }
+  if (!slots.length) { box.innerHTML = '<div class="empty-state">No quedan espacios para este servicio.</div>'; return; }
+  const intro = document.createElement('p'); intro.className = 'owner-calendar-note'; intro.textContent = `Espacios libres para ${service}:`;
+  box.appendChild(intro);
+  const wrap = document.createElement('div'); wrap.className = 'owner-calendar-free-grid';
+  slots.forEach(time => { const chip = document.createElement('span'); chip.className = 'owner-calendar-free-chip'; chip.textContent = time; wrap.appendChild(chip); });
+  box.appendChild(wrap);
+}
+
+function handleOwnerCalendarAppointmentAction(event) {
+  const button = event.target.closest('[data-owner-calendar-action]');
+  if (!button) return;
+  const id = Number(button.dataset.id);
+  if (!id) return;
+  const action = button.dataset.ownerCalendarAction;
+  if (action === 'accept') setApptStatus(id, 'accepted');
+  if (action === 'reject') setApptStatus(id, 'rejected');
 }
 
 async function loadOwnerSlots() {

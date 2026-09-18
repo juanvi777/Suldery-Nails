@@ -1253,6 +1253,145 @@ app.patch('/api/owner/appointments/:id/status', authRequired, ownerRequired, asy
   }
 });
 
+
+async function getOwnerDayAppointments(date) {
+  const [rows] = await pool.query(
+    `SELECT a.id,
+            a.client_name,
+            COALESCE(a.client_phone, u.phone) AS client_phone,
+            a.service,
+            a.duration_minutes,
+            a.appointment_date,
+            a.appointment_time,
+            a.status,
+            u.email AS client_email,
+            a.user_id
+     FROM appointments a
+     LEFT JOIN users u ON u.id=a.user_id
+     WHERE a.appointment_date=?
+       AND a.status IN ('pending','accepted')
+     ORDER BY a.appointment_time`,
+    [date]
+  );
+  return rows.map(row => ({
+    id: row.id,
+    client_name: row.client_name,
+    client_phone: row.client_phone || '',
+    client_email: row.client_email || '',
+    service: row.service,
+    duration_minutes: Number(row.duration_minutes) || 60,
+    appointment_date: dateOnly(row.appointment_date),
+    appointment_time: formatDbTime(row.appointment_time),
+    status: row.status,
+    user_id: row.user_id
+  }));
+}
+
+function monthDateList(year, monthNumber) {
+  const totalDays = new Date(year, monthNumber, 0).getDate();
+  const days = [];
+  for (let day = 1; day <= totalDays; day++) {
+    days.push(`${year}-${String(monthNumber).padStart(2, '0')}-${String(day).padStart(2, '0')}`);
+  }
+  return days;
+}
+
+app.get('/api/owner/calendar', authRequired, ownerRequired, async (req, res) => {
+  try {
+    const month = String(req.query.month || '').trim();
+    if (!/^\d{4}-\d{2}$/.test(month)) return res.status(400).json({ message: 'Mes inválido.' });
+    const [year, monthNumber] = month.split('-').map(Number);
+    if (monthNumber < 1 || monthNumber > 12) return res.status(400).json({ message: 'Mes inválido.' });
+
+    const dates = monthDateList(year, monthNumber);
+    const startDate = dates[0];
+    const endDate = dates[dates.length - 1];
+    const [appointmentRows] = await pool.query(
+      `SELECT appointment_date, appointment_time, duration_minutes, status
+       FROM appointments
+       WHERE appointment_date BETWEEN ? AND ?
+         AND status IN ('pending','accepted')
+       ORDER BY appointment_date, appointment_time`,
+      [startDate, endDate]
+    );
+
+    const grouped = new Map();
+    for (const row of appointmentRows) {
+      const date = dateOnly(row.appointment_date);
+      if (!grouped.has(date)) grouped.set(date, []);
+      grouped.get(date).push(row);
+    }
+
+    const blockedRows = await getBlockedDates(startDate, endDate);
+    const blockedMap = new Map(blockedRows.map(row => [row.date, row]));
+
+    const days = [];
+    for (const date of dates) {
+      const appointments = grouped.get(date) || [];
+      const blocked = blockedMap.get(date);
+      const scheduleDay = await getScheduleDay(dateWeekday(date), date);
+      let status = 'available';
+      let label = 'Libre';
+      if (blocked) {
+        status = 'blocked';
+        label = 'Bloqueado';
+      } else if (!scheduleDay?.is_open || dateWeekday(date) === 7) {
+        status = 'rest';
+        label = 'Descanso';
+      } else if (appointments.length) {
+        const pending = appointments.filter(item => item.status === 'pending').length;
+        status = pending ? 'pending' : 'appointments';
+        label = pending ? `${pending} pendiente${pending === 1 ? '' : 's'}` : `${appointments.length} cita${appointments.length === 1 ? '' : 's'}`;
+      }
+
+      days.push({
+        date,
+        status,
+        label,
+        appointment_count: appointments.length,
+        pending_count: appointments.filter(item => item.status === 'pending').length,
+        accepted_count: appointments.filter(item => item.status === 'accepted').length
+      });
+    }
+
+    res.json({ month, days });
+  } catch (error) {
+    console.error('No se pudo cargar el calendario de la dueña:', error);
+    res.status(500).json({ message: 'No se pudo cargar el calendario de la dueña.' });
+  }
+});
+
+app.get('/api/owner/calendar/day', authRequired, ownerRequired, async (req, res) => {
+  try {
+    const date = toISODate(req.query.date);
+    const service = String(req.query.service || 'Manicure semipermanente');
+    const duration = serviceDuration(service);
+    if (!date || !duration) return res.status(400).json({ message: 'Fecha o servicio inválido.' });
+
+    const blocked = await isDateBlocked(date);
+    const scheduleDay = await getScheduleDay(dateWeekday(date), date);
+    const appointments = await getOwnerDayAppointments(date);
+    const isPast = isDateInPast(date);
+    const freeSlots = blocked || !scheduleDay?.is_open || dateWeekday(date) === 7 || isPast
+      ? []
+      : slotsForDate(date, scheduleDay, appointments, duration);
+
+    res.json({
+      date,
+      service,
+      duration,
+      is_past: isPast,
+      blocked: blocked || null,
+      schedule: scheduleDay?.intervals || [],
+      appointments,
+      free_slots: freeSlots
+    });
+  } catch (error) {
+    console.error('No se pudo cargar el día del calendario de la dueña:', error);
+    res.status(500).json({ message: 'No se pudo cargar el detalle del día.' });
+  }
+});
+
 app.get('/api/owner/schedule', authRequired, ownerRequired, async (_req, res) => {
   try { res.json({ schedule: await getSchedule() }); }
   catch { res.status(500).json({ message: 'No se pudo cargar el horario.' }); }

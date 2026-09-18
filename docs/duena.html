@@ -44,10 +44,10 @@
         <span>CLIENTAS ACTIVAS</span><strong id="activeClientCount">0</strong><small>cuentas aceptadas · ver listado →</small>
       </button>
       <button type="button" class="stat-card stat-card-button" data-owner-stat="appointments">
-        <span>CITAS AGENDADAS</span><strong id="scheduledCount">0</strong><small>pendientes + confirmadas · ver agenda →</small>
+        <span>CITAS AGENDADAS</span><strong id="scheduledCount">0</strong><small>citas confirmadas · ver agenda →</small>
       </button>
-      <button type="button" class="stat-card stat-card-button" data-owner-stat="portfolio">
-        <span>PORTAFOLIO</span><strong id="photoCount">0</strong><small>fotos publicadas · administrar →</small>
+      <button type="button" class="stat-card stat-card-button" data-owner-stat="calendar">
+        <span>CALENDARIO</span><strong>◷</strong><small>ver citas por día y espacios libres →</small>
       </button>
     </section>
 
@@ -59,7 +59,7 @@
 
     <section id="ownerStatAppointments" class="owner-detail-panel admin-card glass-card hidden-tool-panel">
       <div class="card-heading"><div><p class="eyebrow">AGENDA</p><h2>Citas agendadas</h2></div><button class="small-button ghost" type="button" data-close-owner-stat>Cerrar</button></div>
-      <p class="manager-note">Se muestran las citas pendientes y confirmadas de hoy en adelante, incluidas las que agendaste manualmente.</p>
+      <p class="manager-note">Aquí aparecen las citas confirmadas de hoy en adelante, incluidas las que agendaste manualmente. Las solicitudes pendientes están separadas en “Solicitudes de citas”.</p>
       <div id="scheduledAppointmentsList" class="admin-list"></div>
     </section>
 
@@ -67,7 +67,33 @@
       <button type="button" class="owner-tool-button" data-owner-tool="schedule"><span class="owner-tool-icon">◷</span><span><strong>Horario de trabajo</strong><small>Semana + excepciones</small></span><b>→</b></button>
       <button type="button" class="owner-tool-button" data-owner-tool="manual"><span class="owner-tool-icon">＋</span><span><strong>Agendar clienta</strong><small>Cita manual confirmada</small></span><b>→</b></button>
       <button type="button" class="owner-tool-button" data-owner-tool="blocked"><span class="owner-tool-icon">▣</span><span><strong>Bloquear días</strong><small>Vacaciones o descansos</small></span><b>→</b></button>
+      <button type="button" class="owner-tool-button" data-owner-tool="calendar"><span class="owner-tool-icon">◷</span><span><strong>Calendario</strong><small>Citas y espacios libres</small></span><b>→</b></button>
       <button type="button" class="owner-tool-button" data-owner-tool="photos"><span class="owner-tool-icon">✦</span><span><strong>Subir fotos</strong><small>Portafolio para clientas</small></span><b>→</b></button>
+    </section>
+
+    <section id="ownerToolCalendar" class="owner-tool-panel admin-card glass-card hidden-tool-panel">
+      <div class="card-heading"><div><p class="eyebrow">CALENDARIO</p><h2>Tu agenda, día por día</h2></div><button class="small-button ghost" type="button" data-close-owner-tool>Cerrar</button></div>
+      <p class="manager-note">Explora cualquier mes, toca un día y revisa las citas que ya tienes, las que están pendientes y los espacios que siguen libres. Las citas confirmadas y las que agendaste manualmente permanecen aquí; las solicitudes pendientes también se distinguen claramente.</p>
+      <div class="calendar-card owner-calendar-card">
+        <div class="calendar-topbar"><button id="ownerCalendarPrevious" type="button" class="month-button" aria-label="Mes anterior">‹</button><div class="calendar-title"><span>AGENDA DE SULDERY</span><h3 id="ownerCalendarMonthLabel">Mes</h3></div><button id="ownerCalendarNext" type="button" class="month-button" aria-label="Mes siguiente">›</button></div>
+        <div class="owner-calendar-actions"><button id="ownerCalendarToday" type="button" class="small-button ghost">Hoy</button></div>
+        <div class="calendar-legend owner-calendar-legend">
+          <span><i class="legend-dot available"></i>Libre</span>
+          <span><i class="legend-dot full"></i>Con citas</span>
+          <span><i class="legend-dot pending"></i>Pendiente</span>
+          <span><i class="legend-dot rest"></i>Descanso / bloqueado</span>
+        </div>
+        <div class="calendar-weekdays"><span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span></div>
+        <div id="ownerCalendarDays" class="calendar-days"></div>
+      </div>
+      <div class="owner-calendar-day-card">
+        <div class="card-heading"><div><p class="eyebrow">DÍA SELECCIONADO</p><h3 id="ownerCalendarDayTitle">Selecciona un día</h3></div></div>
+        <p id="ownerCalendarFeedback" class="calendar-feedback">Selecciona un día del calendario.</p>
+        <div class="owner-calendar-service-picker"><label>Ver espacios libres para<select id="ownerCalendarService"><option value="Manicure semipermanente">Manicure semipermanente · 1 h 30 min</option><option value="Pedicure semipermanente">Pedicure semipermanente · 1 hora</option><option value="Dipping">Dipping · 2 horas</option><option value="Press on">Press on · 2 horas</option></select></label></div>
+        <div class="owner-calendar-section"><p class="eyebrow">HORARIO DE ESE DÍA</p><div id="ownerCalendarSchedule" class="owner-calendar-chips"></div></div>
+        <div class="owner-calendar-section"><p class="eyebrow">CITAS AGENDADAS</p><div id="ownerCalendarAppointments" class="admin-list"></div></div>
+        <div class="owner-calendar-section"><p class="eyebrow">ESPACIOS LIBRES</p><div id="ownerCalendarFreeSlots" class="owner-calendar-free-box"></div></div>
+      </div>
     </section>
 
     <section id="ownerToolSchedule" class="owner-tool-panel admin-card glass-card hidden-tool-panel">
@@ -126,12 +152,12 @@
         <div id="pendingUsersList" class="admin-list"></div>
       </article>
       <article class="admin-card glass-card">
-        <div class="card-heading"><div><p class="eyebrow">AGENDA</p><h2>Solicitudes de citas</h2></div><span class="flower">✦</span></div>
+        <div class="card-heading"><div><p class="eyebrow">AGENDA</p><h2>Solicitudes de citas pendientes</h2></div><span class="flower">✦</span></div>
         <div id="ownerAppointmentsList" class="admin-list"></div>
       </article>
     </section>
   </main>
   <script src="auth.js?v=20260918"></script>
-  <script src="duena.js?v=20260919"></script>
+  <script src="duena.js?v=20260920"></script>
 </body>
 </html>

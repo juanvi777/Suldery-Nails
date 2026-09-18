@@ -495,3 +495,30 @@ button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   .experience-cloud p { font-size:.78rem; }
   .sms-status-card { padding:.72rem; }
 }
+
+
+/* v3.2 · Calendario de agenda de Suldery */
+.owner-calendar-card{margin-top:.9rem;background:rgba(255,255,255,.03);border-color:var(--line)}
+.owner-calendar-actions{display:flex;justify-content:center;margin-top:.65rem}
+.owner-calendar-legend{margin-bottom:.7rem}
+.owner-calendar-legend .legend-dot.full{background:var(--rose-dark)}
+.owner-calendar-legend .legend-dot.pending{background:#f0b64c}
+.owner-calendar-legend .legend-dot.rest{background:#b9b1c3}
+.owner-calendar-day{min-height:72px}
+.owner-calendar-day.appointments{border-color:rgba(198,40,104,.26)}
+.owner-calendar-day.pending{background:linear-gradient(145deg,rgba(244,196,91,.24),rgba(198,40,104,.10));border-color:rgba(244,196,91,.35)}
+.owner-calendar-day.blocked,.owner-calendar-day.rest{background:rgba(255,255,255,.035)}
+.owner-calendar-day.selected{outline:2px solid rgba(93,228,255,.55);outline-offset:1px}
+.owner-calendar-day small{font-size:.46rem;font-weight:800;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.owner-calendar-day-card{margin-top:1rem;padding:1rem;border:1px solid var(--line);border-radius:22px;background:rgba(255,255,255,.025)}
+.owner-calendar-day-card .card-heading h3{margin:0;font:700 1.25rem "Playfair Display",serif;color:var(--ink);text-transform:capitalize}
+.owner-calendar-service-picker{margin:.8rem 0}.owner-calendar-service-picker label{display:grid;gap:.35rem;color:var(--muted);font-size:.7rem;font-weight:800}.owner-calendar-service-picker select{width:100%;padding:.72rem .8rem;border:1px solid var(--line);border-radius:12px;background:var(--surface-strong);color:var(--ink);font:inherit;font-weight:700}
+.owner-calendar-section{margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}
+.owner-calendar-chips{display:flex;flex-wrap:wrap;gap:.5rem}.owner-calendar-chip{display:inline-flex;align-items:center;padding:.48rem .65rem;border-radius:999px;background:rgba(198,40,104,.08);border:1px solid var(--line);color:var(--ink);font-size:.7rem;font-weight:800}
+.owner-calendar-note{margin:.1rem 0 .55rem;color:var(--muted);font-size:.72rem;line-height:1.5}.owner-calendar-free-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.5rem}.owner-calendar-free-chip{display:grid;place-items:center;min-height:42px;border:1px solid var(--line);border-radius:12px;background:rgba(93,228,255,.07);color:var(--ink);font-size:.72rem;font-weight:800}
+.owner-calendar-appointment{background:rgba(255,255,255,.025)}
+.dark-mode .owner-calendar-day-card{background:rgba(255,255,255,.035);border-color:rgba(255,255,255,.12)}
+.dark-mode .owner-calendar-service-picker select{background:rgba(15,14,34,.75);color:#fff;border-color:rgba(255,255,255,.14)}
+.dark-mode .owner-calendar-chip,.dark-mode .owner-calendar-free-chip{background:rgba(255,255,255,.045);border-color:rgba(255,255,255,.12);color:#fff}
+@media(max-width:680px){.owner-calendar-day{min-height:58px}.owner-calendar-free-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.owner-calendar-day-card{padding:.85rem}.owner-calendar-day-card .card-heading h3{font-size:1.05rem}}
+@media(max-width:430px){.owner-calendar-free-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.owner-calendar-day small{font-size:.38rem}.owner-calendar-day{min-height:53px}}
