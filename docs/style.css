@@ -374,3 +374,6 @@ body.dark-mode .install-app-button {
 
 /* v2.5: dashboard summary cards and drill-down lists */
 .stat-card-button{width:100%;text-align:left;cursor:pointer;color:inherit;font:inherit;transition:transform .18s,box-shadow .18s,border-color .18s}.stat-card-button:hover{transform:translateY(-2px);box-shadow:var(--shadow)}.stat-card-button:focus-visible{outline:3px solid var(--rose);outline-offset:3px}.owner-detail-panel{margin:0 0 1.2rem}.owner-detail-panel.hidden-tool-panel{display:none}.admin-item{display:flex;align-items:flex-start;justify-content:space-between;gap:.9rem}.admin-item-main{min-width:0}.admin-item-main small{display:block;color:var(--muted);font-size:.68rem;line-height:1.4}.admin-detail-empty{grid-column:1/-1}
+
+.field-help{display:block;margin-top:6px;font-size:.78rem;line-height:1.45;opacity:.72}
+.optional-label{font-size:.75rem;opacity:.7}

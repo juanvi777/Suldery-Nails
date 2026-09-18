@@ -91,6 +91,7 @@
       <p class="manager-note">La cita queda confirmada de inmediato y ocupa el turno. El sistema solo ofrece horas en las que cabe completo el servicio y jamás permite cruzar el almuerzo ni otra cita. Ejemplo: 2 horas llega como máximo a las 10:00 a. m. en la mañana; 1 h 30 min hasta las 10:30 a. m.; 1 hora hasta las 11:00 a. m.</p>
       <form id="ownerBookingForm" class="owner-booking-form">
         <label>Nombre de la clienta<input id="ownerClientName" type="text" placeholder="Nombre completo" required></label>
+        <label>Teléfono de la clienta <span class="optional-label">(opcional)</span><input id="ownerClientPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+57 300 123 4567"></label>
         <label>Servicio<select id="ownerService"><option value="Manicure semipermanente">Manicure semipermanente · 1 h 30 min</option><option value="Pedicure semipermanente">Pedicure semipermanente · 1 hora</option><option value="Dipping">Dipping · 2 horas</option><option value="Press on">Press on · 2 horas</option></select><small id="ownerServiceDurationHint" class="service-duration-hint"></small></label>
         <label>Fecha<input id="ownerAppointmentDate" type="date" required></label>
         <label>Hora disponible<select id="ownerAppointmentTime" required></select></label>

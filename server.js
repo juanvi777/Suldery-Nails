@@ -561,7 +561,7 @@ function dayMessage(date, scheduleDay, slots) {
 
 async function findUserById(id) {
   const [rows] = await pool.query(
-    'SELECT id,name,email,role,status,created_at FROM users WHERE id=?',
+    'SELECT id,name,email,phone,role,status,created_at FROM users WHERE id=?',
     [id]
   );
   return rows[0] || null;
@@ -581,9 +581,11 @@ app.post('/api/auth/register', async (req, res) => {
   try {
     const name = String(req.body.name || '').trim();
     const email = normalizeEmail(req.body.email);
+    const phone = String(req.body.phone || '').trim();
     const password = String(req.body.password || '');
     if (name.length < 2) return res.status(400).json({ message: 'Escribe tu nombre completo.' });
     if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ message: 'Escribe un correo válido.' });
+    if (!/^\+?[0-9][0-9\s().-]{6,18}$/.test(phone)) return res.status(400).json({ message: 'Escribe un número de teléfono válido.' });
     if (password.length < 6) return res.status(400).json({ message: 'La contraseña debe tener mínimo 6 caracteres.' });
 
     const [existing] = await pool.query('SELECT id FROM users WHERE email=?', [email]);
@@ -591,10 +593,11 @@ app.post('/api/auth/register', async (req, res) => {
 
     const passwordHash = await bcrypt.hash(password, 12);
     await pool.query(
-      `INSERT INTO users(name,email,password_hash,role,status) VALUES(?,?,?,'client','pending')`,
-      [name, email, passwordHash]
+      `INSERT INTO users(name,email,phone,password_hash,role,status) VALUES(?,?,?,?,'client','pending')`,
+      [name, email, phone, passwordHash]
     );
-    res.status(201).json({ message: 'Solicitud enviada. Suldery debe aprobar tu cuenta antes de que puedas reservar.' });
+    void notifyNewClientAccount({ name, email, phone });
+    res.status(201).json({ message: `Solicitud enviada a Suldery. Tu cuenta queda pendiente de aprobación. Teléfono registrado: ${phone}. Suldery podrá llamarte o escribirte si necesita comunicarse contigo.` });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'No se pudo crear la cuenta.' });
@@ -616,7 +619,7 @@ app.post('/api/auth/login', async (req, res) => {
     if (user.status === 'pending') return res.status(403).json({ message: 'Tu cuenta todavía está pendiente de aprobación.' });
     if (user.status === 'rejected') return res.status(403).json({ message: 'Tu cuenta fue rechazada. Comunícate con Suldery.' });
 
-    const safeUser = { id: user.id, name: user.name, email: user.email, role: user.role, status: user.status };
+    const safeUser = { id: user.id, name: user.name, email: user.email, phone: user.phone || '', role: user.role, status: user.status };
     loginAttempts.delete(attemptKey);
     const token = signToken(user);
     setSessionCookie(res, token);
@@ -809,10 +812,21 @@ async function sendOwnerSms(message) {
   return { sent: true };
 }
 
-async function notifyNewClientAppointment({ clientName, service, date, time }) {
+async function notifyNewClientAccount({ name, email, phone }) {
   try {
     return await sendOwnerSms(
-      `Suldery Nails: nueva solicitud. ${clientName} pidió ${service} el ${date.split('-').reverse().join('/')} a las ${time}. Revisa y confirma: https://suldery-nails-production.up.railway.app/duena.html`
+      `Suldery Nails: nueva cuenta pendiente. ${name} · ${email} · Tel: ${phone}. Revisa y acepta/rechaza: https://suldery-nails-production.up.railway.app/duena.html`
+    );
+  } catch (error) {
+    console.error('No se pudo enviar el SMS por nueva cuenta:', error.message);
+    return { sent: false, error: error.message };
+  }
+}
+
+async function notifyNewClientAppointment({ clientName, phone, service, date, time }) {
+  try {
+    return await sendOwnerSms(
+      `Suldery Nails: nueva cita pendiente. ${clientName} · Tel: ${phone || 'sin teléfono'} · ${service} · ${date.split('-').reverse().join('/')} ${time}. Revisa y confirma: https://suldery-nails-production.up.railway.app/duena.html`
     );
   } catch (error) {
     console.error('No se pudo enviar el SMS a la dueña:', error.message);
@@ -867,13 +881,13 @@ app.post('/api/appointments', authRequired, async (req, res) => {
         throw error;
       }
       await connection.query(
-        `INSERT INTO appointments(user_id,client_name,service,duration_minutes,appointment_date,appointment_time,status)
-         VALUES(?,?,?,?,?,?,'pending')`,
-        [req.auth.id, user.name, service, duration, date, `${time}:00`]
+        `INSERT INTO appointments(user_id,client_name,client_phone,service,duration_minutes,appointment_date,appointment_time,status)
+         VALUES(?,?,?,?,?,?,?,'pending')`,
+        [req.auth.id, user.name, user.phone || null, service, duration, date, `${time}:00`]
       );
     });
-    void notifyNewClientAppointment({ clientName: user.name, service, date, time });
-    res.status(201).json({ message: 'Cita enviada. Queda pendiente de confirmación por Suldery.' });
+    void notifyNewClientAppointment({ clientName: user.name, phone: user.phone || '', service, date, time });
+    res.status(201).json({ message: `Solicitud de cita enviada a Suldery. Queda pendiente de confirmación. Teléfono registrado: ${user.phone || 'sin teléfono'}.` });
   } catch (error) {
     console.error(error);
     res.status(error.statusCode || 500).json({ message: error.message || 'No se pudo crear la cita.' });
@@ -909,7 +923,7 @@ app.get('/api/portfolio', async (_req, res) => {
 app.get('/api/owner/users', authRequired, ownerRequired, async (_req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id,name,email,role,status,created_at FROM users
+      `SELECT id,name,email,phone,role,status,created_at FROM users
        WHERE role='client'
        ORDER BY FIELD(status,'pending','accepted','rejected'),created_at DESC`
     );
@@ -937,7 +951,7 @@ app.patch('/api/owner/users/:id/status', authRequired, ownerRequired, async (req
 app.get('/api/owner/appointments', authRequired, ownerRequired, async (_req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT a.id,a.client_name,a.service,a.duration_minutes,a.appointment_date,a.appointment_time,a.status,u.email AS client_email
+      `SELECT a.id,a.client_name,COALESCE(a.client_phone,u.phone) AS client_phone,a.service,a.duration_minutes,a.appointment_date,a.appointment_time,a.status,u.email AS client_email
        FROM appointments a LEFT JOIN users u ON u.id=a.user_id
        ORDER BY a.appointment_date,a.appointment_time`
     );
@@ -1082,11 +1096,13 @@ app.get('/api/owner/slots', authRequired, ownerRequired, async (req, res) => {
 app.post('/api/owner/appointments', authRequired, ownerRequired, async (req, res) => {
   try {
     const clientName = String(req.body.clientName || '').trim();
+    const clientPhone = String(req.body.clientPhone || '').trim();
     const service = String(req.body.service || '').trim();
     const date = toISODate(req.body.date);
     const time = String(req.body.time || '').trim();
     const duration = serviceDuration(service);
     if (!clientName || !duration || !date || !/^\d{2}:\d{2}$/.test(time)) return res.status(400).json({ message: 'Completa todos los datos.' });
+    if (clientPhone && !/^\+?[0-9][0-9\s().-]{6,18}$/.test(clientPhone)) return res.status(400).json({ message: 'El teléfono de la clienta no es válido.' });
     if (isDateInPast(date)) return res.status(400).json({ message: 'La fecha ya pasó.' });
 
     const blocked = await isDateBlocked(date);
@@ -1112,9 +1128,9 @@ app.post('/api/owner/appointments', authRequired, ownerRequired, async (req, res
         throw error;
       }
       await connection.query(
-        `INSERT INTO appointments(user_id,client_name,service,duration_minutes,appointment_date,appointment_time,status)
-         VALUES(NULL,?,?,?,?,?,'accepted')`,
-        [clientName, service, duration, date, `${time}:00`]
+        `INSERT INTO appointments(user_id,client_name,client_phone,service,duration_minutes,appointment_date,appointment_time,status)
+         VALUES(NULL,?,?,?,?,?,?,'accepted')`,
+        [clientName, clientPhone || null, service, duration, date, `${time}:00`]
       );
     });
     res.status(201).json({ message: 'Cita manual registrada y confirmada.' });

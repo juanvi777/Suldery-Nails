@@ -12,3 +12,17 @@ Correcciones y mejoras incluidas:
 - Se conserva la administración por botones: horario, agendar clienta, bloquear días y subir fotos.
 - Se conserva el soporte para varios tramos de horario y excepciones por fecha.
 - Se sincroniza `public/` con `docs/` para GitHub Pages.
+
+
+## v2.6: teléfono y SMS
+- El registro pide teléfono obligatorio y lo guarda en `users.phone`.
+- Las citas guardan `client_phone`; la dueña puede verlo.
+- Se envía un SMS a la dueña al recibir una nueva cuenta pendiente y al recibir una solicitud de cita, cuando las variables de Twilio están configuradas.
+
+
+## v2.7 - teléfonos y SMS
+- El teléfono es obligatorio al crear una cuenta.
+- El teléfono queda guardado en users.phone y en appointments.client_phone.
+- La dueña recibe SMS al entrar una cuenta pendiente y al solicitarse una cita, incluyendo nombre, correo/teléfono, servicio, fecha y hora.
+- Los mensajes mostrados a la clienta confirman que la solicitud quedó pendiente y muestran el teléfono registrado para contacto.
+- Configura en Railway: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM y OWNER_SMS_TO.

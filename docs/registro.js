@@ -10,6 +10,7 @@ function setRegisterBusy(busy) {
 async function registrar() {
   const name = document.getElementById('registerName').value.trim();
   const email = document.getElementById('registerEmail').value.trim().toLowerCase();
+  const phone = document.getElementById('registerPhone').value.trim();
   const password = document.getElementById('registerPassword').value;
   const password2 = document.getElementById('registerPassword2').value;
 
@@ -17,6 +18,7 @@ async function registrar() {
 
   if (!name || name.length < 2) return showRegisterError('Escribe tu nombre completo.');
   if (!/^\S+@\S+\.\S+$/.test(email)) return showRegisterError('Escribe un correo electrónico válido.');
+  if (!/^\+?[0-9][0-9\s().-]{6,18}$/.test(phone)) return showRegisterError('Escribe un número de teléfono válido.');
   if (password.length < 6) return showRegisterError('La contraseña debe tener mínimo 6 caracteres.');
   if (password !== password2) return showRegisterError('Las contraseñas no coinciden.');
 
@@ -24,10 +26,10 @@ async function registrar() {
   try {
     const data = await apiFetch('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ name, email, password })
+      body: JSON.stringify({ name, email, phone, password })
     });
     registerForm.reset();
-    setMessage(registerMessage, data.message, true);
+    setMessage(registerMessage, data.message || `Solicitud enviada a Suldery. Cuenta pendiente de aprobación. Teléfono registrado: ${phone}.`, true);
   } catch (error) {
     showRegisterError(error.message);
   } finally {

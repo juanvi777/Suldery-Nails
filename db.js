@@ -69,10 +69,31 @@ function ensureUploadDirectory() {
   fs.mkdirSync(path.join(__dirname, 'uploads', 'portfolio'), { recursive: true });
 }
 
+async function ensureCompatibilityMigrations() {
+  const migrations = [
+    { table: 'users', column: 'phone', sql: "ALTER TABLE users ADD COLUMN phone VARCHAR(30) NULL AFTER email" },
+    { table: 'appointments', column: 'client_phone', sql: "ALTER TABLE appointments ADD COLUMN client_phone VARCHAR(30) NULL AFTER client_name" }
+  ];
+  for (const migration of migrations) {
+    const [rows] = await pool.query(
+      `SELECT COUNT(*) AS total FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME=? AND COLUMN_NAME=?`,
+      [DB_NAME, migration.table, migration.column]
+    );
+    if (Number(rows[0]?.total) === 0) await pool.query(migration.sql);
+  }
+  await pool.query(
+    `UPDATE appointments a
+     INNER JOIN users u ON u.id=a.user_id
+     SET a.client_phone=u.phone
+     WHERE (a.client_phone IS NULL OR a.client_phone='') AND u.phone IS NOT NULL AND u.phone<>''`
+  );
+}
+
 async function initDatabase() {
   await ensureDatabase();
   createPool();
   await initializeSchema();
+  await ensureCompatibilityMigrations();
   await testConnection();
 }
 

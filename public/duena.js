@@ -200,7 +200,7 @@ function renderActiveClients() {
   clients.forEach(user => {
     const item = document.createElement('article');
     item.className = 'admin-item';
-    item.innerHTML = `<div class="admin-item-main"><strong>${escapeHtml(user.name)}</strong><p>${escapeHtml(user.email)}</p><small>Activa desde ${escapeHtml(formatDate(String(user.created_at).slice(0,10)))}</small></div><span class="status accepted">Activa</span>`;
+    item.innerHTML = `<div class="admin-item-main"><strong>${escapeHtml(user.name)}</strong><p>${escapeHtml(user.email)}${user.phone ? ` · ${escapeHtml(user.phone)}` : ''}</p><small>Activa desde ${escapeHtml(formatDate(String(user.created_at).slice(0,10)))}</small></div><span class="status accepted">Activa</span>`;
     list.appendChild(item);
   });
 }
@@ -217,7 +217,7 @@ function renderScheduledAppointments() {
   appointments.forEach(appt => {
     const item = document.createElement('article');
     item.className = 'admin-item';
-    item.innerHTML = `<strong>${escapeHtml(appt.client_name)}</strong><p>${escapeHtml(appt.service)} · ${formatDate(appt.appointment_date)} · ${String(appt.appointment_time).slice(0,5)} · ${DURATION_LABELS[appt.service] || `${Number(appt.duration_minutes)||60} min`}</p><span class="status ${appt.status}">${statusLabel(appt.status)}</span><small>${escapeHtml(appt.client_email || 'Cita manual')}</small>`;
+    item.innerHTML = `<strong>${escapeHtml(appt.client_name)}</strong><p>${escapeHtml(appt.service)} · ${formatDate(appt.appointment_date)} · ${String(appt.appointment_time).slice(0,5)} · ${DURATION_LABELS[appt.service] || `${Number(appt.duration_minutes)||60} min`}</p><span class="status ${appt.status}">${statusLabel(appt.status)}</span><small>${escapeHtml(appt.client_email || 'Cita manual')}${appt.client_phone ? ` · Tel: ${escapeHtml(appt.client_phone)}` : ''}</small>`;
     const actions = document.createElement('div');
     actions.className = 'admin-actions';
     if (appt.status === 'pending') actions.append(actionButton('Confirmar', 'small-button', () => setApptStatus(appt.id, 'accepted')));
@@ -263,7 +263,7 @@ async function loadOwnerAppointments() {
   if (!data.appointments.length) { list.innerHTML = '<div class="empty-state">No hay citas registradas.</div>'; return; }
   data.appointments.forEach(appt => {
     const item = document.createElement('article'); item.className = 'admin-item';
-    item.innerHTML = `<strong>${escapeHtml(appt.client_name)}</strong><p>${escapeHtml(appt.service)} · ${formatDate(appt.appointment_date)} · ${String(appt.appointment_time).slice(0,5)}</p><span class="status ${appt.status}">${statusLabel(appt.status)}</span><small>${escapeHtml(appt.client_email || 'Cita manual')}</small>`;
+    item.innerHTML = `<strong>${escapeHtml(appt.client_name)}</strong><p>${escapeHtml(appt.service)} · ${formatDate(appt.appointment_date)} · ${String(appt.appointment_time).slice(0,5)}</p><span class="status ${appt.status}">${statusLabel(appt.status)}</span><small>${escapeHtml(appt.client_email || 'Cita manual')}${appt.client_phone ? ` · Tel: ${escapeHtml(appt.client_phone)}` : ''}</small>`;
     const actions = document.createElement('div'); actions.className = 'admin-actions';
     if (appt.status === 'pending') actions.append(actionButton('Confirmar', 'small-button', () => setApptStatus(appt.id, 'accepted')));
     if (['pending','accepted'].includes(appt.status)) actions.append(actionButton('Cancelar', 'small-button cancel', () => setApptStatus(appt.id, 'cancelled')));
@@ -296,7 +296,7 @@ function updateOwnerServiceDurationHint() { $d('ownerServiceDurationHint').textC
 async function submitManualBooking(event) {
   event.preventDefault();
   const message = $d('ownerBookingMessage'); const button = $d('ownerBookingButton');
-  const body = { clientName:$d('ownerClientName').value.trim(), service:$d('ownerService').value, date:$d('ownerAppointmentDate').value, time:$d('ownerAppointmentTime').value };
+  const body = { clientName:$d('ownerClientName').value.trim(), clientPhone:$d('ownerClientPhone')?.value.trim() || '', service:$d('ownerService').value, date:$d('ownerAppointmentDate').value, time:$d('ownerAppointmentTime').value };
   if (!body.clientName || !body.date || !body.time) { setMessage(message,'Completa nombre, fecha y hora.'); return; }
   button.disabled = true; setMessage(message,'Guardando cita…');
   try { const data = await apiFetch('/owner/appointments',{method:'POST',body:JSON.stringify(body)}); setMessage(message,data.message,true); $d('ownerClientName').value=''; await Promise.all([loadOwnerSlots(),loadOwnerAppointments()]); renderOwnerStatsDetails(); }
