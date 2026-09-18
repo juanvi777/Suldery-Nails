@@ -902,42 +902,82 @@ function colombiaDateTime(date, time) {
   return new Date(`${safeDate}T${safeTime}:00-05:00`);
 }
 
+function getTelegramConfig() {
+  const botToken = String(process.env.TELEGRAM_BOT_TOKEN || '').trim();
+  const chatId = String(process.env.TELEGRAM_CHAT_ID || '').trim();
+  const missing = [];
+  if (!botToken) missing.push('TELEGRAM_BOT_TOKEN');
+  if (!chatId) missing.push('TELEGRAM_CHAT_ID');
+  return { botToken, chatId, missing };
+}
+
+function maskChatId(chatId) {
+  const value = String(chatId || '').trim();
+  if (!value) return 'sin configurar';
+  if (value.length <= 6) return '••••' + value;
+  return `${value.slice(0, 3)}••••${value.slice(-3)}`;
+}
+
+async function sendTelegram(to, message) {
+  const config = getTelegramConfig();
+  if (config.missing.length) {
+    return { sent: false, skipped: true, missing: config.missing };
+  }
+
+  const response = await fetch(`https://api.telegram.org/bot${encodeURIComponent(config.botToken)}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: String(to || config.chatId),
+      text: String(message),
+      disable_web_page_preview: true
+    })
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.ok !== true) {
+    throw new Error(`Telegram ${response.status}: ${data.description || 'No se pudo enviar el mensaje.'}`);
+  }
+
+  return { sent: true, messageId: data.result?.message_id || null };
+}
+
+async function sendTelegramOnce(notificationKey, notificationType, message) {
+  const config = getTelegramConfig();
+  if (config.missing.length) return { sent: false, skipped: true, missing: config.missing };
+
+  const existing = await pool.query(
+    'SELECT id FROM notification_log WHERE notification_key=? LIMIT 1',
+    [notificationKey]
+  );
+  if (existing[0].length) return { sent: true, alreadySent: true };
+
+  try {
+    const result = await sendTelegram(config.chatId, message);
+    await pool.query(
+      `INSERT INTO notification_log(notification_key,notification_type)
+       VALUES(?,?)
+       ON DUPLICATE KEY UPDATE notification_key=notification_key`,
+      [notificationKey, notificationType]
+    );
+    return result;
+  } catch (error) {
+    console.error(`No se pudo enviar ${notificationType}:`, error.message);
+    return { sent: false, error: error.message };
+  }
+}
+
 function getSmsConfig() {
   const accountSid = String(process.env.TWILIO_ACCOUNT_SID || '').trim();
   const authToken = String(process.env.TWILIO_AUTH_TOKEN || '').trim();
-  const ownerPhone = normalizePhoneNumber(process.env.OWNER_SMS_TO || '3106319093');
+  const ownerPhone = normalizePhoneNumber(process.env.OWNER_SMS_TO || '');
   const from = normalizePhoneNumber(process.env.TWILIO_FROM || '');
   const messagingServiceSid = String(process.env.TWILIO_MESSAGING_SERVICE_SID || '').trim();
-
   const missing = [];
   if (!accountSid) missing.push('TWILIO_ACCOUNT_SID');
   if (!authToken) missing.push('TWILIO_AUTH_TOKEN');
-  if (!ownerPhone) missing.push('OWNER_SMS_TO');
   if (!from && !messagingServiceSid) missing.push('TWILIO_FROM o TWILIO_MESSAGING_SERVICE_SID');
-
   return { accountSid, authToken, ownerPhone, from, messagingServiceSid, missing };
-}
-
-function maskPhone(phone) {
-  const value = normalizePhoneNumber(phone);
-  if (!value) return 'sin teléfono';
-  if (value.length <= 6) return value;
-  return `${value.slice(0, 4)}••••${value.slice(-2)}`;
-}
-
-function formatTime12(time) {
-  const text = String(time || '').slice(0, 5);
-  const match = /^(\d{2}):(\d{2})$/.exec(text);
-  if (!match) return text || 'hora pendiente';
-  let hour = Number(match[1]);
-  const minute = match[2];
-  const period = hour >= 12 ? 'PM' : 'AM';
-  hour = hour % 12 || 12;
-  return `${hour}:${minute} ${period}`;
-}
-
-function formatSmsDateTime(date, time) {
-  return `${formatHumanDate(date)} a las ${formatTime12(time)}`;
 }
 
 async function sendSms(to, message) {
@@ -1007,12 +1047,19 @@ function ownerPanelUrl() {
 }
 
 async function notifyNewClientAccount({ id, name, email, phone }) {
-  const config = getSmsConfig();
-  return sendSmsOnce(
+  return sendTelegramOnce(
     `account-pending:owner:${id}`,
-    'account_pending_owner',
-    config.ownerPhone,
-    `Hola Suldery 💕, ${name} acaba de registrarse en Suldery Nails y su cuenta está esperando aprobación. Correo: ${email}. Teléfono: ${phone || 'sin teléfono'}. Puedes revisarla aquí: ${ownerPanelUrl()}`
+    'account_pending_owner_telegram',
+    `Hola Suldery 💕
+
+Una nueva clienta quiere unirse a Suldery Nails y su cuenta está pendiente de aprobación.
+
+👤 ${name}
+✉️ ${email}
+📱 ${phone || 'sin teléfono'}
+
+Puedes revisar la solicitud en tu panel:
+${ownerPanelUrl()}`
   );
 }
 
@@ -1039,12 +1086,21 @@ async function notifyClientAccountRejected({ id, name, phone }) {
 }
 
 async function notifyNewClientAppointment({ id, clientName, phone, service, date, time }) {
-  const config = getSmsConfig();
-  return sendSmsOnce(
+  return sendTelegramOnce(
     `appointment-pending:owner:${id}`,
-    'appointment_pending_owner',
-    config.ownerPhone,
-    `Hola Suldery 💕, ${clientName} acaba de solicitar una cita para ${formatSmsDateTime(date, time)} por ${service}. Teléfono: ${phone || 'sin teléfono'}. Queda pendiente de tu confirmación. Revisa tu panel: ${ownerPanelUrl()}`
+    'appointment_pending_owner_telegram',
+    `Hola Suldery 💕
+
+${clientName} acaba de solicitar una cita.
+
+💅 ${service}
+📅 ${formatSmsDateTime(date, time)}
+📱 ${phone || 'sin teléfono'}
+
+La solicitud está pendiente de confirmación.
+
+Revisar agenda:
+${ownerPanelUrl()}`
   );
 }
 
@@ -1082,12 +1138,18 @@ async function notifyClientAppointmentCancelled({ id, clientName, phone, service
 }
 
 async function notifyOwnerAppointmentCancelled({ id, clientName, phone, service, date, time }) {
-  const config = getSmsConfig();
-  return sendSmsOnce(
+  return sendTelegramOnce(
     `appointment-cancelled:owner:${id}`,
-    'appointment_cancelled_owner',
-    config.ownerPhone,
-    `Hola Suldery 💕, ${clientName} canceló su cita de ${service} para ${formatSmsDateTime(date, time)}. Teléfono: ${phone || 'sin teléfono'}. Tu agenda ya quedó liberada.`
+    'appointment_cancelled_owner_telegram',
+    `Hola Suldery 💕
+
+${clientName} canceló su cita.
+
+💅 ${service}
+📅 ${formatSmsDateTime(date, time)}
+📱 ${phone || 'sin teléfono'}
+
+Tu agenda ya quedó liberada.`
   );
 }
 
@@ -1107,12 +1169,10 @@ async function sendPendingSummary() {
     if (pendingUsers) parts.push(`${pendingUsers} cuenta${pendingUsers === 1 ? '' : 's'} pendiente${pendingUsers === 1 ? '' : 's'} de aprobación`);
     if (pendingAppointments) parts.push(`${pendingAppointments} cita${pendingAppointments === 1 ? '' : 's'} pendiente${pendingAppointments === 1 ? '' : 's'} de confirmar`);
 
-    const config = getSmsConfig();
-    await sendSmsOnce(
+    await sendTelegramOnce(
       `pending-summary:owner:${bucket}`,
-      'pending_summary_owner',
-      config.ownerPhone,
-      `Hola Suldery 💕, tienes ${parts.join(' y ')}. Cuando tengas un momento, puedes revisarlas aquí: ${ownerPanelUrl()}`
+      'pending_summary_owner_telegram',
+      `Hola Suldery 💕, tienes ${parts.join(' y ')}. Cuando tengas un momento, puedes revisarlas aquí:\n${ownerPanelUrl()}`
     );
   } catch (error) {
     console.error('No se pudo preparar el resumen de pendientes:', error.message);
@@ -1137,7 +1197,6 @@ async function sendUpcomingAppointmentReminders() {
     );
 
     const now = Date.now();
-    const config = getSmsConfig();
 
     for (const appt of rows) {
       const dateText = dateOnly(appt.appointment_date);
@@ -1147,39 +1206,25 @@ async function sendUpcomingAppointmentReminders() {
       const clientPhone = appt.client_phone || appt.user_phone || '';
 
       if (minutesAway > 23 * 60 && minutesAway <= 25 * 60) {
-        await sendSmsOnce(
+        await sendTelegramOnce(
           `appointment-reminder-24h:owner:${appt.id}`,
-          'appointment_reminder_24h_owner',
-          config.ownerPhone,
-          `Hola Suldery 💕, recuerdito de agenda: mañana tienes a ${appt.client_name} para ${appt.service} a las ${formatTime12(timeText)} (${formatShortDate(dateText)}). Teléfono: ${clientPhone || 'sin teléfono'}.`
+          'appointment_reminder_24h_owner_telegram',
+          `Hola Suldery 💕
+
+Recuerdito de agenda: mañana tienes a ${appt.client_name} para ${appt.service} a las ${formatTime12(timeText)} (${formatShortDate(dateText)}).
+📱 Teléfono: ${clientPhone || 'sin teléfono'}.`
         );
-        if (clientPhone) {
-          const firstName = String(appt.client_name || '').trim().split(/\s+/)[0] || appt.client_name;
-          await sendSmsOnce(
-            `appointment-reminder-24h:client:${appt.id}`,
-            'appointment_reminder_24h_client',
-            clientPhone,
-            `Hola ${firstName} 💕, mañana tienes tu cita en Suldery Nails a las ${formatTime12(timeText)} para ${appt.service}. Te esperamos con mucho cariño. 💅✨`
-          );
-        }
       }
 
       if (minutesAway > 25 && minutesAway <= 35) {
-        await sendSmsOnce(
+        await sendTelegramOnce(
           `appointment-reminder-30m:owner:${appt.id}`,
-          'appointment_reminder_30m_owner',
-          config.ownerPhone,
-          `Hola Suldery 💕, falta poquito: en unos 30 minutos tienes a ${appt.client_name} para ${appt.service}, a las ${formatTime12(timeText)}. Teléfono: ${clientPhone || 'sin teléfono'}. ✨`
+          'appointment_reminder_30m_owner_telegram',
+          `Hola Suldery 💕
+
+Falta poquito: en unos 30 minutos tienes a ${appt.client_name} para ${appt.service}, a las ${formatTime12(timeText)}.
+📱 Teléfono: ${clientPhone || 'sin teléfono'}. ✨`
         );
-        if (clientPhone) {
-          const firstName = String(appt.client_name || '').trim().split(/\s+/)[0] || appt.client_name;
-          await sendSmsOnce(
-            `appointment-reminder-30m:client:${appt.id}`,
-            'appointment_reminder_30m_client',
-            clientPhone,
-            `Hola ${firstName} 💕, tu cita en Suldery Nails es en unos 30 minutos: ${formatTime12(timeText)}, para ${appt.service}. ¡Te esperamos! 💅✨`
-          );
-        }
       }
     }
   } catch (error) {
@@ -1304,7 +1349,7 @@ app.get('/api/portfolio', async (req, res) => {
        FROM portfolio_photos
        WHERE visibility IN (?, 'both')
        ORDER BY display_order ASC, created_at DESC
-       LIMIT 6`,
+       LIMIT 8`,
       [visibility]
     );
     const photos = rows.map(row => ({
@@ -1325,24 +1370,51 @@ app.get('/api/portfolio', async (req, res) => {
 });
 
 app.get('/api/owner/notifications/status', authRequired, ownerRequired, (_req, res) => {
-  const config = getSmsConfig();
+  const config = getTelegramConfig();
   res.json({
     configured: config.missing.length === 0,
-    destination: maskPhone(config.ownerPhone),
-    senderReady: Boolean(config.from || config.messagingServiceSid),
-    mode: config.messagingServiceSid ? 'messaging_service' : 'phone',
-    missing: config.missing
+    destination: maskChatId(config.chatId),
+    missing: config.missing,
+    mode: 'telegram'
   });
 });
 
-app.post('/api/owner/notifications/test', authRequired, ownerRequired, async (_req, res) => {
-  const config = getSmsConfig();
-  const result = await sendSms(config.ownerPhone, 'Hola Suldery 💕, este es un mensaje de prueba de SULDERY NAILS. Tus avisos por SMS ya están listos. ✨');
-  if (!result.sent) {
-    if (result.skipped) return res.status(503).json({ message: `Los SMS todavía no están configurados. Falta: ${result.missing.join(', ')}.` });
-    return res.status(502).json({ message: result.error || 'Twilio no pudo enviar el mensaje.' });
+app.get('/api/owner/notifications/telegram/detect-chat', authRequired, ownerRequired, async (_req, res) => {
+  const config = getTelegramConfig();
+  if (!config.botToken) return res.status(503).json({ message: 'Primero configura TELEGRAM_BOT_TOKEN en Railway.' });
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${encodeURIComponent(config.botToken)}/getUpdates`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ allowed_updates: ['message'], limit: 20, timeout: 0 })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.ok !== true) {
+      throw new Error(data.description || 'Telegram no pudo consultar los mensajes del bot.');
+    }
+    const updates = Array.isArray(data.result) ? data.result : [];
+    const privateMessages = updates
+      .map(update => update.message)
+      .filter(message => message?.chat?.type === 'private' && message.chat.id)
+      .sort((a, b) => Number(b.date || 0) - Number(a.date || 0));
+    const last = privateMessages[0];
+    if (!last) {
+      return res.status(404).json({ message: 'Todavía no encontré un chat privado. Abre tu bot en Telegram y envíale /start; después pulsa Detectar chat.' });
+    }
+    res.json({ chat_id: String(last.chat.id), first_name: last.chat.first_name || '', username: last.chat.username || '' });
+  } catch (error) {
+    console.error('No se pudo detectar el chat de Telegram:', error.message);
+    res.status(502).json({ message: error.message || 'No se pudo consultar Telegram.' });
   }
-  res.json({ message: `Mensaje de prueba enviado a ${maskPhone(getSmsConfig().ownerPhone)}.` });
+});
+
+app.post('/api/owner/notifications/test', authRequired, ownerRequired, async (_req, res) => {
+  const result = await sendTelegram(getTelegramConfig().chatId, 'Hola Suldery 💕, este es un mensaje de prueba de SULDERY NAILS. Tu bot de avisos por Telegram ya está listo. ✨');
+  if (!result.sent) {
+    if (result.skipped) return res.status(503).json({ message: `El bot de Telegram todavía no está configurado. Falta: ${result.missing.join(', ')}.` });
+    return res.status(502).json({ message: result.error || 'Telegram no pudo enviar el mensaje.' });
+  }
+  res.json({ message: 'Mensaje de prueba enviado a tu Telegram. 💕' });
 });
 
 app.get('/api/owner/users', authRequired, ownerRequired, async (_req, res) => {
@@ -1852,12 +1924,12 @@ app.post('/api/owner/portfolio', authRequired, ownerRequired, upload.single('pho
   try {
     if (!req.file) return res.status(400).json({ message: 'Selecciona una imagen.' });
     const [countRows] = await pool.query('SELECT COUNT(*) AS total FROM portfolio_photos');
-    if (Number(countRows[0].total) >= 6) {
-      return res.status(409).json({ message: 'Ya tienes 6 fotos. Elimina una antes de subir otra.' });
+    if (Number(countRows[0].total) >= 8) {
+      return res.status(409).json({ message: 'Ya tienes 8 fotos. Elimina o cambia una foto antes de subir otra.' });
     }
 
     const title = String(req.body.title || 'Diseño Suldery Nails').trim().slice(0, 120) || 'Diseño Suldery Nails';
-    const visibility = ['login','client','both'].includes(String(req.body.visibility || 'both')) ? String(req.body.visibility || 'both') : 'both';
+    const visibility = ['login','client'].includes(String(req.body.visibility || 'login')) ? String(req.body.visibility || 'login') : 'login';
     const [orderRows] = await pool.query('SELECT COALESCE(MAX(display_order),0) + 1 AS next_order FROM portfolio_photos');
     const displayOrder = Number(orderRows[0].next_order) || 1;
     const [result] = await pool.query(
@@ -1882,7 +1954,7 @@ app.post('/api/owner/portfolio', authRequired, ownerRequired, upload.single('pho
 app.patch('/api/owner/portfolio/:id/visibility', authRequired, ownerRequired, async (req, res) => {
   try {
     const visibility = String(req.body.visibility || '').trim();
-    if (!['login','client','both'].includes(visibility)) {
+    if (!['login','client'].includes(visibility)) {
       return res.status(400).json({ message: 'Visibilidad inválida.' });
     }
 
@@ -1895,6 +1967,27 @@ app.patch('/api/owner/portfolio/:id/visibility', authRequired, ownerRequired, as
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'No se pudo actualizar la visibilidad de la foto.' });
+  }
+});
+
+app.patch('/api/owner/portfolio/:id/image', authRequired, ownerRequired, upload.single('photo'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: 'Selecciona una imagen nueva.' });
+    const [rows] = await pool.query('SELECT id FROM portfolio_photos WHERE id=? LIMIT 1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ message: 'Foto no encontrada.' });
+
+    await pool.query(
+      'UPDATE portfolio_photos SET image_url=?, image_data=?, image_mime=? WHERE id=?',
+      ['', req.file.buffer, req.file.mimetype, req.params.id]
+    );
+
+    res.json({
+      message: 'Foto actualizada correctamente.',
+      image_url: `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`
+    });
+  } catch (error) {
+    console.error('No se pudo cambiar la foto:', error.message);
+    res.status(500).json({ message: 'No se pudo cambiar la foto.' });
   }
 });
 
@@ -1974,9 +2067,9 @@ app.use((error, _req, res, _next) => {
       });
     await normalizePortfolioOrder();
     app.listen(PORT, () => {
-      const sms = getSmsConfig();
+      const telegram = getTelegramConfig();
       console.log(`Suldery Nails funcionando en el puerto ${PORT}`);
-      console.log(`Avisos SMS para Suldery: ${sms.ownerPhone || 'sin número'}${sms.missing.length ? ` · pendientes: ${sms.missing.join(', ')}` : ' · configurados'}`);
+      console.log(`Avisos Telegram para Suldery: ${telegram.chatId ? maskChatId(telegram.chatId) : 'sin chat'}${telegram.missing.length ? ` · pendientes: ${telegram.missing.join(', ')}` : ' · configurados'}`);
       startOwnerNotificationBot();
     });
   } catch (error) {
