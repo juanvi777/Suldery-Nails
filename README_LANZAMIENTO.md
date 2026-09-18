@@ -20,9 +20,12 @@ Correcciones y mejoras incluidas:
 - Se envía un SMS a la dueña al recibir una nueva cuenta pendiente y al recibir una solicitud de cita, cuando las variables de Twilio están configuradas.
 
 
-## v2.7 - teléfonos y SMS
+## v2.8 - mensajes más cálidos
 - El teléfono es obligatorio al crear una cuenta.
 - El teléfono queda guardado en users.phone y en appointments.client_phone.
 - La dueña recibe SMS al entrar una cuenta pendiente y al solicitarse una cita, incluyendo nombre, correo/teléfono, servicio, fecha y hora.
 - Los mensajes mostrados a la clienta confirman que la solicitud quedó pendiente y muestran el teléfono registrado para contacto.
 - Configura en Railway: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM y OWNER_SMS_TO.
+
+- Los avisos que ve la clienta después de registrarse o pedir una cita ahora usan un tono más cercano y muestran el contacto de Suldery (310 631 9093).
+- Los SMS para Suldery también tienen un texto más natural y directo.

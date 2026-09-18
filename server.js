@@ -592,12 +592,15 @@ app.post('/api/auth/register', async (req, res) => {
     if (existing.length) return res.status(409).json({ message: 'Ese correo ya está registrado.' });
 
     const passwordHash = await bcrypt.hash(password, 12);
-    await pool.query(
+    const [result] = await pool.query(
       `INSERT INTO users(name,email,phone,password_hash,role,status) VALUES(?,?,?,?,'client','pending')`,
       [name, email, phone, passwordHash]
     );
-    void notifyNewClientAccount({ name, email, phone });
-    res.status(201).json({ message: `Solicitud enviada a Suldery. Tu cuenta queda pendiente de aprobación. Teléfono registrado: ${phone}. Suldery podrá llamarte o escribirte si necesita comunicarse contigo.` });
+    void notifyNewClientAccount({ id: result.insertId, name, email, phone });
+    const firstName = name.split(/\s+/)[0] || name;
+    res.status(201).json({
+      message: `Hola ${firstName} 💕, tu solicitud para unirte a Suldery Nails ya fue enviada. Solo falta que Suldery la apruebe. Te avisaremos cuando haya una respuesta. ¡Gracias por confiar en Suldery! 💅✨`
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'No se pudo crear la cuenta.' });
@@ -791,11 +794,37 @@ async function getDayAppointmentsWithConnection(connection, date) {
   return rows;
 }
 
+function normalizePhoneNumber(phone, defaultCountry = '57') {
+  let value = String(phone || '').trim().replace(/[^0-9+]/g, '');
+  if (!value) return '';
+  if (value.startsWith('00')) value = `+${value.slice(2)}`;
+  if (value.startsWith('+')) return value;
+  if (value.length === 10 && value.startsWith('3')) return `+${defaultCountry}${value}`;
+  return value;
+}
+
+function formatHumanDate(date) {
+  const text = String(date || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+  const d = new Date(`${text}T12:00:00-05:00`);
+  return d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+function formatShortDate(date) {
+  return String(date || '').slice(0, 10).split('-').reverse().join('/');
+}
+
+function colombiaDateTime(date, time) {
+  const safeDate = String(date || '').slice(0, 10);
+  const safeTime = String(time || '').slice(0, 5);
+  return new Date(`${safeDate}T${safeTime}:00-05:00`);
+}
+
 async function sendOwnerSms(message) {
   const accountSid = String(process.env.TWILIO_ACCOUNT_SID || '').trim();
   const authToken = String(process.env.TWILIO_AUTH_TOKEN || '').trim();
-  const to = String(process.env.OWNER_SMS_TO || '').trim();
-  const from = String(process.env.TWILIO_FROM || '').trim();
+  const to = normalizePhoneNumber(process.env.OWNER_SMS_TO || '3106319093');
+  const from = normalizePhoneNumber(process.env.TWILIO_FROM || '');
   if (!accountSid || !authToken || !to || !from) return { sent: false, skipped: true };
 
   const credentials = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
@@ -812,10 +841,30 @@ async function sendOwnerSms(message) {
   return { sent: true };
 }
 
-async function notifyNewClientAccount({ name, email, phone }) {
+async function sendOwnerSmsOnce(notificationKey, notificationType, message) {
+  const [result] = await pool.query(
+    `INSERT INTO notification_log(notification_key,notification_type) VALUES(?,?) ON DUPLICATE KEY UPDATE notification_key=notification_key`,
+    [notificationKey, notificationType]
+  );
+  if (!result.affectedRows) return { sent: false, duplicate: true };
   try {
-    return await sendOwnerSms(
-      `Suldery Nails: nueva cuenta pendiente. ${name} · ${email} · Tel: ${phone}. Revisa y acepta/rechaza: https://suldery-nails-production.up.railway.app/duena.html`
+    return await sendOwnerSms(message);
+  } catch (error) {
+    await pool.query('DELETE FROM notification_log WHERE notification_key=?', [notificationKey]).catch(() => {});
+    throw error;
+  }
+}
+
+function ownerPanelUrl() {
+  return 'https://suldery-nails-production.up.railway.app/duena.html';
+}
+
+async function notifyNewClientAccount({ id, name, email, phone }) {
+  try {
+    return await sendOwnerSmsOnce(
+      `account-pending:${id}`,
+      'account_pending',
+      `Hola Suldery 💕, acaba de registrarse ${name} y su cuenta está esperando tu aprobación. Correo: ${email}. Tel: ${phone || 'sin teléfono'}. Puedes aceptarla o rechazarla aquí: ${ownerPanelUrl()}`
     );
   } catch (error) {
     console.error('No se pudo enviar el SMS por nueva cuenta:', error.message);
@@ -823,15 +872,86 @@ async function notifyNewClientAccount({ name, email, phone }) {
   }
 }
 
-async function notifyNewClientAppointment({ clientName, phone, service, date, time }) {
+async function notifyNewClientAppointment({ id, clientName, phone, service, date, time }) {
   try {
-    return await sendOwnerSms(
-      `Suldery Nails: nueva cita pendiente. ${clientName} · Tel: ${phone || 'sin teléfono'} · ${service} · ${date.split('-').reverse().join('/')} ${time}. Revisa y confirma: https://suldery-nails-production.up.railway.app/duena.html`
+    return await sendOwnerSmsOnce(
+      `appointment-pending:${id}`,
+      'appointment_pending',
+      `Hola Suldery 💕, ${clientName} acaba de solicitar una cita para el ${formatHumanDate(date)} a las ${time} por ${service}. Tel: ${phone || 'sin teléfono'}. Queda pendiente de tu confirmación. Revisa tu panel: ${ownerPanelUrl()}`
     );
   } catch (error) {
     console.error('No se pudo enviar el SMS a la dueña:', error.message);
     return { sent: false, error: error.message };
   }
+}
+
+async function sendPendingSummary() {
+  try {
+    const [users] = await pool.query(`SELECT COUNT(*) AS total FROM users WHERE role='client' AND status='pending'`);
+    const [appointments] = await pool.query(`SELECT COUNT(*) AS total FROM appointments WHERE status='pending' AND appointment_date >= ?`, [colombiaTodayISO()]);
+    const pendingUsers = Number(users[0]?.total || 0);
+    const pendingAppointments = Number(appointments[0]?.total || 0);
+    if (!pendingUsers && !pendingAppointments) return;
+    const bucket = new Date().toISOString().slice(0, 13);
+    const parts = [];
+    if (pendingUsers) parts.push(`${pendingUsers} cuenta${pendingUsers === 1 ? '' : 's'} pendiente${pendingUsers === 1 ? '' : 's'} de aprobación`);
+    if (pendingAppointments) parts.push(`${pendingAppointments} cita${pendingAppointments === 1 ? '' : 's'} pendiente${pendingAppointments === 1 ? '' : 's'} de confirmar`);
+    await sendOwnerSmsOnce(
+      `pending-summary:${bucket}`,
+      'pending_summary',
+      `Hola Suldery 💕, tienes ${parts.join(' y ')}. Cuando tengas un momento, puedes revisarlas aquí: ${ownerPanelUrl()}`
+    );
+  } catch (error) {
+    console.error('No se pudo enviar el resumen de pendientes:', error.message);
+  }
+}
+
+async function sendUpcomingAppointmentReminders() {
+  try {
+    const today = colombiaTodayISO();
+    const upper = new Date(`${today}T12:00:00-05:00`);
+    upper.setUTCDate(upper.getUTCDate() + 2);
+    const upperDate = upper.toISOString().slice(0, 10);
+    const [rows] = await pool.query(
+      `SELECT id,client_name,client_phone,service,appointment_date,appointment_time
+       FROM appointments
+       WHERE status='accepted' AND appointment_date BETWEEN ? AND ?
+       ORDER BY appointment_date,appointment_time`,
+      [today, upperDate]
+    );
+    const now = Date.now();
+    for (const appt of rows) {
+      const dateText = String(appt.appointment_date).slice(0, 10);
+      const timeText = String(appt.appointment_time).slice(0, 5);
+      const when = colombiaDateTime(dateText, timeText).getTime();
+      const hours = (when - now) / 3600000;
+      const phone = appt.client_phone || 'sin teléfono';
+      if (hours > 23 && hours <= 25) {
+        await sendOwnerSmsOnce(
+          `appointment-reminder-24h:${appt.id}`,
+          'appointment_reminder_24h',
+          `Hola Suldery 💕, recuerdito de agenda: mañana tienes a ${appt.client_name} a las ${timeText} para ${appt.service}. Tel: ${phone}. ${formatShortDate(dateText)}.`
+        );
+      } else if (hours > 0.75 && hours <= 1.25) {
+        await sendOwnerSmsOnce(
+          `appointment-reminder-1h:${appt.id}`,
+          'appointment_reminder_1h',
+          `Hola Suldery 💕, en aproximadamente 1 hora tienes a ${appt.client_name} para ${appt.service}, a las ${timeText}. Tel: ${phone}. ¡Para que no se te pase! ✨`
+        );
+      }
+    }
+  } catch (error) {
+    console.error('No se pudieron enviar recordatorios de citas:', error.message);
+  }
+}
+
+function startOwnerNotificationBot() {
+  const run = async () => {
+    await sendPendingSummary();
+    await sendUpcomingAppointmentReminders();
+  };
+  setTimeout(run, 15000);
+  setInterval(run, 5 * 60 * 1000);
 }
 
 app.post('/api/appointments', authRequired, async (req, res) => {
@@ -862,7 +982,7 @@ app.post('/api/appointments', authRequired, async (req, res) => {
       if (start <= currentMinutes) return res.status(409).json({ message: 'Esa hora ya pasó. Elige otra.' });
     }
 
-    await withAppointmentDateLock(date, async connection => {
+    const appointmentId = await withAppointmentDateLock(date, async connection => {
       const lockedAppointments = await getDayAppointmentsWithConnection(connection, date);
       if (!slotIsFree(start, duration, lockedAppointments)) {
         const error = new Error('Ese horario ya no está disponible. Elige otro.');
@@ -880,14 +1000,19 @@ app.post('/api/appointments', authRequired, async (req, res) => {
         error.statusCode = 409;
         throw error;
       }
-      await connection.query(
+      const [result] = await connection.query(
         `INSERT INTO appointments(user_id,client_name,client_phone,service,duration_minutes,appointment_date,appointment_time,status)
          VALUES(?,?,?,?,?,?,?,'pending')`,
         [req.auth.id, user.name, user.phone || null, service, duration, date, `${time}:00`]
       );
+      return result.insertId;
     });
-    void notifyNewClientAppointment({ clientName: user.name, phone: user.phone || '', service, date, time });
-    res.status(201).json({ message: `Solicitud de cita enviada a Suldery. Queda pendiente de confirmación. Teléfono registrado: ${user.phone || 'sin teléfono'}.` });
+    void notifyNewClientAppointment({ id: appointmentId, clientName: user.name, phone: user.phone || '', service, date, time });
+    const firstName = user.name.split(/\s+/)[0] || user.name;
+    const prettyDate = date.split('-').reverse().join('/');
+    res.status(201).json({
+      message: `Hola ${firstName} 💕, ya recibimos tu solicitud de cita para el ${prettyDate} a las ${time} para ${service}. Queda pendiente hasta que Suldery la confirme. Te avisaremos en cuanto haya una respuesta. 💕✨`
+    });
   } catch (error) {
     console.error(error);
     res.status(error.statusCode || 500).json({ message: error.message || 'No se pudo crear la cita.' });
@@ -1233,7 +1358,10 @@ app.use((error, _req, res, _next) => {
         if (error.code !== 'ER_DUP_FIELDNAME') throw error;
       });
     await normalizePortfolioOrder();
-    app.listen(PORT, () => console.log(`Suldery Nails funcionando en http://localhost:${PORT}`));
+    app.listen(PORT, () => {
+      console.log(`Suldery Nails funcionando en http://localhost:${PORT}`);
+      startOwnerNotificationBot();
+    });
   } catch (error) {
     console.error('\nNo se pudo iniciar Suldery Nails.');
     console.error(error.message);

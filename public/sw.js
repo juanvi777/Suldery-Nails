@@ -6,7 +6,7 @@ const ASSET_PATHS = [
   'cliente.html',
   'duena.html',
   'style.css?v=2033',
-  'auth.js?v=20260917',
+  'auth.js?v=20260918-v29',
   'login.js',
   'registro.js',
   'cliente.js',

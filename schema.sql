@@ -90,3 +90,14 @@ CREATE TABLE IF NOT EXISTS schedule_overrides (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (override_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+CREATE TABLE IF NOT EXISTS notification_log (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  notification_key VARCHAR(190) NOT NULL,
+  notification_type VARCHAR(60) NOT NULL,
+  sent_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_notification_key (notification_key),
+  KEY idx_notification_type_sent (notification_type, sent_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

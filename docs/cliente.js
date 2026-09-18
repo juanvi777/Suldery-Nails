@@ -68,7 +68,7 @@ function updateSummary(){ $('summaryDate').textContent=formatDate(selectedDate);
 function clearTimeSelection(){$('timeSlots').innerHTML='<span class="time-help">Primero selecciona un día disponible.</span>';$('timeHint').textContent='Selecciona primero un día';setMessage($('bookingMessage'),'');}
 async function crearCita(){
   const message=$('bookingMessage'),button=$('bookingButton'); if(!selectedDate){setMessage(message,'Primero selecciona un día disponible.');return;} if(!selectedTime){setMessage(message,'Ahora selecciona una hora disponible.');return;} if(!selectedService){setMessage(message,'Selecciona el servicio.');return;}
-  button.disabled=true;setMessage(message,'Enviando tu solicitud…');
+  button.disabled=true;setMessage(message,'Enviando tu solicitud a Suldery… 💕');
   try{const data=await apiFetch('/appointments',{method:'POST',body:JSON.stringify({service:selectedService,date:selectedDate,time:selectedTime})});setMessage(message,data.message,true);const booked=selectedDate;selectedTime='';setStepVisibility($('bookingSummary'),false);setStepVisibility($('bookingButton'),false);await Promise.all([loadAppointments(),refreshCalendar()]);if(calendarData.get(booked)?.status==='available')await selectDate(booked);else showDayMessage(calendarData.get(booked)||{message:'No quedan horarios disponibles.'});}
   catch(error){setMessage(message,error.message);shake(document.querySelector('.booking-card'));await refreshCalendar();}finally{button.disabled=false;}
 }

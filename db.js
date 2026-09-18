@@ -87,6 +87,17 @@ async function ensureCompatibilityMigrations() {
      SET a.client_phone=u.phone
      WHERE (a.client_phone IS NULL OR a.client_phone='') AND u.phone IS NOT NULL AND u.phone<>''`
   );
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS notification_log (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      notification_key VARCHAR(190) NOT NULL,
+      notification_type VARCHAR(60) NOT NULL,
+      sent_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_notification_key (notification_key),
+      KEY idx_notification_type_sent (notification_type, sent_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+  );
 }
 
 async function initDatabase() {
