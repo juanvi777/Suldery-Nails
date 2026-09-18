@@ -8,6 +8,10 @@ const DURATION_LABELS = {
   'Press on': '2 horas'
 };
 
+let ownerUsersCache = [];
+let ownerAppointmentsCache = [];
+let ownerPhotosCache = [];
+
 function localISODate(date) {
   return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
 }
@@ -114,6 +118,8 @@ async function initDuena() {
 
   document.querySelectorAll('[data-owner-tool]').forEach(button => button.addEventListener('click', () => openOwnerTool(button.dataset.ownerTool)));
   document.querySelectorAll('[data-close-owner-tool]').forEach(button => button.addEventListener('click', closeOwnerTools));
+  document.querySelectorAll('[data-owner-stat]').forEach(button => button.addEventListener('click', () => openOwnerStat(button.dataset.ownerStat)));
+  document.querySelectorAll('[data-close-owner-stat]').forEach(button => button.addEventListener('click', closeOwnerStats));
   $d('ownerAppointmentDate').addEventListener('change', loadOwnerSlots);
   $d('ownerService').addEventListener('change', () => { updateOwnerServiceDurationHint(); loadOwnerSlots(); });
   $d('ownerBookingForm').addEventListener('submit', submitManualBooking);
@@ -153,13 +159,80 @@ async function refreshOwnerData() {
   await loadBlockedDates();
   updateOwnerServiceDurationHint();
   await loadOwnerSlots();
+  renderOwnerStatsDetails();
+}
+
+function openOwnerStat(name) {
+  closeOwnerTools();
+  closeOwnerStats();
+  if (name === 'clients') {
+    renderActiveClients();
+    $d('ownerStatClients').classList.remove('hidden-tool-panel');
+    $d('ownerStatClients').scrollIntoView({ behavior:'smooth', block:'start' });
+  } else if (name === 'appointments') {
+    renderScheduledAppointments();
+    $d('ownerStatAppointments').classList.remove('hidden-tool-panel');
+    $d('ownerStatAppointments').scrollIntoView({ behavior:'smooth', block:'start' });
+  } else if (name === 'portfolio') {
+    openOwnerTool('photos');
+  }
+}
+
+function closeOwnerStats() {
+  document.querySelectorAll('.owner-detail-panel').forEach(panel => panel.classList.add('hidden-tool-panel'));
+}
+
+function renderOwnerStatsDetails() {
+  $d('activeClientCount').textContent = ownerUsersCache.filter(user => user.role === 'client' && user.status === 'accepted').length;
+  const today = localISODate(new Date());
+  $d('scheduledCount').textContent = ownerAppointmentsCache.filter(a => ['pending','accepted'].includes(a.status) && String(a.appointment_date).slice(0,10) >= today).length;
+  $d('photoCount').textContent = ownerPhotosCache.length;
+  renderActiveClients();
+  renderScheduledAppointments();
+}
+
+function renderActiveClients() {
+  const list = $d('activeClientsList');
+  if (!list) return;
+  const clients = ownerUsersCache.filter(user => user.role === 'client' && user.status === 'accepted');
+  list.innerHTML = '';
+  if (!clients.length) { list.innerHTML = '<div class="empty-state">Todavía no hay clientas activas.</div>'; return; }
+  clients.forEach(user => {
+    const item = document.createElement('article');
+    item.className = 'admin-item';
+    item.innerHTML = `<div class="admin-item-main"><strong>${escapeHtml(user.name)}</strong><p>${escapeHtml(user.email)}</p><small>Activa desde ${escapeHtml(formatDate(String(user.created_at).slice(0,10)))}</small></div><span class="status accepted">Activa</span>`;
+    list.appendChild(item);
+  });
+}
+
+function renderScheduledAppointments() {
+  const list = $d('scheduledAppointmentsList');
+  if (!list) return;
+  const today = localISODate(new Date());
+  const appointments = ownerAppointmentsCache
+    .filter(appt => ['pending','accepted'].includes(appt.status) && String(appt.appointment_date).slice(0,10) >= today)
+    .sort((a,b) => `${a.appointment_date}T${a.appointment_time}`.localeCompare(`${b.appointment_date}T${b.appointment_time}`));
+  list.innerHTML = '';
+  if (!appointments.length) { list.innerHTML = '<div class="empty-state">No hay citas agendadas de hoy en adelante.</div>'; return; }
+  appointments.forEach(appt => {
+    const item = document.createElement('article');
+    item.className = 'admin-item';
+    item.innerHTML = `<strong>${escapeHtml(appt.client_name)}</strong><p>${escapeHtml(appt.service)} · ${formatDate(appt.appointment_date)} · ${String(appt.appointment_time).slice(0,5)} · ${DURATION_LABELS[appt.service] || `${Number(appt.duration_minutes)||60} min`}</p><span class="status ${appt.status}">${statusLabel(appt.status)}</span><small>${escapeHtml(appt.client_email || 'Cita manual')}</small>`;
+    const actions = document.createElement('div');
+    actions.className = 'admin-actions';
+    if (appt.status === 'pending') actions.append(actionButton('Confirmar', 'small-button', () => setApptStatus(appt.id, 'accepted')));
+    if (['pending','accepted'].includes(appt.status)) actions.append(actionButton('Cancelar', 'small-button cancel', () => setApptStatus(appt.id, 'cancelled')));
+    item.appendChild(actions);
+    list.appendChild(item);
+  });
 }
 
 async function loadPendingUsers() {
   const data = await apiFetch('/owner/users');
+  ownerUsersCache = Array.isArray(data.users) ? data.users : [];
   const list = $d('pendingUsersList');
   const pending = data.users.filter(user => user.status === 'pending');
-  $d('pendingCount').textContent = pending.length;
+  $d('activeClientCount').textContent = ownerUsersCache.filter(user => user.role === 'client' && user.status === 'accepted').length;
   list.innerHTML = '';
   if (!data.users.length) { list.innerHTML = '<div class="empty-state">No hay solicitudes todavía.</div>'; return; }
   data.users.forEach(user => {
@@ -177,13 +250,15 @@ async function loadPendingUsers() {
 async function setUserStatus(id, status) {
   try { await apiFetch(`/owner/users/${id}/status`, {method:'PATCH',body:JSON.stringify({status})}); await loadPendingUsers(); }
   catch (error) { alert(error.message); }
+  renderOwnerStatsDetails();
 }
 
 async function loadOwnerAppointments() {
   const data = await apiFetch('/owner/appointments');
+  ownerAppointmentsCache = Array.isArray(data.appointments) ? data.appointments : [];
   const list = $d('ownerAppointmentsList');
   const today = localISODate(new Date());
-  $d('todayCount').textContent = data.appointments.filter(a => a.appointment_date === today && ['pending','accepted'].includes(a.status)).length;
+  $d('scheduledCount').textContent = ownerAppointmentsCache.filter(a => ['pending','accepted'].includes(a.status) && String(a.appointment_date).slice(0,10) >= today).length;
   list.innerHTML = '';
   if (!data.appointments.length) { list.innerHTML = '<div class="empty-state">No hay citas registradas.</div>'; return; }
   data.appointments.forEach(appt => {
@@ -198,7 +273,7 @@ async function loadOwnerAppointments() {
 }
 
 async function setApptStatus(id, status) {
-  try { await apiFetch(`/owner/appointments/${id}/status`, {method:'PATCH',body:JSON.stringify({status})}); await loadOwnerAppointments(); }
+  try { await apiFetch(`/owner/appointments/${id}/status`, {method:'PATCH',body:JSON.stringify({status})}); await loadOwnerAppointments(); renderOwnerStatsDetails(); }
   catch (error) { alert(error.message); }
 }
 
@@ -224,7 +299,7 @@ async function submitManualBooking(event) {
   const body = { clientName:$d('ownerClientName').value.trim(), service:$d('ownerService').value, date:$d('ownerAppointmentDate').value, time:$d('ownerAppointmentTime').value };
   if (!body.clientName || !body.date || !body.time) { setMessage(message,'Completa nombre, fecha y hora.'); return; }
   button.disabled = true; setMessage(message,'Guardando cita…');
-  try { const data = await apiFetch('/owner/appointments',{method:'POST',body:JSON.stringify(body)}); setMessage(message,data.message,true); $d('ownerClientName').value=''; await Promise.all([loadOwnerSlots(),loadOwnerAppointments()]); }
+  try { const data = await apiFetch('/owner/appointments',{method:'POST',body:JSON.stringify(body)}); setMessage(message,data.message,true); $d('ownerClientName').value=''; await Promise.all([loadOwnerSlots(),loadOwnerAppointments()]); renderOwnerStatsDetails(); }
   catch(error){ setMessage(message,error.message); }
   finally{ button.disabled=false; }
 }
@@ -285,7 +360,7 @@ async function bloquearFecha(event){event.preventDefault();const date=$d('blocke
 
 async function handleBlockedDateAction(event){const button=event.target.closest('[data-blocked-id]');if(!button)return;if(!confirm('¿Desbloquear este día?'))return;try{await apiFetch(`/owner/blocked-dates/${button.dataset.blockedId}`,{method:'DELETE'});await loadBlockedDates();await loadOwnerSlots();await loadScheduleEditor();}catch(error){alert(error.message);}}
 
-async function loadOwnerGallery(){const data=await apiFetch('/portfolio');$d('photoCount').textContent=data.photos.length;const gallery=$d('ownerGallery');gallery.innerHTML='';if(!data.photos.length){gallery.innerHTML='<div class="empty-state">Todavía no hay fotos publicadas.</div>';return;}data.photos.forEach((photo,index)=>{const figure=document.createElement('figure');figure.className='portfolio-photo owner-photo';figure.innerHTML=`<div class="owner-photo-number">${index+1}</div><img src="${escapeAttribute(photo.image_url)}" alt="${escapeAttribute(photo.title)}" loading="lazy"><figcaption>${escapeAttribute(photo.title)}</figcaption><div class="photo-actions"><button type="button" class="small-button ghost" ${index===0?'disabled':''} data-photo-action="move" data-id="${photo.id}" data-direction="up">↑</button><button type="button" class="small-button ghost" ${index===data.photos.length-1?'disabled':''} data-photo-action="move" data-id="${photo.id}" data-direction="down">↓</button><button type="button" class="remove-photo" data-photo-action="delete" data-id="${photo.id}">Eliminar</button></div>`;gallery.appendChild(figure);});}
+async function loadOwnerGallery(){const data=await apiFetch('/portfolio');ownerPhotosCache=Array.isArray(data.photos)?data.photos:[];$d('photoCount').textContent=ownerPhotosCache.length;const gallery=$d('ownerGallery');gallery.innerHTML='';if(!data.photos.length){gallery.innerHTML='<div class="empty-state">Todavía no hay fotos publicadas.</div>';return;}data.photos.forEach((photo,index)=>{const figure=document.createElement('figure');figure.className='portfolio-photo owner-photo';figure.innerHTML=`<div class="owner-photo-number">${index+1}</div><img src="${escapeAttribute(photo.image_url)}" alt="${escapeAttribute(photo.title)}" loading="lazy"><figcaption>${escapeAttribute(photo.title)}</figcaption><div class="photo-actions"><button type="button" class="small-button ghost" ${index===0?'disabled':''} data-photo-action="move" data-id="${photo.id}" data-direction="up">↑</button><button type="button" class="small-button ghost" ${index===data.photos.length-1?'disabled':''} data-photo-action="move" data-id="${photo.id}" data-direction="down">↓</button><button type="button" class="remove-photo" data-photo-action="delete" data-id="${photo.id}">Eliminar</button></div>`;gallery.appendChild(figure);});}
 
 function handleGalleryAction(event){const button=event.target.closest('[data-photo-action]');if(!button||button.disabled)return;const id=Number(button.dataset.id);if(button.dataset.photoAction==='delete')eliminarFoto(id);if(button.dataset.photoAction==='move')moverFoto(id,button.dataset.direction);}
 

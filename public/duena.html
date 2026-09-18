@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=2034">
+  <link rel="stylesheet" href="style.css?v=20260919">
 </head>
 <body class="dashboard-page owner-page">
   <main class="dashboard-shell">
@@ -37,10 +37,28 @@
       <div class="owner-mini-card"><strong id="ownerDateLabel">Hoy</strong><span>Una agenda ordenada, un día más tranquilo ♡</span></div>
     </section>
 
-    <section class="stats-grid">
-      <article class="stat-card"><span>CLIENTAS</span><strong id="pendingCount">0</strong><small>solicitudes pendientes</small></article>
-      <article class="stat-card"><span>CITAS</span><strong id="todayCount">0</strong><small>citas programadas hoy</small></article>
-      <article class="stat-card"><span>PORTAFOLIO</span><strong id="photoCount">0</strong><small>fotos publicadas</small></article>
+    <section class="stats-grid" aria-label="Resumen de Suldery Nails">
+      <button type="button" class="stat-card stat-card-button" data-owner-stat="clients">
+        <span>CLIENTAS ACTIVAS</span><strong id="activeClientCount">0</strong><small>cuentas aceptadas · ver listado →</small>
+      </button>
+      <button type="button" class="stat-card stat-card-button" data-owner-stat="appointments">
+        <span>CITAS AGENDADAS</span><strong id="scheduledCount">0</strong><small>pendientes + confirmadas · ver agenda →</small>
+      </button>
+      <button type="button" class="stat-card stat-card-button" data-owner-stat="portfolio">
+        <span>PORTAFOLIO</span><strong id="photoCount">0</strong><small>fotos publicadas · administrar →</small>
+      </button>
+    </section>
+
+    <section id="ownerStatClients" class="owner-detail-panel admin-card glass-card hidden-tool-panel">
+      <div class="card-heading"><div><p class="eyebrow">CLIENTAS ACTIVAS</p><h2>Clientas aceptadas</h2></div><button class="small-button ghost" type="button" data-close-owner-stat>Cerrar</button></div>
+      <p class="manager-note">Aquí aparecen solamente las cuentas aceptadas y activas. Las pendientes y rechazadas siguen abajo en solicitudes.</p>
+      <div id="activeClientsList" class="admin-list"></div>
+    </section>
+
+    <section id="ownerStatAppointments" class="owner-detail-panel admin-card glass-card hidden-tool-panel">
+      <div class="card-heading"><div><p class="eyebrow">AGENDA</p><h2>Citas agendadas</h2></div><button class="small-button ghost" type="button" data-close-owner-stat>Cerrar</button></div>
+      <p class="manager-note">Se muestran las citas pendientes y confirmadas de hoy en adelante, incluidas las que agendaste manualmente.</p>
+      <div id="scheduledAppointmentsList" class="admin-list"></div>
     </section>
 
     <section class="owner-tool-grid" aria-label="Herramientas de administración">
@@ -110,7 +128,7 @@
       </article>
     </section>
   </main>
-  <script src="auth.js?v=20260918"></script>
-  <script src="duena.js?v=20260918"></script>
+  <script src="auth.js?v=20260919"></script>
+  <script src="duena.js?v=20260919"></script>
 </body>
 </html>

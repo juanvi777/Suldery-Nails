@@ -27,6 +27,7 @@ const services = {
 const LUNCH_START = 12 * 60;
 const LUNCH_END = 13 * 60;
 const SLOT_STEP = 30;
+const APP_TIME_ZONE = 'America/Bogota';
 const DEFAULT_WEEKLY_INTERVALS = {
   1: [{ start_time: '07:00', end_time: '12:00' }, { start_time: '13:00', end_time: '18:00' }],
   2: [{ start_time: '07:00', end_time: '12:00' }, { start_time: '13:00', end_time: '18:00' }],
@@ -200,15 +201,38 @@ function toISODate(value) {
   return Number.isNaN(d.getTime()) ? null : text;
 }
 
+function colombiaNowParts() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: APP_TIME_ZONE,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+  }).formatToParts(new Date());
+  const get = type => parts.find(part => part.type === type)?.value || '';
+  return {
+    year: Number(get('year')),
+    month: Number(get('month')),
+    day: Number(get('day')),
+    hour: Number(get('hour')),
+    minute: Number(get('minute'))
+  };
+}
+
+function colombiaTodayISO() {
+  const now = colombiaNowParts();
+  return `${String(now.year).padStart(4, '0')}-${String(now.month).padStart(2, '0')}-${String(now.day).padStart(2, '0')}`;
+}
+
+function colombiaCurrentMinutes() {
+  const now = colombiaNowParts();
+  return now.hour * 60 + now.minute;
+}
+
 function isDateInPast(date) {
-  const now = new Date();
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  return date < today;
+  return date < colombiaTodayISO();
 }
 
 function isToday(date) {
-  const now = new Date();
-  return date === `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  return date === colombiaTodayISO();
 }
 
 function dateWeekday(date) {
@@ -302,6 +326,29 @@ async function getBlockedDates(startDate, endDate) {
       : String(row.blocked_date).slice(0, 10),
     reason: row.reason || ''
   }));
+}
+
+async function isDateBlocked(date) {
+  const [rows] = await pool.query(
+    'SELECT blocked_date, reason FROM blocked_dates WHERE blocked_date=? LIMIT 1',
+    [date]
+  );
+  if (!rows.length) return null;
+  return {
+    date,
+    reason: rows[0].reason || ''
+  };
+}
+
+async function getDayAppointments(date) {
+  const [rows] = await pool.query(
+    `SELECT appointment_time,duration_minutes,status
+     FROM appointments
+     WHERE appointment_date=? AND status IN ('pending','accepted')
+     ORDER BY appointment_time`,
+    [date]
+  );
+  return rows;
 }
 
 async function getSchedule() {
@@ -488,8 +535,7 @@ function slotsForDate(date, scheduleDay, appointments, duration = 60) {
   const slots = [];
   let earliest = 0;
   if (isToday(date)) {
-    const now = new Date();
-    const current = now.getHours() * 60 + now.getMinutes();
+    const current = colombiaCurrentMinutes();
     earliest = Math.max(0, Math.ceil(current / SLOT_STEP) * SLOT_STEP);
   }
 
@@ -798,8 +844,7 @@ app.post('/api/appointments', authRequired, async (req, res) => {
       return res.status(409).json({ message: 'Ese horario está fuera de la jornada disponible o coincide con el almuerzo (12:00–13:00).' });
     }
     if (isToday(date)) {
-      const now = new Date();
-      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const currentMinutes = colombiaCurrentMinutes();
       if (start <= currentMinutes) return res.status(409).json({ message: 'Esa hora ya pasó. Elige otra.' });
     }
 
@@ -1056,8 +1101,7 @@ app.post('/api/owner/appointments', authRequired, ownerRequired, async (req, res
       return res.status(409).json({ message: 'Ese horario está fuera de tu jornada o coincide con el almuerzo (12:00–13:00).' });
     }
     if (isToday(date)) {
-      const now = new Date();
-      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const currentMinutes = colombiaCurrentMinutes();
       if (start <= currentMinutes) return res.status(409).json({ message: 'Esa hora ya pasó. Elige otra.' });
     }
     await withAppointmentDateLock(date, async connection => {
