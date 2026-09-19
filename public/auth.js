@@ -164,16 +164,64 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('[data-theme-toggle]').forEach(button => button.addEventListener('click', toggleTheme));
 });
 
-// PWA: permite instalar Suldery Nails como una app con su propio icono y ventana.
+// PWA: instalación y notificaciones, incluyendo el flujo especial de iPhone/iPad.
 let deferredInstallPrompt = null;
+let sulderyServiceWorkerRegistration = null;
+let sulderyPushPromise = null;
+
+function isIOSDevice() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
 
 function isInstalledPWA() {
-  return window.matchMedia?.('(display-mode: standalone)')?.matches || window.navigator.standalone === true;
+  return window.matchMedia?.('(display-mode: standalone)')?.matches === true
+    || window.navigator.standalone === true;
+}
+
+function ensureIOSInstallGuide() {
+  if (document.getElementById('iosInstallGuide')) return;
+  const wrapper = document.createElement('div');
+  wrapper.id = 'iosInstallGuide';
+  wrapper.className = 'ios-install-guide hidden';
+  wrapper.innerHTML = `
+    <div class="ios-install-backdrop" data-ios-close></div>
+    <section class="ios-install-dialog" role="dialog" aria-modal="true" aria-labelledby="iosInstallTitle">
+      <button type="button" class="ios-install-close" data-ios-close aria-label="Cerrar">×</button>
+      <p class="eyebrow">IPHONE / IPAD</p>
+      <h2 id="iosInstallTitle">Instala Suldery Nails como una app 💕</h2>
+      <p>En iPhone, Apple activa las notificaciones cuando la web está instalada en la pantalla de inicio.</p>
+      <ol>
+        <li>Abre Suldery Nails en <strong>Safari</strong>.</li>
+        <li>Toca el botón <strong>Compartir</strong> del navegador.</li>
+        <li>Elige <strong>Agregar a pantalla de inicio</strong> y confirma.</li>
+        <li>Abre Suldery Nails desde el nuevo icono.</li>
+        <li>Entra a tu cuenta y pulsa <strong>Activar avisos</strong>.</li>
+      </ol>
+      <p class="ios-install-note">Después de instalarla, las notificaciones se pueden permitir desde el propio botón de avisos.</p>
+      <button type="button" class="primary-button" data-ios-close>Entendido</button>
+    </section>`;
+  document.body.appendChild(wrapper);
+  wrapper.addEventListener('click', event => {
+    if (event.target.closest('[data-ios-close]')) wrapper.classList.add('hidden');
+  });
+}
+
+function showIOSInstallGuide() {
+  ensureIOSInstallGuide();
+  document.getElementById('iosInstallGuide')?.classList.remove('hidden');
 }
 
 function updateInstallButtons() {
   document.querySelectorAll('#installAppButton').forEach(button => {
-    button.hidden = isInstalledPWA() || !deferredInstallPrompt;
+    const iosNeedsInstall = isIOSDevice() && !isInstalledPWA();
+    if (isInstalledPWA()) {
+      button.hidden = true;
+      return;
+    }
+    button.hidden = !deferredInstallPrompt && !iosNeedsInstall;
+    if (iosNeedsInstall) button.textContent = '＋ Cómo instalar';
+    else if (deferredInstallPrompt) button.textContent = '＋ Instalar app';
   });
 }
 
@@ -190,16 +238,19 @@ window.addEventListener('appinstalled', () => {
 
 document.addEventListener('click', async event => {
   const button = event.target.closest('#installAppButton');
-  if (!button || !deferredInstallPrompt) return;
+  if (!button) return;
+
+  if (isIOSDevice()) {
+    showIOSInstallGuide();
+    return;
+  }
+  if (!deferredInstallPrompt) return;
+
   deferredInstallPrompt.prompt();
   try { await deferredInstallPrompt.userChoice; } catch {}
   deferredInstallPrompt = null;
   updateInstallButtons();
 });
-
-
-let sulderyServiceWorkerRegistration = null;
-let sulderyPushPromise = null;
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -209,12 +260,14 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 async function getSulderyServiceWorker() {
-  if (!('serviceWorker' in navigator)) throw new Error('Este dispositivo no admite notificaciones web.');
-  if (!sulderyServiceWorkerRegistration) {
-    sulderyServiceWorkerRegistration = await navigator.serviceWorker.register('sw.js?v=20260923', { scope: './' });
+  if (!('serviceWorker' in navigator)) {
+    throw new Error('Este dispositivo no permite instalar el sistema de avisos.');
   }
-  await navigator.serviceWorker.ready;
-  return sulderyServiceWorkerRegistration;
+  if (!sulderyServiceWorkerRegistration) {
+    const swUrl = new URL('sw.js?v=20260919-v37', location.href);
+    sulderyServiceWorkerRegistration = await navigator.serviceWorker.register(swUrl, { scope: './' });
+  }
+  return await navigator.serviceWorker.ready;
 }
 
 async function getPushPublicKey() {
@@ -223,14 +276,51 @@ async function getPushPublicKey() {
   return data.publicKey;
 }
 
+async function requestNotificationPermission() {
+  if (!('Notification' in window)) {
+    throw new Error('Este dispositivo no permite notificaciones web.');
+  }
+  // Safari/iOS y otros navegadores pueden usar callback; soportamos ambos formatos.
+  return await new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = value => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+    try {
+      const result = Notification.requestPermission(permission => finish(permission));
+      if (result && typeof result.then === 'function') {
+        result.then(finish).catch(reject);
+      } else if (typeof result === 'string') {
+        finish(result);
+      }
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+function ensureIOSStandaloneForPush() {
+  if (isIOSDevice() && !isInstalledPWA()) {
+    showIOSInstallGuide();
+    throw new Error('En iPhone primero instala Suldery Nails en la pantalla de inicio y luego activa los avisos desde la app.');
+  }
+}
+
 async function enableSulderyPush() {
   if (sulderyPushPromise) return sulderyPushPromise;
   sulderyPushPromise = (async () => {
-    if (!('Notification' in window) || !('PushManager' in window)) {
+    ensureIOSStandaloneForPush();
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
       throw new Error('Este navegador no admite notificaciones push.');
     }
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') throw new Error('Debes permitir las notificaciones para recibir los avisos.');
+
+    const permission = await requestNotificationPermission();
+    if (permission !== 'granted') {
+      throw new Error('Debes permitir las notificaciones para recibir los avisos.');
+    }
+
     const registration = await getSulderyServiceWorker();
     const existing = await registration.pushManager.getSubscription();
     const publicKey = await getPushPublicKey();
@@ -238,6 +328,7 @@ async function enableSulderyPush() {
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(publicKey)
     });
+
     await apiFetch('/notifications/subscribe', {
       method: 'POST',
       body: JSON.stringify(subscription.toJSON())
@@ -252,15 +343,18 @@ async function getSulderyPushStatus() {
   catch { return { subscribed: false, devices: 0 }; }
 }
 
-window.enableSulderyPush = enableSulderyPush;
-window.getSulderyPushStatus = getSulderyPushStatus;
-window.getSulderyServiceWorker = getSulderyServiceWorker;
-
 async function enablePendingSulderyPush(registrationToken) {
   if (!registrationToken) throw new Error('No se pudo preparar el aviso de registro.');
-  if (!('Notification' in window) || !('PushManager' in window)) throw new Error('Este navegador no admite avisos web.');
-  const permission = await Notification.requestPermission();
-  if (permission !== 'granted') throw new Error('Debes permitir los avisos para recibir la confirmación de tu cuenta.');
+  ensureIOSStandaloneForPush();
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    throw new Error('Este navegador no permite avisos web.');
+  }
+
+  const permission = await requestNotificationPermission();
+  if (permission !== 'granted') {
+    throw new Error('Debes permitir los avisos para recibir la confirmación de tu cuenta.');
+  }
+
   const registration = await getSulderyServiceWorker();
   const existing = await registration.pushManager.getSubscription();
   const publicKey = await getPushPublicKey();
@@ -268,19 +362,30 @@ async function enablePendingSulderyPush(registrationToken) {
     userVisibleOnly: true,
     applicationServerKey: urlBase64ToUint8Array(publicKey)
   });
+
   await apiFetch('/notifications/subscribe-pending', {
     method: 'POST',
     body: JSON.stringify({ token: registrationToken, subscription: subscription.toJSON() })
   });
   return { ok: true };
 }
-window.enablePendingSulderyPush = enablePendingSulderyPush;
 
+window.isIOSDevice = isIOSDevice;
+window.isInstalledPWA = isInstalledPWA;
+window.showIOSInstallGuide = showIOSInstallGuide;
+window.enableSulderyPush = enableSulderyPush;
+window.getSulderyPushStatus = getSulderyPushStatus;
+window.getSulderyServiceWorker = getSulderyServiceWorker;
+window.enablePendingSulderyPush = enablePendingSulderyPush;
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js?v=20260923', { scope: './' }).catch(() => {});
+    const swUrl = new URL('sw.js?v=20260919-v37', location.href);
+    navigator.serviceWorker.register(swUrl, { scope: './' }).catch(() => {});
   });
 }
 
-window.setTimeout(updateInstallButtons, 0);
+window.setTimeout(() => {
+  ensureIOSInstallGuide();
+  updateInstallButtons();
+}, 0);

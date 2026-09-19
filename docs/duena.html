@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260925">
+  <link rel="stylesheet" href="style.css?v=20260919-v37">
 </head>
 <body class="dashboard-page owner-page">
   <main class="dashboard-shell">
@@ -71,6 +71,7 @@
       <button type="button" class="owner-tool-button" data-owner-tool="blocked"><span class="owner-tool-icon">▣</span><span><strong>Bloquear días</strong><small>Vacaciones o descansos</small></span><b>→</b></button>
       <button type="button" class="owner-tool-button" data-owner-tool="calendar"><span class="owner-tool-icon">◷</span><span><strong>Calendario</strong><small>Citas y espacios libres</small></span><b>→</b></button>
       <button type="button" class="owner-tool-button" data-owner-tool="photos"><span class="owner-tool-icon">✦</span><span><strong>Subir fotos</strong><small>Portafolio para clientas</small></span><b>→</b></button>
+      <button type="button" class="owner-tool-button" data-owner-tool="nail-lab"><span class="owner-tool-icon">✦</span><span><strong>Nail Lab IA</strong><small>Diseños, técnicas y catálogo</small></span><b>→</b></button>
     </section>
 
     <section id="ownerToolCalendar" class="owner-tool-panel admin-card glass-card hidden-tool-panel">
@@ -143,6 +144,123 @@
       <div id="blockedDatesList" class="blocked-dates-list"></div>
     </section>
 
+    <section id="ownerToolNailLab" class="owner-tool-panel admin-card glass-card hidden-tool-panel">
+      <div class="card-heading">
+        <div><p class="eyebrow">NAIL LAB IA</p><h2>Ideas para crear y seguir aprendiendo</h2></div>
+        <button class="small-button ghost" type="button" data-close-owner-tool>Cerrar</button>
+      </div>
+      <p class="manager-note">Un asistente gratuito integrado en Suldery Nails: reúne conocimiento de uñas, propone combinaciones y crea conceptos de diseño. Funciona sin una API de pago.</p>
+
+      <div class="ai-lab-tabs" role="tablist" aria-label="Herramientas Nail Lab">
+        <button type="button" class="ai-lab-tab active" data-ai-tab="design" role="tab">Crear diseño</button>
+        <button type="button" class="ai-lab-tab" data-ai-tab="learn" role="tab">Aprender</button>
+        <button type="button" class="ai-lab-tab" data-ai-tab="catalog" role="tab">Catálogo</button>
+        <button type="button" class="ai-lab-tab" data-ai-tab="care" role="tab">Cuidados</button>
+      </div>
+
+      <section class="ai-lab-panel" data-ai-panel="design">
+        <div class="ai-lab-grid">
+          <label>Forma
+            <select id="aiShape">
+              <option value="almendra">Almendra</option>
+              <option value="cuadrada">Cuadrada</option>
+              <option value="coffin">Coffin</option>
+              <option value="ovalada">Ovalada</option>
+              <option value="stiletto">Stiletto</option>
+            </select>
+          </label>
+          <label>Largo
+            <select id="aiLength">
+              <option value="corto">Corto</option>
+              <option value="medio" selected>Medio</option>
+              <option value="largo">Largo</option>
+            </select>
+          </label>
+          <label>Paleta
+            <select id="aiPalette">
+              <option value="rosa">Rosa suave</option>
+              <option value="vino">Vino y nude</option>
+              <option value="leche">Milky + dorado</option>
+              <option value="cafe">Café latte</option>
+              <option value="negro">Negro + perla</option>
+              <option value="azul">Azul hielo</option>
+            </select>
+          </label>
+          <label>Acabado
+            <select id="aiFinish">
+              <option value="brillo">Ultra brillante</option>
+              <option value="mate">Mate elegante</option>
+              <option value="chrome">Chrome</option>
+              <option value="cat-eye">Cat eye</option>
+              <option value="3d">Detalle 3D</option>
+            </select>
+          </label>
+          <label>Ocasión
+            <select id="aiOccasion">
+              <option value="diario">Diario</option>
+              <option value="evento">Evento</option>
+              <option value="romantico">Romántico</option>
+              <option value="elegante">Elegante</option>
+              <option value="atrevido">Atrevido</option>
+            </select>
+          </label>
+          <label>Inspiración
+            <input id="aiInspiration" type="text" maxlength="80" placeholder="Ej. flores, mariposas, aura, francesa">
+          </label>
+        </div>
+        <button id="aiGenerateDesign" class="primary-button" type="button">Crear propuesta <span>✦</span></button>
+
+        <div id="aiDesignResult" class="ai-design-result">
+          <div id="aiDesignPreview" class="ai-design-preview" aria-live="polite"></div>
+          <div>
+            <p class="eyebrow">PROPUESTA</p>
+            <h3 id="aiDesignTitle">Tu próxima idea aparecerá aquí</h3>
+            <p id="aiDesignConcept" class="ai-design-concept">Elige tus preferencias y deja que Nail Lab combine forma, color, acabado y decoración.</p>
+            <div id="aiDesignDetails" class="ai-design-details"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="ai-lab-panel hidden-ai-panel" data-ai-panel="learn">
+        <div class="subsection-heading">
+          <div><p class="eyebrow">BASE DE CONOCIMIENTO</p><h3>Aprende algo nuevo</h3></div>
+        </div>
+        <input id="aiKnowledgeSearch" class="ai-search" type="search" placeholder="Busca una técnica, material, forma o decoración…">
+        <div id="aiKnowledgeList" class="ai-knowledge-list"></div>
+      </section>
+
+      <section class="ai-lab-panel hidden-ai-panel" data-ai-panel="catalog">
+        <div class="subsection-heading">
+          <div><p class="eyebrow">CATÁLOGO DE INSPIRACIÓN</p><h3>Estilos que puedes explorar</h3></div>
+        </div>
+        <div id="aiCatalogGrid" class="ai-catalog-grid"></div>
+      </section>
+
+      <section class="ai-lab-panel hidden-ai-panel" data-ai-panel="care">
+        <div class="subsection-heading">
+          <div><p class="eyebrow">CUIDADOS</p><h3>Mensaje listo para tu clienta</h3></div>
+        </div>
+        <div class="care-guide-grid">
+          <label>Servicio<select id="careGuideService">
+            <option value="Manicure semipermanente">Manicure semipermanente</option>
+            <option value="Pedicure semipermanente">Pedicure semipermanente</option>
+            <option value="Dipping">Dipping</option>
+            <option value="Press on">Press on</option>
+          </select></label>
+          <label>Nombre de la clienta <span class="optional-label">(opcional)</span><input id="careGuideClientName" type="text" placeholder="Ej. Sandra"></label>
+        </div>
+        <div class="care-guide-card">
+          <div class="subsection-heading"><div><p class="eyebrow">RECOMENDACIONES</p><h3>Cuidados para mantener el diseño</h3></div></div>
+          <ol id="careGuideTips" class="care-guide-tips"></ol>
+        </div>
+        <div class="care-guide-card">
+          <div class="subsection-heading"><div><p class="eyebrow">MENSAJE LISTO</p><h3>Para enviar a tu clienta</h3></div></div>
+          <textarea id="careGuideMessage" class="care-guide-message" rows="6" readonly></textarea>
+          <div class="owner-tool-actions"><button id="careGuideCopyButton" class="primary-button" type="button">Copiar mensaje <span>→</span></button><span id="careGuideCopyStatus" class="form-message"></span></div>
+        </div>
+      </section>
+    </section>
+
     <section id="ownerToolPhotos" class="owner-tool-panel admin-card glass-card hidden-tool-panel">
       <div class="card-heading"><div><p class="eyebrow">PORTAFOLIO</p><h2>Fotos de tus diseños</h2></div><div class="admin-actions"><label class="small-button file-button" for="photoPicker">+ Subir foto</label><button class="small-button ghost" type="button" data-close-owner-tool>Cerrar</button></div></div>
       <p class="manager-note">Máximo 8 fotos en total. Cada foto se publica en un solo lugar: inicio de sesión o página de clienta. Puedes reemplazarla o eliminarla cuando quieras.</p>
@@ -166,7 +284,7 @@
       </article>
     </section>
   </main>
-  <script src="auth.js?v=20260925"></script>
-  <script src="duena.js?v=20260925"></script>
+  <script src="auth.js?v=20260919-v37"></script>
+  <script src="duena.js?v=20260919-v37"></script>
 </body>
 </html>

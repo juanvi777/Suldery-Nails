@@ -1,7 +1,7 @@
-const CACHE_NAME = 'suldery-shell-v35-free-push';
+const CACHE_NAME = 'suldery-shell-v37-free-push';
 const ASSET_PATHS = [
   'index.html','registro.html','cliente.html','duena.html',
-  'style.css?v=20260925','auth.js?v=20260925','login.js?v=20260925','registro.js?v=20260925','cliente.js?v=20260925','duena.js?v=20260925',
+  'style.css?v=20260928','auth.js?v=20260928','login.js?v=20260928','registro.js?v=20260928','cliente.js?v=20260928','duena.js?v=20260928',
   'assets/suldery-nails-logo.jpeg','assets/suldery-nails-icon-192.png','assets/suldery-nails-icon-512.png','manifest.webmanifest','assets/favicon-48.png'
 ];
 const scopedUrl = path => new URL(path, self.registration.scope).href;

@@ -132,3 +132,15 @@ togglePassword.addEventListener('click', () => {
 
 
 loadLoginGallery();
+
+const forgotPasswordButton = document.getElementById('forgotPasswordButton');
+if (forgotPasswordButton) {
+  forgotPasswordButton.addEventListener('click', () => {
+    const phone = window.prompt('Escribe el número de teléfono con el que registraste tu cuenta:');
+    if (!phone) return;
+    apiFetch('/auth/recovery/request', {
+      method: 'POST',
+      body: JSON.stringify({ phone })
+    }).then(data => alert(data.message)).catch(error => alert(error.message));
+  });
+}

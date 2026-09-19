@@ -685,6 +685,42 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
+app.post('/api/auth/recovery/request', async (req, res) => {
+  try {
+    const rawPhone = String(req.body?.phone || '').trim();
+    const digits = rawPhone.replace(/\D/g, '');
+    if (digits.length < 7) return res.status(400).json({ message: 'Escribe un número de teléfono válido.' });
+
+    const [rows] = await pool.query(
+      `SELECT id,name,phone,status FROM users WHERE REPLACE(REPLACE(REPLACE(REPLACE(phone,' ',''),'-',''),'(',''),')','') LIKE ? LIMIT 1`,
+      [`%${digits.slice(-10)}`]
+    );
+
+    // Respuesta genérica para no revelar si un número está registrado.
+    if (!rows.length) {
+      return res.json({ message: 'Recibimos tu solicitud. Si el número pertenece a una cuenta, Suldery verá la solicitud en su panel y podrá ayudarte a recuperar el acceso. 💕' });
+    }
+    const user = rows[0];
+    if (user.status === 'rejected') {
+      return res.json({ message: 'Recibimos tu solicitud. Suldery podrá revisarla desde su panel.' });
+    }
+
+    await pool.query(
+      `INSERT INTO password_reset_requests(user_id,phone,status) VALUES(?,?, 'pending')`,
+      [user.id, user.phone || rawPhone]
+    );
+    void notifyOwners(
+      `Hola Suldery 💕, ${user.name} solicitó recuperar el acceso a su cuenta.\n📱 ${user.phone || rawPhone}\nPuedes revisar la solicitud desde tu panel.`,
+      `password-recovery:${user.id}:${Date.now()}`,
+      'password_recovery_owner_push'
+    );
+    return res.json({ message: 'Listo 💕. Tu solicitud de recuperación quedó enviada a Suldery. Ella podrá ayudarte desde su panel usando el número con el que registraste tu cuenta.' });
+  } catch (error) {
+    console.error('No se pudo crear la solicitud de recuperación:', error.message);
+    res.status(500).json({ message: 'No se pudo enviar la solicitud. Inténtalo nuevamente.' });
+  }
+});
+
 app.post('/api/auth/login', async (req, res) => {
   try {
     const email = normalizeEmail(req.body.email);
@@ -2225,6 +2261,19 @@ app.use((error, _req, res, _next) => {
     ensureUploadDirectory();
     await initDatabase();
     await ensureDefaultSchedule();
+    await pool.query(`CREATE TABLE IF NOT EXISTS password_reset_requests (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      user_id INT UNSIGNED NOT NULL,
+      phone VARCHAR(30) NOT NULL,
+      status ENUM('pending','resolved','rejected') NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      resolved_at DATETIME NULL,
+      PRIMARY KEY (id),
+      KEY idx_password_reset_user (user_id),
+      KEY idx_password_reset_status_created (status, created_at),
+      CONSTRAINT fk_password_reset_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
     await pool.query(`ALTER TABLE portfolio_photos ADD COLUMN visibility ENUM('login','client','both') NOT NULL DEFAULT 'both' AFTER image_mime`)
       .catch(error => {
         if (error.code !== 'ER_DUP_FIELDNAME') throw error;

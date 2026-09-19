@@ -7,6 +7,16 @@ let calendarData = new Map();
 let carouselIndex = 0;
 let carouselTimer = null;
 const $ = id => document.getElementById(id);
+function safeFormatTime12(timeValue) {
+  const text = String(timeValue ?? '').slice(0, 5);
+  const match = /^(\d{2}):(\d{2})$/.exec(text);
+  if (!match) return text || 'Hora pendiente';
+  let hour = Number(match[1]);
+  const minute = match[2];
+  const period = hour >= 12 ? 'PM' : 'AM';
+  hour = hour % 12 || 12;
+  return `${hour}:${minute} ${period}`;
+}
 
 function isoDate(year, month, day) { return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`; }
 function monthKey(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; }
@@ -64,9 +74,9 @@ async function selectDate(date){
   selectedDate=date; selectedTime=''; setStepVisibility($('bookingSummary'),false); setStepVisibility($('bookingButton'),false); renderCalendar(); $('calendarFeedback').textContent=`Elegiste ${formatDate(date)}. Ahora escoge una hora que complete ${durationLabel(serviceDuration(selectedService))}.`; $('timeHint').textContent=`Turnos para ${durationLabel(serviceDuration(selectedService))}`; $('timeSlots').innerHTML='<span class="time-help">Cargando horarios…</span>';
   try{const data=await apiFetch(`/appointments/slots?date=${encodeURIComponent(date)}&service=${encodeURIComponent(selectedService)}`);renderSlots(data.slots);if(!data.slots.length){$('calendarFeedback').textContent=data.message||'No hay horarios disponibles para ese día.';shake($('calendarFeedback'));}}catch(error){$('timeSlots').innerHTML=`<span class="time-help">${escapeHtml(error.message)}</span>`;shake(document.querySelector('.booking-card'));}
 }
-function renderSlots(slots){const wrap=$('timeSlots');wrap.innerHTML='';if(!slots.length){wrap.innerHTML='<span class="time-help">No quedan horas disponibles para este día.</span>';return;}slots.forEach(time=>{const button=document.createElement('button');button.type='button';button.className='time-slot';button.textContent=formatTime12(time);if(time===selectedTime)button.classList.add('selected');button.addEventListener('click',()=>selectTime(time));wrap.appendChild(button);});}
-function selectTime(time){selectedTime=time;document.querySelectorAll('.time-slot').forEach(button=>button.classList.toggle('selected',button.dataset.time===time));$('calendarFeedback').textContent=`${formatDate(selectedDate)} a las ${formatTime12(time)}. Verifica los datos antes de confirmar.`;updateSummary();}
-function updateSummary(){ $('summaryDate').textContent=formatDate(selectedDate); $('summaryTime').textContent=formatTime12(selectedTime); $('summaryService').textContent=selectedService; $('summaryDuration').textContent=durationLabel(serviceDuration(selectedService)); setStepVisibility($('bookingSummary'),true);setStepVisibility($('bookingButton'),true);$('bookingSummary').scrollIntoView({behavior:'smooth',block:'nearest'}); }
+function renderSlots(slots){const wrap=$('timeSlots');wrap.innerHTML='';if(!slots.length){wrap.innerHTML='<span class="time-help">No quedan horas disponibles para este día.</span>';return;}slots.forEach(time=>{const button=document.createElement('button');button.type='button';button.className='time-slot';button.textContent=safeFormatTime12(time);if(time===selectedTime)button.classList.add('selected');button.addEventListener('click',()=>selectTime(time));wrap.appendChild(button);});}
+function selectTime(time){selectedTime=time;document.querySelectorAll('.time-slot').forEach(button=>button.classList.toggle('selected',button.dataset.time===time));$('calendarFeedback').textContent=`${formatDate(selectedDate)} a las ${safeFormatTime12(time)}. Verifica los datos antes de confirmar.`;updateSummary();}
+function updateSummary(){ $('summaryDate').textContent=formatDate(selectedDate); $('summaryTime').textContent=safeFormatTime12(selectedTime); $('summaryService').textContent=selectedService; $('summaryDuration').textContent=durationLabel(serviceDuration(selectedService)); setStepVisibility($('bookingSummary'),true);setStepVisibility($('bookingButton'),true);$('bookingSummary').scrollIntoView({behavior:'smooth',block:'nearest'}); }
 function clearTimeSelection(){$('timeSlots').innerHTML='<span class="time-help">Primero selecciona un día disponible.</span>';$('timeHint').textContent='Selecciona primero un día';setMessage($('bookingMessage'),'');}
 async function crearCita(){
   const message=$('bookingMessage'),button=$('bookingButton'); if(!selectedDate){setMessage(message,'Primero selecciona un día disponible.');return;} if(!selectedTime){setMessage(message,'Ahora selecciona una hora disponible.');return;} if(!selectedService){setMessage(message,'Selecciona el servicio.');return;}
@@ -75,7 +85,7 @@ async function crearCita(){
   catch(error){setMessage(message,error.message);shake(document.querySelector('.booking-card'));await refreshCalendar();}finally{button.disabled=false;}
 }
 
-async function loadAppointments(){const data=await apiFetch('/appointments/my');const list=$('appointmentsList');list.innerHTML='';if(!data.appointments.length){list.innerHTML='<div class="empty-state">Todavía no tienes citas.</div>';return;}data.appointments.forEach(appt=>{const item=document.createElement('article');item.className='appointment-item';const statusText=appt.status==='accepted'?'Confirmada':appt.status==='pending'?'Pendiente de confirmación':appt.status==='cancelled'?'Cancelada':'Rechazada';item.innerHTML=`<div class="appointment-top"><strong>${escapeHtml(appt.service)}</strong><span class="status ${appt.status}">${statusText}</span></div><p>${formatDate(appt.appointment_date)} · ${formatTime12(appt.appointment_time)} · ${durationLabel(Number(appt.duration_minutes))}</p>`;if(['pending','accepted'].includes(appt.status)){const cancel=document.createElement('button');cancel.type='button';cancel.className='link-button subtle-link';cancel.textContent='Cancelar cita';cancel.addEventListener('click',()=>cancelarCita(appt.id));item.appendChild(cancel);}list.appendChild(item);});}
+async function loadAppointments(){const data=await apiFetch('/appointments/my');const list=$('appointmentsList');list.innerHTML='';if(!data.appointments.length){list.innerHTML='<div class="empty-state">Todavía no tienes citas.</div>';return;}data.appointments.forEach(appt=>{const item=document.createElement('article');item.className='appointment-item';const statusText=appt.status==='accepted'?'Confirmada':appt.status==='pending'?'Pendiente de confirmación':appt.status==='cancelled'?'Cancelada':'Rechazada';item.innerHTML=`<div class="appointment-top"><strong>${escapeHtml(appt.service)}</strong><span class="status ${appt.status}">${statusText}</span></div><p>${formatDate(appt.appointment_date)} · ${safeFormatTime12(appt.appointment_time)} · ${durationLabel(Number(appt.duration_minutes))}</p>`;if(['pending','accepted'].includes(appt.status)){const cancel=document.createElement('button');cancel.type='button';cancel.className='link-button subtle-link';cancel.textContent='Cancelar cita';cancel.addEventListener('click',()=>cancelarCita(appt.id));item.appendChild(cancel);}list.appendChild(item);});}
 async function cancelarCita(id){if(!confirm('¿Quieres cancelar esta cita?'))return;try{await apiFetch(`/appointments/${id}/cancel`,{method:'PATCH'});await Promise.all([loadAppointments(),refreshCalendar()]);if(selectedDate)await selectDate(selectedDate);}catch(error){setMessage($('bookingMessage'),error.message);shake(document.querySelector('.booking-card'));}}
 
 async function buildCarousel(gallery, photos, large = false) {

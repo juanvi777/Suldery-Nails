@@ -155,3 +155,16 @@ CREATE TABLE IF NOT EXISTS pending_push_registrations (
   KEY idx_pending_push_user (user_id),
   CONSTRAINT fk_pending_push_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS password_reset_requests (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id INT UNSIGNED NOT NULL,
+  phone VARCHAR(30) NOT NULL,
+  status ENUM('pending','resolved','rejected') NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  resolved_at DATETIME NULL,
+  PRIMARY KEY (id),
+  KEY idx_password_reset_user (user_id),
+  KEY idx_password_reset_status_created (status, created_at),
+  CONSTRAINT fk_password_reset_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

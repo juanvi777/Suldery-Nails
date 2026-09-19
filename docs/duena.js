@@ -1,5 +1,15 @@
 let ownerUser = null;
 const $d = id => document.getElementById(id);
+function safeFormatTime12(timeValue) {
+  const text = String(timeValue ?? '').slice(0, 5);
+  const match = /^(\d{2}):(\d{2})$/.exec(text);
+  if (!match) return text || 'Hora pendiente';
+  let hour = Number(match[1]);
+  const minute = match[2];
+  const period = hour >= 12 ? 'PM' : 'AM';
+  hour = hour % 12 || 12;
+  return `${hour}:${minute} ${period}`;
+}
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const DURATION_LABELS = {
   'Manicure semipermanente': '1 h 30 min',
@@ -32,7 +42,7 @@ function timeOptions(includeEndOfDay = false) {
 }
 
 function timeSelectHTML(value, allowEndOfDay = false) {
-  return `<select class="interval-time" data-time>${timeOptions(allowEndOfDay).map(time => `<option value="${time}" ${time === value ? 'selected' : ''}>${formatTime12(time)}</option>`).join('')}</select>`;
+  return `<select class="interval-time" data-time>${timeOptions(allowEndOfDay).map(time => `<option value="${time}" ${time === value ? 'selected' : ''}>${safeFormatTime12(time)}</option>`).join('')}</select>`;
 }
 
 function intervalRow(interval = { start_time:'07:00', end_time:'12:00' }, removable = true) {
@@ -147,11 +157,22 @@ async function initDuena() {
   $d('enableNotificationsButton')?.addEventListener('click', async () => { try { await enableSulderyPush(); await loadNotificationStatus(); alert('Listo 💕. Este dispositivo ya puede recibir tus avisos.'); } catch (error) { alert(error.message); } });
   $d('testNotificationButton')?.addEventListener('click', testOwnerNotification);
 
+  $d('careGuideService')?.addEventListener('change', renderCareGuide);
+  $d('careGuideClientName')?.addEventListener('input', renderCareGuide);
+  $d('careGuideCopyButton')?.addEventListener('click', copyCareMessage);
+  document.querySelectorAll('[data-ai-tab]').forEach(button => button.addEventListener('click', () => switchAiTab(button.dataset.aiTab)));
+  $d('aiGenerateDesign')?.addEventListener('click', generateAiDesign);
+  $d('aiKnowledgeSearch')?.addEventListener('input', renderAiKnowledge);
+  renderAiKnowledge();
+  renderAiCatalog();
+  generateAiDesign();
+
   updateOwnerServiceDurationHint();
   buildOverrideIntervals();
   buildBlockedIntervalsEditor();
   toggleBlockedMode();
   await refreshOwnerData();
+  renderCareGuide();
 }
 
 function openOwnerTool(name) {
@@ -267,7 +288,7 @@ function renderScheduledAppointments() {
     const item = document.createElement('article');
     item.className = 'admin-item';
     const source = appt.user_id ? 'Clienta registrada' : 'Cita agendada manualmente';
-    item.innerHTML = `<div class="admin-item-main"><strong>${escapeHtml(appt.client_name)}</strong><p>${escapeHtml(appt.service)} · ${formatDate(appt.appointment_date)} · ${formatTime12(appt.appointment_time)} · ${DURATION_LABELS[appt.service] || `${Number(appt.duration_minutes)||60} min`}</p><small>${escapeHtml(source)}${appt.client_email ? ` · ${escapeHtml(appt.client_email)}` : ''}${appt.client_phone ? ` · Tel: ${escapeHtml(appt.client_phone)}` : ''}</small></div><span class="status accepted">Confirmada</span>`;
+    item.innerHTML = `<div class="admin-item-main"><strong>${escapeHtml(appt.client_name)}</strong><p>${escapeHtml(appt.service)} · ${formatDate(appt.appointment_date)} · ${safeFormatTime12(appt.appointment_time)} · ${DURATION_LABELS[appt.service] || `${Number(appt.duration_minutes)||60} min`}</p><small>${escapeHtml(source)}${appt.client_email ? ` · ${escapeHtml(appt.client_email)}` : ''}${appt.client_phone ? ` · Tel: ${escapeHtml(appt.client_phone)}` : ''}</small></div><span class="status accepted">Confirmada</span>`;
     list.appendChild(item);
   });
 }
@@ -305,7 +326,7 @@ async function loadOwnerAppointments() {
   if (!pending.length) { list.innerHTML = '<div class="empty-state">No hay solicitudes de citas pendientes. Las confirmadas permanecen en tu calendario.</div>'; return; }
   pending.forEach(appt => {
     const item = document.createElement('article'); item.className = 'admin-item';
-    item.innerHTML = `<div class="admin-item-main"><strong>${escapeHtml(appt.client_name)}</strong><p>${escapeHtml(appt.service)} · ${formatDate(appt.appointment_date)} · ${formatTime12(appt.appointment_time)}</p><small>${escapeHtml(appt.client_email || 'Cita manual')}${appt.client_phone ? ` · Tel: ${escapeHtml(appt.client_phone)}` : ''}</small></div><span class="status pending">Pendiente</span>`;
+    item.innerHTML = `<div class="admin-item-main"><strong>${escapeHtml(appt.client_name)}</strong><p>${escapeHtml(appt.service)} · ${formatDate(appt.appointment_date)} · ${safeFormatTime12(appt.appointment_time)}</p><small>${escapeHtml(appt.client_email || 'Cita manual')}${appt.client_phone ? ` · Tel: ${escapeHtml(appt.client_phone)}` : ''}</small></div><span class="status pending">Pendiente</span>`;
     const actions = document.createElement('div'); actions.className = 'admin-actions';
     actions.append(actionButton('Confirmar', 'small-button', () => setApptStatus(appt.id, 'accepted')));
     actions.append(actionButton('Rechazar', 'small-button cancel', () => setApptStatus(appt.id, 'rejected')));
@@ -431,7 +452,7 @@ function renderOwnerCalendarSchedule(intervals, blocked, isPast) {
   if (blocked) { box.innerHTML = '<span class="empty-state">Día bloqueado completo.</span>'; return; }
   if (!intervals.length) { box.innerHTML = '<span class="empty-state">No hay atención programada ese día.</span>'; return; }
   const note = isPast ? '<span class="owner-calendar-note">Historial · </span>' : '';
-  box.innerHTML = `${note}${intervals.map(i => `<span class="owner-calendar-chip">${escapeHtml(formatTime12(i.start_time))} – ${escapeHtml(formatTime12(i.end_time))}</span>`).join('')}`;
+  box.innerHTML = `${note}${intervals.map(i => `<span class="owner-calendar-chip">${escapeHtml(safeFormatTime12(i.start_time))} – ${escapeHtml(safeFormatTime12(i.end_time))}</span>`).join('')}`;
 }
 
 function renderOwnerCalendarAppointments(appointments) {
@@ -446,7 +467,7 @@ function renderOwnerCalendarAppointments(appointments) {
     const item = document.createElement('article');
     item.className = 'admin-item owner-calendar-appointment';
     const status = statusLabel(appt.status);
-    item.innerHTML = `<div class="admin-item-main"><strong>${escapeHtml(formatTime12(appt.appointment_time))} · ${escapeHtml(appt.client_name)}</strong><p>${escapeHtml(appt.service)} · ${DURATION_LABELS[appt.service] || `${Number(appt.duration_minutes)||60} min`}</p><small>${escapeHtml(appt.client_email || 'Cita agendada manualmente')}${appt.client_phone ? ` · Tel: ${escapeHtml(appt.client_phone)}` : ''}</small></div><span class="status ${appt.status}">${status}</span>`;
+    item.innerHTML = `<div class="admin-item-main"><strong>${escapeHtml(safeFormatTime12(appt.appointment_time))} · ${escapeHtml(appt.client_name)}</strong><p>${escapeHtml(appt.service)} · ${DURATION_LABELS[appt.service] || `${Number(appt.duration_minutes)||60} min`}</p><small>${escapeHtml(appt.client_email || 'Cita agendada manualmente')}${appt.client_phone ? ` · Tel: ${escapeHtml(appt.client_phone)}` : ''}</small></div><span class="status ${appt.status}">${status}</span>`;
     if (['pending','accepted'].includes(appt.status)) {
       const actions = document.createElement('div'); actions.className = 'admin-actions';
       if (appt.status === 'pending') {
@@ -471,7 +492,7 @@ function renderOwnerCalendarFreeSlots(slots, service, blocked, isPast) {
   const intro = document.createElement('p'); intro.className = 'owner-calendar-note'; intro.textContent = `Espacios libres para ${service}:`;
   box.appendChild(intro);
   const wrap = document.createElement('div'); wrap.className = 'owner-calendar-free-grid';
-  slots.forEach(time => { const chip = document.createElement('span'); chip.className = 'owner-calendar-free-chip'; chip.textContent = formatTime12(time); wrap.appendChild(chip); });
+  slots.forEach(time => { const chip = document.createElement('span'); chip.className = 'owner-calendar-free-chip'; chip.textContent = safeFormatTime12(time); wrap.appendChild(chip); });
   box.appendChild(wrap);
 }
 
@@ -495,7 +516,7 @@ async function loadOwnerSlots() {
     const data = await apiFetch(`/owner/slots?date=${encodeURIComponent(date)}&service=${service}`);
     select.innerHTML = '';
     if (!data.slots.length) { select.innerHTML = '<option value="">No hay horarios disponibles</option>'; return; }
-    data.slots.forEach(time => { const option = document.createElement('option'); option.value = time; option.textContent = formatTime12(time); select.appendChild(option); });
+    data.slots.forEach(time => { const option = document.createElement('option'); option.value = time; option.textContent = safeFormatTime12(time); select.appendChild(option); });
   } catch (error) { select.innerHTML = `<option value="">${escapeHtml(error.message)}</option>`; }
 }
 
@@ -544,7 +565,7 @@ function renderScheduleOverrides(overrides) {
   if (!overrides.length) { list.innerHTML = '<div class="empty-state">No hay cambios especiales guardados.</div>'; return; }
   overrides.forEach(item => {
     const article = document.createElement('article'); article.className='override-item';
-    const intervals = item.is_open ? item.intervals.map(i => `${formatTime12(i.start_time)}–${formatTime12(i.end_time)}`).join(' · ') : 'Descanso todo el día';
+    const intervals = item.is_open ? item.intervals.map(i => `${safeFormatTime12(i.start_time)}–${safeFormatTime12(i.end_time)}`).join(' · ') : 'Descanso todo el día';
     article.innerHTML = `<div><strong>${escapeHtml(formatDate(item.date))}</strong><span>${escapeHtml(intervals)}${item.note ? ` · ${escapeHtml(item.note)}` : ''}</span></div><button type="button" class="small-button cancel" data-override-date="${item.date}">Quitar</button>`;
     list.appendChild(article);
   });
@@ -620,7 +641,7 @@ async function loadBlockedDates() {
   hours.forEach(item => {
     const article = document.createElement('article');
     article.className = 'blocked-date-item';
-    article.innerHTML = `<div><strong>${escapeHtml(formatDate(item.date))}</strong><span>Bloqueado: ${formatTime12(item.start_time)} – ${formatTime12(item.end_time)}${item.reason ? ` · ${escapeHtml(item.reason)}` : ''}</span></div><button type="button" class="small-button cancel" data-blocked-hour-id="${item.id}">Quitar</button>`;
+    article.innerHTML = `<div><strong>${escapeHtml(formatDate(item.date))}</strong><span>Bloqueado: ${safeFormatTime12(item.start_time)} – ${safeFormatTime12(item.end_time)}${item.reason ? ` · ${escapeHtml(item.reason)}` : ''}</span></div><button type="button" class="small-button cancel" data-blocked-hour-id="${item.id}">Quitar</button>`;
     list.appendChild(article);
   });
 }
@@ -761,5 +782,190 @@ function actionButton(text,cls,handler){const button=document.createElement('but
 function statusLabel(status){return status==='accepted'?'Confirmada':status==='pending'?'Pendiente':status==='cancelled'?'Cancelada':status==='rejected'?'Rechazada':status;}
 function escapeHtml(text){return String(text??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
 function escapeAttribute(text){return escapeHtml(text);}
+
+
+const NAIL_CARE_GUIDES = {
+  'Manicure semipermanente': {
+    title: 'Manicure semipermanente',
+    tips: ['Evita usar las uñas como herramientas durante las primeras horas.', 'Aplica aceite de cutícula 1–2 veces al día para mantenerlas flexibles y cuidadas.', 'Para que el acabado dure más, usa guantes al limpiar con productos fuertes.'],
+  },
+  'Pedicure semipermanente': {
+    title: 'Pedicure semipermanente',
+    tips: ['Evita golpes y presión innecesaria en las uñas durante el primer día.', 'Mantén la cutícula hidratada y seca bien los pies después de bañarte.', 'Usa productos suaves y evita retirar el esmalte por tu cuenta.'],
+  },
+  'Dipping': {
+    title: 'Dipping',
+    tips: ['No uses las uñas para abrir, raspar o despegar objetos.', 'Hidrata cutículas y manos a diario para conservar el acabado bonito.', 'Si una uña se levanta o se golpea, avisa a Suldery en lugar de arrancarla.'],
+  },
+  'Press on': {
+    title: 'Press on',
+    tips: ['Evita sumergir las manos en agua caliente durante mucho tiempo.', 'Seca bien las manos y evita tirar de las puntas para prolongar la duración.', 'Si una pieza se despega, guárdala y consulta a Suldery para colocarla nuevamente.'],
+  }
+};
+
+function renderCareGuide() {
+  const service = $d('careGuideService')?.value || 'Manicure semipermanente';
+  const guide = NAIL_CARE_GUIDES[service];
+  if (!guide) return;
+  const tips = $d('careGuideTips');
+  if (tips) tips.innerHTML = guide.tips.map((tip, index) => `<li><span>${index + 1}</span><p>${escapeHtml(tip)}</p></li>`).join('');
+  const name = ($d('careGuideClientName')?.value || '').trim() || 'hermosa';
+  const message = `Hola ${name} 💕, gracias por tu cita en Suldery Nails. Para que ${guide.title.toLowerCase()} se mantenga bonito y cuidado por más tiempo: ${guide.tips.join(' ')}. Cualquier novedad, puedes escribirme y con gusto te ayudo. ✨💅`;
+  if ($d('careGuideMessage')) $d('careGuideMessage').value = message;
+}
+
+async function copyCareMessage() {
+  const text = $d('careGuideMessage')?.value || '';
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    const status = $d('careGuideCopyStatus');
+    if (status) { status.textContent = 'Mensaje copiado ✓'; window.setTimeout(() => status.textContent = '', 2200); }
+  } catch {
+    const input = $d('careGuideMessage');
+    if (input) { input.select(); document.execCommand('copy'); }
+  }
+}
+
+
+const AI_NAIL_KNOWLEDGE = [
+  { title:'Cat eye', category:'Decoración', level:'Intermedio', text:'Acabado magnético que crea una franja luminosa. Funciona mejor con una base oscura o profunda y un imán colocado con movimientos cortos y controlados.', steps:['Prepara la uña y aplica la base correspondiente al sistema.', 'Aplica una capa fina del color magnético.', 'Acerca el imán sin tocar la uña para concentrar el reflejo.', 'Cura según el producto y sella con top coat.'], safety:'Respeta siempre el tiempo de curado indicado por el fabricante.' },
+  { title:'Aura nails', category:'Diseño', level:'Intermedio', text:'Degradado suave que concentra el color alrededor de un punto central y da una sensación difuminada.', steps:['Elige una base clara o translúcida.', 'Coloca el color central con esponja o herramienta de difuminado.', 'Suaviza los bordes sin sobrecargar.', 'Sella y cura correctamente.'], safety:'Evita capas demasiado gruesas.' },
+  { title:'Francesa moderna', category:'Diseño', level:'Inicial', text:'Versión contemporánea de la francesa con puntas finas, doble línea, color o acabados metálicos.', steps:['Define la base.', 'Marca una sonrisa fina y uniforme.', 'Añade una segunda línea o detalle si corresponde.', 'Sella para proteger el borde libre.'], safety:'La simetría visual importa más que hacer la línea excesivamente gruesa.' },
+  { title:'Chrome', category:'Acabado', level:'Intermedio', text:'Acabado espejo que resalta sobre bases adecuadas. Requiere una superficie muy uniforme para que el reflejo quede limpio.', steps:['Deja la superficie lisa y bien curada.', 'Usa la base recomendada para el pigmento.', 'Frota el pigmento de forma uniforme.', 'Sella los bordes y finaliza.'], safety:'Sigue las indicaciones del fabricante del pigmento.' },
+  { title:'Relieve 3D', category:'Decoración', level:'Avanzado', text:'Volumen decorativo con flores, lazos, perlas u otros elementos moldeados.', steps:['Planifica el diseño para no sobrecargar la uña.', 'Construye el volumen en pequeñas porciones.', 'Cura o fija según el material usado.', 'Protege las zonas de roce.'], safety:'El relieve debe quedar estable y sin bordes que enganchen.' },
+  { title:'Estructura y forma', category:'Técnica', level:'Inicial', text:'La forma final debe adaptarse a la longitud, el ancho y el estilo de vida de la clienta, no solo a la tendencia.', steps:['Observa la placa y el crecimiento.', 'Elige una forma proporcional a la mano.', 'Mantén laterales equilibrados.', 'Comprueba el resultado desde varios ángulos.'], safety:'No fuerces la forma natural de una uña débil o lesionada.' },
+  { title:'Preparación de cutícula', category:'Técnica', level:'Inicial', text:'Una preparación limpia y cuidadosa mejora el aspecto y ayuda a que el producto quede ordenado.', steps:['Trabaja con herramientas limpias y adecuadas.', 'Retira solo tejido que corresponda según la técnica.', 'Evita cortes innecesarios.', 'Elimina residuos antes del producto.'], safety:'Si hay dolor, inflamación, herida o infección visible, no procedas.' },
+  { title:'Diseño minimalista', category:'Diseño', level:'Inicial', text:'Pocas líneas, pequeños puntos y espacios limpios para lograr un acabado moderno y elegante.', steps:['Elige una base que contraste suavemente.', 'Usa un detalle principal por uña o por par de uñas.', 'Respeta espacios negativos.', 'Sella con una capa uniforme.'], safety:'Menos elementos facilitan mantener la lectura visual del diseño.' }
+];
+
+const AI_CATALOG = [
+  { name:'Aura romántica', mood:'Suave · femenina · moderna', colors:'Rosa empolvado + leche', detail:'Aura central con microflores y brillo delicado.' },
+  { name:'Francesa vino', mood:'Elegante · sofisticada', colors:'Nude + vino', detail:'Francesa fina con una línea secundaria ultradelgada.' },
+  { name:'Chrome perlado', mood:'Limpio · luminoso', colors:'Milky + perla', detail:'Base lechosa con reflejo perlado y un detalle cromado.' },
+  { name:'Latte elegante', mood:'Cálido · natural', colors:'Café latte + crema', detail:'Degradado suave con puntos dorados mínimos.' },
+  { name:'Noche estelar', mood:'Atrevido · glam', colors:'Negro + perla', detail:'Base oscura con pequeños puntos de luz y acabado brillante.' },
+  { name:'Hielo magnético', mood:'Fresco · moderno', colors:'Azul hielo', detail:'Cat eye suave con una línea francesa metálica.' }
+];
+
+function switchAiTab(name) {
+  document.querySelectorAll('[data-ai-tab]').forEach(button => button.classList.toggle('active', button.dataset.aiTab === name));
+  document.querySelectorAll('[data-ai-panel]').forEach(panel => panel.classList.toggle('hidden-ai-panel', panel.dataset.aiPanel !== name));
+}
+
+function nailColorPalette(name) {
+  const palettes = {
+    rosa: ['#f6b7ce','#fff3f8','#c62868'],
+    vino: ['#6f1838','#f4d7df','#b83c67'],
+    leche: ['#f9f1e8','#fffdf8','#c89b55'],
+    cafe: ['#aa7d68','#f4e6dd','#6d4a3b'],
+    negro: ['#171423','#f1e6ee','#d7b2c4'],
+    azul: ['#a9e2ee','#eefbff','#4e9fb0']
+  };
+  return palettes[name] || palettes.rosa;
+}
+
+function nailShapePath(shape, x, y, w, h) {
+  const cx = x + w / 2;
+  if (shape === 'almendra') return `M ${cx} ${y} C ${x+w*.9} ${y+h*.2} ${x+w*.86} ${y+h*.82} ${cx} ${y+h} C ${x+w*.14} ${y+h*.82} ${x+w*.1} ${y+h*.2} ${cx} ${y} Z`;
+  if (shape === 'coffin') return `M ${x+w*.18} ${y} L ${x+w*.82} ${y} L ${x+w*.95} ${y+h*.9} Q ${cx} ${y+h} ${x+w*.05} ${y+h*.9} Z`;
+  if (shape === 'stiletto') return `M ${cx} ${y} L ${x+w} ${y+h} Q ${cx} ${y+h*.92} ${x} ${y+h} Z`;
+  if (shape === 'ovalada') return `M ${cx} ${y} C ${x+w*.9} ${y+h*.25} ${x+w*.9} ${y+h*.78} ${cx} ${y+h} C ${x+w*.1} ${y+h*.78} ${x+w*.1} ${y+h*.25} ${cx} ${y} Z`;
+  return `M ${x+w*.14} ${y} Q ${cx} ${y-.05*h} ${x+w*.86} ${y} L ${x+w} ${y+h*.8} Q ${x+w*.9} ${y+h} ${x+w*.1} ${y+h} Q ${x} ${y+h*.8} ${x+w*.14} ${y} Z`;
+}
+
+function buildDesignSvg(shape, palette, finish, inspiration) {
+  const [base, accent, detail] = nailColorPalette(palette);
+  const nails = Array.from({length:5}, (_, i) => {
+    const x = 20 + i * 78;
+    const y = 22 + (i % 2) * 4;
+    const h = finish === '3d' ? 132 : 122;
+    const path = nailShapePath(shape, x, y, 54, h);
+    const decor = inspiration?.toLowerCase().includes('flor')
+      ? `<circle cx="${x+27}" cy="${y+66}" r="8" fill="${accent}" opacity=".95"/><circle cx="${x+27}" cy="${y+54}" r="5" fill="${detail}"/><circle cx="${x+39}" cy="${y+61}" r="5" fill="${detail}"/><circle cx="${x+15}" cy="${y+61}" r="5" fill="${detail}"/>`
+      : `<path d="M ${x+10} ${y+74} Q ${x+27} ${y+55} ${x+44} ${y+74}" fill="none" stroke="${detail}" stroke-width="4" stroke-linecap="round"/>`;
+    const finishOverlay = finish === 'chrome'
+      ? `<path d="M ${x+8} ${y+18} Q ${x+27} ${y+2} ${x+46} ${y+18}" fill="none" stroke="#ffffff" stroke-width="5" opacity=".75"/>`
+      : finish === 'cat-eye'
+        ? `<line x1="${x+18}" y1="${y+18}" x2="${x+38}" y2="${y+h-12}" stroke="#ffffff" stroke-width="5" opacity=".7"/>`
+        : '';
+    return `<path d="${path}" fill="${base}" stroke="${accent}" stroke-width="2"/>${decor}${finishOverlay}`;
+  }).join('');
+  return `<svg viewBox="0 0 360 180" role="img" aria-label="Previsualización del diseño generado"><rect width="360" height="180" rx="24" fill="${palette==='negro' ? '#100e18' : '#fff8fc'}"/>${nails}</svg>`;
+}
+
+function generateAiDesign() {
+  const shape = $d('aiShape')?.value || 'almendra';
+  const length = $d('aiLength')?.value || 'medio';
+  const palette = $d('aiPalette')?.value || 'rosa';
+  const finish = $d('aiFinish')?.value || 'brillo';
+  const occasion = $d('aiOccasion')?.value || 'diario';
+  const inspiration = ($d('aiInspiration')?.value || '').trim();
+
+  const adjectives = {
+    diario:'versátil y limpio',
+    evento:'de impacto y fotogénico',
+    romantico:'delicado y femenino',
+    elegante:'sofisticado y equilibrado',
+    atrevido:'marcado y protagonista'
+  };
+  const finishText = {
+    brillo:'brillante',
+    mate:'mate',
+    chrome:'cromado',
+    'cat-eye':'magnético tipo cat eye',
+    '3d':'con detalle 3D'
+  };
+
+  const inspText = inspiration ? ` con inspiración en ${inspiration}` : '';
+  const title = `${shape[0].toUpperCase()+shape.slice(1)} ${palette} · ${finishText[finish]}`;
+  const concept = `Una propuesta ${adjectives[occasion]} para largo ${length}, con una base de la paleta ${palette} y acabado ${finishText[finish]}${inspText}. La idea busca que el diseño tenga un detalle protagonista sin perder armonía.`;
+
+  const details = [
+    `Forma: ${shape}`,
+    `Largo: ${length}`,
+    `Paleta: ${palette}`,
+    `Acabado: ${finishText[finish]}`,
+    `Ocasión: ${occasion}`
+  ];
+  if (inspiration) details.push(`Inspiración: ${inspiration}`);
+
+  if ($d('aiDesignTitle')) $d('aiDesignTitle').textContent = title;
+  if ($d('aiDesignConcept')) $d('aiDesignConcept').textContent = concept;
+  if ($d('aiDesignPreview')) $d('aiDesignPreview').innerHTML = buildDesignSvg(shape, palette, finish, inspiration);
+  if ($d('aiDesignDetails')) $d('aiDesignDetails').innerHTML = details.map(item => `<span>${escapeHtml(item)}</span>`).join('');
+}
+
+function renderAiKnowledge() {
+  const list = $d('aiKnowledgeList');
+  if (!list) return;
+  const query = String($d('aiKnowledgeSearch')?.value || '').trim().toLowerCase();
+  const items = AI_NAIL_KNOWLEDGE.filter(item => !query || `${item.title} ${item.category} ${item.text}`.toLowerCase().includes(query));
+  if (!items.length) {
+    list.innerHTML = '<div class="empty-state">No encontré una entrada con esa búsqueda. Prueba con “francesa”, “chrome”, “cutícula” o “cat eye”.</div>';
+    return;
+  }
+  list.innerHTML = items.map(item => `
+    <article class="ai-knowledge-card">
+      <div class="ai-knowledge-head"><div><p class="eyebrow">${escapeHtml(item.category)}</p><h3>${escapeHtml(item.title)}</h3></div><span>${escapeHtml(item.level)}</span></div>
+      <p>${escapeHtml(item.text)}</p>
+      <ol>${item.steps.map(step => `<li>${escapeHtml(step)}</li>`).join('')}</ol>
+      <small>Nota: ${escapeHtml(item.safety)}</small>
+    </article>`).join('');
+}
+
+function renderAiCatalog() {
+  const grid = $d('aiCatalogGrid');
+  if (!grid) return;
+  grid.innerHTML = AI_CATALOG.map(item => `
+    <article class="ai-catalog-card">
+      <div class="ai-catalog-swatch"></div>
+      <p class="eyebrow">IDEA</p>
+      <h3>${escapeHtml(item.name)}</h3>
+      <strong>${escapeHtml(item.mood)}</strong>
+      <p>${escapeHtml(item.colors)}</p>
+      <small>${escapeHtml(item.detail)}</small>
+    </article>`).join('');
+}
 
 document.addEventListener('DOMContentLoaded',initDuena);
