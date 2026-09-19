@@ -1443,7 +1443,7 @@ app.post('/api/appointments', authRequired, async (req, res) => {
     const firstName = user.name.split(/\s+/)[0] || user.name;
     const prettyDate = date.split('-').reverse().join('/');
     res.status(201).json({
-      message: `Hola ${firstName} 💕, ya recibimos tu solicitud de cita para el ${prettyDate} a las ${formatTime12(time)} para ${service}. Queda pendiente hasta que Suldery la confirme. Te avisaremos en cuanto haya una respuesta. 💕✨`
+      message: `Hola ${firstName} 💕, tu cita quedó solicitada para el ${prettyDate} a las ${formatTime12(time)} para ${service}. La solicitud está en espera de confirmación por parte de Suldery. Te avisaremos apenas haya una respuesta. 💕✨`
     });
   } catch (error) {
     console.error(error);

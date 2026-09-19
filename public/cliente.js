@@ -81,8 +81,22 @@ function clearTimeSelection(){$('timeSlots').innerHTML='<span class="time-help">
 async function crearCita(){
   const message=$('bookingMessage'),button=$('bookingButton'); if(!selectedDate){setMessage(message,'Primero selecciona un día disponible.');return;} if(!selectedTime){setMessage(message,'Ahora selecciona una hora disponible.');return;} if(!selectedService){setMessage(message,'Selecciona el servicio.');return;}
   button.disabled=true;setMessage(message,'Enviando tu solicitud a Suldery… 💕');
-  try{const data=await apiFetch('/appointments',{method:'POST',body:JSON.stringify({service:selectedService,date:selectedDate,time:selectedTime})});setMessage(message,data.message,true);const booked=selectedDate;selectedTime='';setStepVisibility($('bookingSummary'),false);setStepVisibility($('bookingButton'),false);await Promise.all([loadAppointments(),refreshCalendar()]);if(calendarData.get(booked)?.status==='available')await selectDate(booked);else showDayMessage(calendarData.get(booked)||{message:'No quedan horarios disponibles.'});}
-  catch(error){setMessage(message,error.message);shake(document.querySelector('.booking-card'));await refreshCalendar();}finally{button.disabled=false;}
+  try{
+    const data=await apiFetch('/appointments',{method:'POST',body:JSON.stringify({service:selectedService,date:selectedDate,time:selectedTime})});
+    const booked=selectedDate;
+    setMessage(message,data.message || '💕 Tu cita quedó solicitada y está en espera de confirmación por parte de Suldery. Te avisaremos cuando haya una respuesta. ✨',true);
+    $('calendarFeedback').textContent='💕 Tu solicitud quedó enviada y está pendiente de confirmación. No tienes que hacer nada más por ahora.';
+    $('calendarFeedback').classList.add('success');
+    selectedTime='';
+    setStepVisibility($('bookingSummary'),false);
+    setStepVisibility($('bookingButton'),false);
+    $('timeSlots').innerHTML='<span class="time-help success-help">💕 Solicitud enviada. Esta cita queda pendiente de confirmación de Suldery.</span>';
+    await Promise.all([loadAppointments(),refreshCalendar()]);
+    selectedDate=booked;
+    renderCalendar();
+  }
+  catch(error){setMessage(message,error.message);shake(document.querySelector('.booking-card'));await refreshCalendar();}
+  finally{button.disabled=false;}
 }
 
 async function loadAppointments(){const data=await apiFetch('/appointments/my');const list=$('appointmentsList');list.innerHTML='';if(!data.appointments.length){list.innerHTML='<div class="empty-state">Todavía no tienes citas.</div>';return;}data.appointments.forEach(appt=>{const item=document.createElement('article');item.className='appointment-item';const statusText=appt.status==='accepted'?'Confirmada':appt.status==='pending'?'Pendiente de confirmación':appt.status==='cancelled'?'Cancelada':'Rechazada';item.innerHTML=`<div class="appointment-top"><strong>${escapeHtml(appt.service)}</strong><span class="status ${appt.status}">${statusText}</span></div><p>${formatDate(appt.appointment_date)} · ${safeFormatTime12(appt.appointment_time)} · ${durationLabel(Number(appt.duration_minutes))}</p>`;if(['pending','accepted'].includes(appt.status)){const cancel=document.createElement('button');cancel.type='button';cancel.className='link-button subtle-link';cancel.textContent='Cancelar cita';cancel.addEventListener('click',()=>cancelarCita(appt.id));item.appendChild(cancel);}list.appendChild(item);});}

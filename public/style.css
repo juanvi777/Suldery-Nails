@@ -241,6 +241,8 @@ input,select{color:var(--ink);background:rgba(255,255,255,.8);border-color:var(-
 .calendar-day.blocked span{color:var(--red)}
 .calendar-day.rest,.calendar-day.full{background:rgba(196,56,78,.08)}
 .calendar-feedback{min-height:1.4rem}
+.form-message.success,.calendar-feedback.success{color:#63e6be!important;background:rgba(99,230,190,.08);border-color:rgba(99,230,190,.2)}
+.success-help{color:#63e6be;font-weight:800}
 @media (max-width:900px){
   .blocked-date-form{grid-template-columns:1fr 1fr}
   .blocked-date-form .primary-button{grid-column:1/-1}
