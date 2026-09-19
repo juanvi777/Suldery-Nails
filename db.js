@@ -92,6 +92,18 @@ async function ensureCompatibilityMigrations() {
      SET a.client_phone=u.phone
      WHERE (a.client_phone IS NULL OR a.client_phone='') AND u.phone IS NOT NULL AND u.phone<>''`
   );
+  await pool.query(`CREATE TABLE IF NOT EXISTS catalog_photos (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    title VARCHAR(160) NOT NULL DEFAULT 'Diseño Suldery Nails',
+    image_data MEDIUMBLOB NOT NULL,
+    image_mime VARCHAR(80) NOT NULL,
+    display_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_catalog_order (display_order),
+    KEY idx_catalog_created_at (created_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
   await pool.query(
     `CREATE TABLE IF NOT EXISTS blocked_intervals (
       id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,

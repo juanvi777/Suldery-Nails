@@ -1513,6 +1513,147 @@ app.get('/api/portfolio', async (req, res) => {
   }
 });
 
+app.get('/api/catalog', authRequired, async (req, res) => {
+  if (req.auth.role !== 'client' && req.auth.role !== 'owner') {
+    return res.status(403).json({ message: 'No tienes permiso para ver el catálogo.' });
+  }
+  try {
+    const [rows] = await pool.query(
+      `SELECT id,title,display_order,created_at
+       FROM catalog_photos
+       ORDER BY display_order ASC, created_at DESC`
+    );
+    res.json({ photos: rows.map(row => ({
+      id: row.id,
+      title: row.title,
+      display_order: row.display_order,
+      created_at: row.created_at,
+      image_url: `/api/catalog/${row.id}/image`
+    })) });
+  } catch (error) {
+    console.error('No se pudo cargar el catálogo:', error.message);
+    res.status(500).json({ message: 'No se pudo cargar el catálogo.' });
+  }
+});
+
+app.get('/api/catalog/:id/image', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT image_data,image_mime FROM catalog_photos WHERE id=? LIMIT 1',
+      [req.params.id]
+    );
+    const photo = rows[0];
+    if (!photo) return res.status(404).send('Imagen no encontrada.');
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.type(photo.image_mime || 'image/jpeg');
+    res.send(photo.image_data);
+  } catch (error) {
+    console.error('No se pudo cargar una imagen del catálogo:', error.message);
+    res.status(500).send('No se pudo cargar la imagen.');
+  }
+});
+
+app.get('/api/owner/catalog', authRequired, ownerRequired, async (_req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id,title,display_order,created_at
+       FROM catalog_photos
+       ORDER BY display_order ASC, created_at DESC`
+    );
+    res.json({ photos: rows.map(row => ({
+      id: row.id,
+      title: row.title,
+      display_order: row.display_order,
+      created_at: row.created_at,
+      image_url: `/api/catalog/${row.id}/image`
+    })) });
+  } catch (error) {
+    console.error('No se pudo cargar el catálogo de Suldery:', error.message);
+    res.status(500).json({ message: 'No se pudo cargar el catálogo.' });
+  }
+});
+
+app.post('/api/owner/catalog', authRequired, ownerRequired, upload.single('photo'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: 'Selecciona una imagen.' });
+    const title = String(req.body.title || 'Diseño Suldery Nails').trim().slice(0, 160) || 'Diseño Suldery Nails';
+    const [orderRows] = await pool.query('SELECT COALESCE(MAX(display_order),0) + 1 AS next_order FROM catalog_photos');
+    const displayOrder = Number(orderRows[0].next_order) || 1;
+    const [result] = await pool.query(
+      'INSERT INTO catalog_photos(title,image_data,image_mime,display_order) VALUES(?,?,?,?)',
+      [title, req.file.buffer, req.file.mimetype, displayOrder]
+    );
+    res.status(201).json({
+      message: 'Foto agregada al catálogo.',
+      photo: {
+        id: result.insertId,
+        title,
+        display_order: displayOrder,
+        image_url: `/api/catalog/${result.insertId}/image`
+      }
+    });
+  } catch (error) {
+    console.error('No se pudo subir una foto al catálogo:', error.message);
+    res.status(500).json({ message: error.message || 'No se pudo subir la foto al catálogo.' });
+  }
+});
+
+app.patch('/api/owner/catalog/:id/image', authRequired, ownerRequired, upload.single('photo'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: 'Selecciona una imagen nueva.' });
+    const [rows] = await pool.query('SELECT id FROM catalog_photos WHERE id=? LIMIT 1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ message: 'Foto de catálogo no encontrada.' });
+    await pool.query(
+      'UPDATE catalog_photos SET image_data=?, image_mime=? WHERE id=?',
+      [req.file.buffer, req.file.mimetype, req.params.id]
+    );
+    res.json({ message: 'Foto del catálogo actualizada.', image_url: `/api/catalog/${req.params.id}/image` });
+  } catch (error) {
+    console.error('No se pudo cambiar la foto del catálogo:', error.message);
+    res.status(500).json({ message: 'No se pudo cambiar la foto del catálogo.' });
+  }
+});
+
+app.delete('/api/owner/catalog/:id', authRequired, ownerRequired, async (req, res) => {
+  try {
+    const [result] = await pool.query('DELETE FROM catalog_photos WHERE id=?', [req.params.id]);
+    if (!result.affectedRows) return res.status(404).json({ message: 'Foto de catálogo no encontrada.' });
+    await normalizeCatalogOrder();
+    res.json({ message: 'Foto eliminada del catálogo.' });
+  } catch (error) {
+    console.error('No se pudo eliminar la foto del catálogo:', error.message);
+    res.status(500).json({ message: 'No se pudo eliminar la foto del catálogo.' });
+  }
+});
+
+async function normalizeCatalogOrder() {
+  const [rows] = await pool.query('SELECT id FROM catalog_photos ORDER BY display_order ASC, created_at DESC');
+  for (let index = 0; index < rows.length; index++) {
+    await pool.query('UPDATE catalog_photos SET display_order=? WHERE id=?', [index + 1, rows[index].id]);
+  }
+}
+
+app.patch('/api/owner/catalog/:id/move', authRequired, ownerRequired, async (req, res) => {
+  try {
+    const direction = req.body.direction === 'up' ? 'up' : req.body.direction === 'down' ? 'down' : null;
+    if (!direction) return res.status(400).json({ message: 'Movimiento inválido.' });
+    const [rows] = await pool.query('SELECT id,display_order FROM catalog_photos ORDER BY display_order ASC, created_at DESC');
+    const index = rows.findIndex(row => String(row.id) === String(req.params.id));
+    if (index === -1) return res.status(404).json({ message: 'Foto de catálogo no encontrada.' });
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= rows.length) return res.json({ message: 'La foto ya está en ese extremo.' });
+    const current = rows[index];
+    const target = rows[targetIndex];
+    await pool.query('UPDATE catalog_photos SET display_order=? WHERE id=?', [target.display_order, current.id]);
+    await pool.query('UPDATE catalog_photos SET display_order=? WHERE id=?', [current.display_order, target.id]);
+    await normalizeCatalogOrder();
+    res.json({ message: 'Orden del catálogo actualizado.' });
+  } catch (error) {
+    console.error('No se pudo cambiar el orden del catálogo:', error.message);
+    res.status(500).json({ message: 'No se pudo cambiar el orden del catálogo.' });
+  }
+});
+
 app.get('/api/notifications/public-key', async (_req, res) => {
   try {
     if (!vapidConfig) await ensureVapidKeys();

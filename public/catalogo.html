@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="application-name" content="Suldery Nails">
+  <meta name="theme-color" content="#0c0b1d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Suldery Nails">
+  <link rel="icon" type="image/png" sizes="48x48" href="assets/favicon-48.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="assets/suldery-nails-icon-180.png">
+  <title>Suldery Nails | Catálogo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=20260919-v40">
+</head>
+<body class="dashboard-page catalog-page">
+  <main class="dashboard-shell">
+    <header class="dashboard-header glass-card">
+      <a class="logo" href="cliente.html"><img src="assets/suldery-nails-logo.jpeg" alt="Suldery Nails"><span>Suldery <em>Nails</em></span></a>
+      <div class="user-menu"><a class="small-button ghost" href="cliente.html">← Volver</a><button class="theme-toggle" type="button" data-theme-toggle aria-label="Activar modo oscuro"><span class="theme-icon">☾</span><span class="theme-label">Modo oscuro</span></button></div>
+    </header>
+    <section class="catalog-client-hero glass-card">
+      <p class="eyebrow">CATÁLOGO SULDERY NAILS</p>
+      <h1>Encuentra tu próximo diseño <em>favorito.</em></h1>
+      <p>Explora todos los diseños que Suldery ha preparado para ti. Puedes avanzar uno por uno y guardar tus favoritos para enseñárselos al momento de tu cita.</p>
+    </section>
+    <section class="catalog-client-viewer glass-card">
+      <div class="catalog-client-top"><strong id="catalogCounter">Cargando catálogo…</strong><span id="catalogTitle"></span></div>
+      <div id="catalogEmpty" class="empty-state hidden">Todavía no hay diseños publicados.</div>
+      <div id="catalogStage" class="catalog-client-stage">
+        <button id="catalogPrevious" class="carousel-arrow left" type="button" aria-label="Diseño anterior">‹</button>
+        <img id="catalogImage" src="" alt="Diseño de Suldery Nails">
+        <button id="catalogNext" class="carousel-arrow right" type="button" aria-label="Diseño siguiente">›</button>
+      </div>
+      <div class="catalog-client-dots" id="catalogDots"></div>
+    </section>
+  </main>
+  <script src="auth.js?v=20260919-v40"></script>
+  <script src="catalogo.js?v=20260919-v40"></script>
+</body>
+</html>

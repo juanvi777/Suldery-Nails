@@ -21,6 +21,8 @@ const DURATION_LABELS = {
 let ownerUsersCache = [];
 let ownerAppointmentsCache = [];
 let ownerPhotosCache = [];
+let ownerCatalogCache = [];
+let ownerCatalogIndex = 0;
 let ownerCalendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let ownerCalendarData = new Map();
 let ownerCalendarSelectedDate = '';
@@ -137,7 +139,8 @@ async function initDuena() {
   $d('ownerAppointmentDate').addEventListener('change', loadOwnerSlots);
   $d('ownerService').addEventListener('change', () => { updateOwnerServiceDurationHint(); loadOwnerSlots(); });
   $d('ownerBookingForm').addEventListener('submit', submitManualBooking);
-  $d('photoPicker').addEventListener('change', subirFoto);
+  $d('photoPickerLogin')?.addEventListener('change', event => subirFoto(event, 'login'));
+  $d('photoPickerClient')?.addEventListener('change', event => subirFoto(event, 'client'));
   $d('photoReplacePicker')?.addEventListener('change', reemplazarFoto);
   $d('blockedDateForm').addEventListener('submit', bloquearFecha);
   $d('blockedDatesList').addEventListener('click', handleBlockedDateAction);
@@ -145,6 +148,15 @@ async function initDuena() {
   $d('blockedIntervalsEditor')?.addEventListener('click', handleBlockedIntervalEditorClick);
   $d('ownerLoginGallery')?.addEventListener('click', handleGalleryAction);
   $d('ownerClientGallery')?.addEventListener('click', handleGalleryAction);
+  $d('catalogPhotoPicker')?.addEventListener('change', subirCatalogoFoto);
+  $d('catalogReplacePicker')?.addEventListener('change', reemplazarCatalogoFoto);
+  $d('catalogRefreshButton')?.addEventListener('click', loadOwnerCatalog);
+  $d('catalogOwnerPrevious')?.addEventListener('click', () => moveCatalogViewer(-1));
+  $d('catalogOwnerNext')?.addEventListener('click', () => moveCatalogViewer(1));
+  $d('catalogOwnerDelete')?.addEventListener('click', eliminarCatalogoFotoActual);
+  $d('catalogOwnerReplace')?.addEventListener('click', prepararReemplazoCatalogoActual);
+  $d('catalogOwnerUp')?.addEventListener('click', () => moverCatalogoActual('up'));
+  $d('catalogOwnerDown')?.addEventListener('click', () => moverCatalogoActual('down'));
   $d('saveWeeklyScheduleButton').addEventListener('click', saveWeeklySchedule);
   $d('scheduleOverrideForm').addEventListener('submit', saveScheduleOverride);
   $d('scheduleOverrideOpen').addEventListener('change', toggleOverrideIntervals);
@@ -185,6 +197,7 @@ function openOwnerTool(name) {
   if (name === 'manual') loadOwnerSlots();
   if (name === 'blocked') loadBlockedDates();
   if (name === 'photos') loadOwnerGallery();
+  if (name === 'catalog') loadOwnerCatalog();
   if (name === 'calendar') loadOwnerCalendar();
 }
 
@@ -771,7 +784,7 @@ async function setPhotoVisibility(id, visibility) {
   }
 }
 
-async function subirFoto(event){const file=event.target.files[0];if(!file)return;const form=new FormData();form.append('photo',file);form.append('title','Diseño Suldery Nails');form.append('visibility',$d('photoVisibilityPicker')?.value || 'login');try{await apiFetch('/owner/portfolio',{method:'POST',body:form});await loadOwnerGallery();}catch(error){alert(error.message);}finally{event.target.value='';}}
+async function subirFoto(event, visibility){const file=event.target.files[0];if(!file)return;const form=new FormData();form.append('photo',file);form.append('title','Diseño Suldery Nails');form.append('visibility',visibility);try{await apiFetch('/owner/portfolio',{method:'POST',body:form});await loadOwnerGallery();}catch(error){alert(error.message);}finally{event.target.value='';}}
 
 function prepararReemplazoFoto(id){const input=$d('photoReplacePicker');if(!input)return;input.dataset.photoId=String(id);input.value='';input.click();}
 
@@ -783,6 +796,120 @@ function statusLabel(status){return status==='accepted'?'Confirmada':status==='p
 function escapeHtml(text){return String(text??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
 function escapeAttribute(text){return escapeHtml(text);}
 
+
+
+async function loadOwnerCatalog() {
+  try {
+    const data = await apiFetch('/owner/catalog');
+    ownerCatalogCache = Array.isArray(data.photos) ? data.photos : [];
+    if (ownerCatalogIndex >= ownerCatalogCache.length) ownerCatalogIndex = Math.max(0, ownerCatalogCache.length - 1);
+    renderCatalogOwnerViewer();
+  } catch (error) {
+    setMessage($d('catalogManagerMessage'), error.message);
+  }
+}
+
+function renderCatalogOwnerViewer() {
+  const counter = $d('catalogOwnerCounter');
+  const title = $d('catalogOwnerTitle');
+  const image = $d('catalogOwnerImage');
+  const empty = $d('catalogOwnerEmpty');
+  const stage = document.querySelector('.catalog-owner-stage');
+  const actions = document.querySelector('.catalog-owner-actions');
+  if (!ownerCatalogCache.length) {
+    if (counter) counter.textContent = '0 fotos';
+    if (title) title.textContent = '';
+    if (image) { image.removeAttribute('src'); image.alt = 'Sin fotos de catálogo'; }
+    empty?.classList.remove('hidden');
+    if (stage) stage.classList.add('empty-catalog');
+    if (actions) actions.classList.add('hidden');
+    return;
+  }
+  empty?.classList.add('hidden');
+  stage?.classList.remove('empty-catalog');
+  actions?.classList.remove('hidden');
+  const photo = ownerCatalogCache[ownerCatalogIndex];
+  if (counter) counter.textContent = `${ownerCatalogIndex + 1} de ${ownerCatalogCache.length}`;
+  if (title) title.textContent = photo.title || 'Diseño Suldery Nails';
+  if (image) { image.src = photo.image_url; image.alt = photo.title || 'Diseño de Suldery Nails'; }
+}
+
+function moveCatalogViewer(direction) {
+  if (!ownerCatalogCache.length) return;
+  ownerCatalogIndex = (ownerCatalogIndex + direction + ownerCatalogCache.length) % ownerCatalogCache.length;
+  renderCatalogOwnerViewer();
+}
+
+async function subirCatalogoFoto(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const form = new FormData();
+  form.append('photo', file);
+  form.append('title', ($d('catalogPhotoTitle')?.value || '').trim() || 'Diseño Suldery Nails');
+  try {
+    await apiFetch('/owner/catalog', { method:'POST', body:form });
+    if ($d('catalogPhotoTitle')) $d('catalogPhotoTitle').value = '';
+    setMessage($d('catalogManagerMessage'), 'Foto agregada al catálogo. 💕', true);
+    await loadOwnerCatalog();
+  } catch (error) {
+    setMessage($d('catalogManagerMessage'), error.message);
+  } finally {
+    event.target.value = '';
+  }
+}
+
+function prepararReemplazoCatalogoActual() {
+  if (!ownerCatalogCache.length) return;
+  const input = $d('catalogReplacePicker');
+  if (!input) return;
+  input.dataset.photoId = String(ownerCatalogCache[ownerCatalogIndex].id);
+  input.value = '';
+  input.click();
+}
+
+async function reemplazarCatalogoFoto(event) {
+  const file = event.target.files[0];
+  const id = Number(event.target.dataset.photoId);
+  if (!file || !id) return;
+  const form = new FormData();
+  form.append('photo', file);
+  try {
+    await apiFetch(`/owner/catalog/${id}/image`, { method:'PATCH', body:form });
+    setMessage($d('catalogManagerMessage'), 'Foto actualizada. ✨', true);
+    await loadOwnerCatalog();
+  } catch (error) {
+    setMessage($d('catalogManagerMessage'), error.message);
+  } finally {
+    event.target.value = '';
+    delete event.target.dataset.photoId;
+  }
+}
+
+async function eliminarCatalogoFotoActual() {
+  if (!ownerCatalogCache.length) return;
+  const photo = ownerCatalogCache[ownerCatalogIndex];
+  if (!confirm(`¿Eliminar “${photo.title || 'este diseño'}” del catálogo?`)) return;
+  try {
+    await apiFetch(`/owner/catalog/${photo.id}`, { method:'DELETE' });
+    ownerCatalogIndex = Math.max(0, ownerCatalogIndex - 1);
+    await loadOwnerCatalog();
+  } catch (error) {
+    setMessage($d('catalogManagerMessage'), error.message);
+  }
+}
+
+async function moverCatalogoActual(direction) {
+  if (!ownerCatalogCache.length) return;
+  const id = ownerCatalogCache[ownerCatalogIndex].id;
+  try {
+    await apiFetch(`/owner/catalog/${id}/move`, { method:'PATCH', body:JSON.stringify({ direction }) });
+    if (direction === 'up') ownerCatalogIndex = Math.max(0, ownerCatalogIndex - 1);
+    if (direction === 'down') ownerCatalogIndex = Math.min(ownerCatalogCache.length - 1, ownerCatalogIndex + 1);
+    await loadOwnerCatalog();
+  } catch (error) {
+    setMessage($d('catalogManagerMessage'), error.message);
+  }
+}
 
 const NAIL_CARE_GUIDES = {
   'Manicure semipermanente': {

@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260919-v39">
+  <link rel="stylesheet" href="style.css?v=20260919-v40">
 </head>
 <body class="dashboard-page owner-page">
   <main class="dashboard-shell">
@@ -70,7 +70,7 @@
       <button type="button" class="owner-tool-button" data-owner-tool="manual"><span class="owner-tool-icon">＋</span><span><strong>Agendar clienta</strong><small>Cita manual confirmada</small></span><b>→</b></button>
       <button type="button" class="owner-tool-button" data-owner-tool="blocked"><span class="owner-tool-icon">▣</span><span><strong>Bloquear días</strong><small>Vacaciones o descansos</small></span><b>→</b></button>
       <button type="button" class="owner-tool-button" data-owner-tool="calendar"><span class="owner-tool-icon">◷</span><span><strong>Calendario</strong><small>Citas y espacios libres</small></span><b>→</b></button>
-      <button type="button" class="owner-tool-button" data-owner-tool="photos"><span class="owner-tool-icon">✦</span><span><strong>Subir fotos</strong><small>Portafolio para clientas</small></span><b>→</b></button>
+      <button type="button" class="owner-tool-button" data-owner-tool="photos"><span class="owner-tool-icon">✦</span><span><strong>Subir fotos</strong><small>Inicio + página de clienta</small></span><b>→</b></button><button type="button" class="owner-tool-button" data-owner-tool="catalog"><span class="owner-tool-icon">▤</span><span><strong>Catálogo</strong><small>Diseños sin límite</small></span><b>→</b></button>
       <button type="button" class="owner-tool-button" data-owner-tool="nail-lab"><span class="owner-tool-icon">✦</span><span><strong>Nail Lab IA</strong><small>Diseños, técnicas y catálogo</small></span><b>→</b></button>
     </section>
 
@@ -262,15 +262,36 @@
     </section>
 
     <section id="ownerToolPhotos" class="owner-tool-panel admin-card glass-card hidden-tool-panel">
-      <div class="card-heading"><div><p class="eyebrow">PORTAFOLIO</p><h2>Fotos de tus diseños</h2></div><div class="admin-actions"><label class="small-button file-button" for="photoPicker">+ Subir foto</label><button class="small-button ghost" type="button" data-close-owner-tool>Cerrar</button></div></div>
-      <p class="manager-note">Máximo 8 fotos en total. Cada foto se publica en un solo lugar: inicio de sesión o página de clienta. Puedes reemplazarla o eliminarla cuando quieras.</p>
-      <div class="photo-upload-options"><label>La nueva foto se mostrará en<select id="photoVisibilityPicker"><option value="login" selected>Inicio de sesión</option><option value="client">Página de clienta</option></select></label></div>
-      <input id="photoPicker" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden"><input id="photoReplacePicker" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden">
+      <div class="card-heading"><div><p class="eyebrow">FOTOS</p><h2>Fotos de inicio y de clientas</h2></div><button class="small-button ghost" type="button" data-close-owner-tool>Cerrar</button></div>
+      <p class="manager-note">Aquí administras las 8 fotos principales. Cada foto se publica en un solo lugar. El catálogo tiene su propio apartado y no consume estos 8 espacios.</p>
+      <div class="owner-photo-upload-buttons">
+        <label class="owner-upload-choice" for="photoPickerLogin"><span>✦</span><strong>Inicio de sesión</strong><small>Máximo 8 entre las dos galerías</small></label>
+        <label class="owner-upload-choice" for="photoPickerClient"><span>♡</span><strong>Página de clienta</strong><small>Máximo 8 entre las dos galerías</small></label>
+      </div>
+      <input id="photoPickerLogin" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden"><input id="photoPickerClient" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden"><input id="photoReplacePicker" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden">
       <div class="photo-owner-groups">
         <section class="photo-owner-group"><div class="subsection-heading"><div><p class="eyebrow">INICIO DE SESIÓN</p><h3>Fotos que ve quien todavía no entra</h3></div><span id="loginPhotoCount" class="photo-group-count">0</span></div><div id="ownerLoginGallery" class="photo-owner-list"></div></section>
         <section class="photo-owner-group"><div class="subsection-heading"><div><p class="eyebrow">PÁGINA DE CLIENTA</p><h3>Fotos que ven tus clientas</h3></div><span id="clientPhotoCount" class="photo-group-count">0</span></div><div id="ownerClientGallery" class="photo-owner-list"></div></section>
       </div>
       <p id="photoManagerMessage" class="form-message" role="status"></p>
+    </section>
+
+
+    <section id="ownerToolCatalog" class="owner-tool-panel admin-card glass-card hidden-tool-panel">
+      <div class="card-heading"><div><p class="eyebrow">CATÁLOGO</p><h2>Diseños para tus clientas</h2></div><button class="small-button ghost" type="button" data-close-owner-tool>Cerrar</button></div>
+      <p class="manager-note">Aquí puedes subir todas las fotos que quieras. Estas imágenes no cuentan dentro de las 8 fotos de inicio o página de clienta.</p>
+      <div class="catalog-upload-box">
+        <label>Título (opcional)<input id="catalogPhotoTitle" type="text" maxlength="160" placeholder="Ej. Francesa perlada con detalle dorado"></label>
+        <div class="owner-tool-actions"><label class="small-button file-button" for="catalogPhotoPicker">+ Agregar al catálogo</label><button id="catalogRefreshButton" class="small-button ghost" type="button">Actualizar</button></div>
+        <input id="catalogPhotoPicker" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden"><input id="catalogReplacePicker" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden">
+        <p id="catalogManagerMessage" class="form-message" role="status"></p>
+      </div>
+      <div class="catalog-owner-viewer">
+        <div class="catalog-owner-head"><strong id="catalogOwnerCounter">0 fotos</strong><span id="catalogOwnerTitle"></span></div>
+        <div class="catalog-owner-stage"><button id="catalogOwnerPrevious" class="carousel-arrow left" type="button" aria-label="Diseño anterior">‹</button><img id="catalogOwnerImage" src="" alt="Catálogo Suldery Nails"><button id="catalogOwnerNext" class="carousel-arrow right" type="button" aria-label="Diseño siguiente">›</button></div>
+        <div class="catalog-owner-actions"><button id="catalogOwnerReplace" class="small-button ghost" type="button">Cambiar foto</button><button id="catalogOwnerDelete" class="small-button cancel" type="button">Eliminar</button><button id="catalogOwnerUp" class="small-button ghost" type="button">↑ Subir</button><button id="catalogOwnerDown" class="small-button ghost" type="button">↓ Bajar</button></div>
+        <p id="catalogOwnerEmpty" class="empty-state hidden">Todavía no hay diseños en el catálogo.</p>
+      </div>
     </section>
 
     <section class="owner-grid">
@@ -284,7 +305,7 @@
       </article>
     </section>
   </main>
-  <script src="auth.js?v=20260919-v39"></script>
-  <script src="duena.js?v=20260919-v39"></script>
+  <script src="auth.js?v=20260919-v40"></script>
+  <script src="duena.js?v=20260919-v40"></script>
 </body>
 </html>
