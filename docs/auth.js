@@ -5,14 +5,10 @@ const API_BASE = isLocal
   : isGithubPages
     ? 'https://suldery-nails-production.up.railway.app/api'
     : '/api';
-const SITE_BASE = (() => {
-  const path = location.pathname;
-  if (path.includes('/Suldery-Nails/')) return '/Suldery-Nails/';
-  return '/';
-})();
+const SITE_BASE = location.pathname.includes('/Suldery-Nails/') ? '/Suldery-Nails/' : '/';
 
 function pageUrl(file = 'index.html') {
-  return `${SITE_BASE}${file}`.replace('//', '/');
+  return `${SITE_BASE}${String(file).replace(/^\/+/, '')}`;
 }
 
 
@@ -108,15 +104,35 @@ function formatDate(dateValue) {
   });
 }
 
+function getStoredUser() {
+  try { return JSON.parse(localStorage.getItem('suldery_user') || 'null'); }
+  catch { return null; }
+}
+
 async function requireRole(role) {
+  const cachedUser = getStoredUser();
   try {
     const data = await apiFetch('/me');
-    if (data.user.role !== role || data.user.status !== 'accepted') {
-      location.href = pageUrl(data.user.role === 'owner' ? 'duena.html' : 'cliente.html');
+    const user = data.user;
+    if (!user || user.status !== 'accepted') {
+      clearSession();
+      location.replace(pageUrl('index.html'));
       return null;
     }
-    return data.user;
-  } catch {
+    if (user.role !== role) {
+      location.replace(pageUrl(user.role === 'owner' ? 'duena.html' : 'cliente.html'));
+      return null;
+    }
+    localStorage.setItem('suldery_user', JSON.stringify(user));
+    return user;
+  } catch (error) {
+    // If the API is temporarily unreachable, keep the screen usable with the
+    // last verified profile. Server-side authorization still protects actions.
+    if (cachedUser && cachedUser.role === role && cachedUser.status === 'accepted') {
+      return cachedUser;
+    }
+    clearSession();
+    location.replace(pageUrl('index.html'));
     return null;
   }
 }
@@ -264,7 +280,7 @@ async function getSulderyServiceWorker() {
     throw new Error('Este dispositivo no permite instalar el sistema de avisos.');
   }
   if (!sulderyServiceWorkerRegistration) {
-    const swUrl = new URL('sw.js?v=20260919-v37', location.href);
+    const swUrl = new URL('sw.js?v=20260919-v38', location.href);
     sulderyServiceWorkerRegistration = await navigator.serviceWorker.register(swUrl, { scope: './' });
   }
   return await navigator.serviceWorker.ready;
@@ -380,7 +396,7 @@ window.enablePendingSulderyPush = enablePendingSulderyPush;
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    const swUrl = new URL('sw.js?v=20260919-v37', location.href);
+    const swUrl = new URL('sw.js?v=20260919-v38', location.href);
     navigator.serviceWorker.register(swUrl, { scope: './' }).catch(() => {});
   });
 }

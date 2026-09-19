@@ -104,10 +104,10 @@ async function login() {
     localStorage.setItem('suldery_user', JSON.stringify(data.user));
 
     if (data.user.role === 'owner') {
-      window.location.href = pageUrl('duena.html');
+      window.location.replace(pageUrl('duena.html'));
       return;
     }
-    window.location.href = pageUrl('cliente.html');
+    window.location.replace(pageUrl('cliente.html'));
   } catch (error) {
     showLoginError(error.message);
     passwordInput.value = '';
