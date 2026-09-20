@@ -141,6 +141,7 @@ async function initDuena() {
   $d('ownerBookingForm').addEventListener('submit', submitManualBooking);
   $d('photoPickerLogin')?.addEventListener('change', event => subirFoto(event, 'login'));
   $d('photoPickerClient')?.addEventListener('change', event => subirFoto(event, 'client'));
+  $d('photoPickerClientOnly')?.addEventListener('change', event => subirFoto(event, 'client'));
   $d('photoReplacePicker')?.addEventListener('change', reemplazarFoto);
   $d('blockedDateForm').addEventListener('submit', bloquearFecha);
   $d('blockedDatesList').addEventListener('click', handleBlockedDateAction);
@@ -148,6 +149,7 @@ async function initDuena() {
   $d('blockedIntervalsEditor')?.addEventListener('click', handleBlockedIntervalEditorClick);
   $d('ownerLoginGallery')?.addEventListener('click', handleGalleryAction);
   $d('ownerClientGallery')?.addEventListener('click', handleGalleryAction);
+  $d('ownerClientOnlyGallery')?.addEventListener('click', handleGalleryAction);
   $d('catalogPhotoPicker')?.addEventListener('change', subirCatalogoFoto);
   $d('catalogReplacePicker')?.addEventListener('change', reemplazarCatalogoFoto);
   $d('catalogRefreshButton')?.addEventListener('click', loadOwnerCatalog);
@@ -174,9 +176,13 @@ async function initDuena() {
   $d('careGuideCopyButton')?.addEventListener('click', copyCareMessage);
   document.querySelectorAll('[data-ai-tab]').forEach(button => button.addEventListener('click', () => switchAiTab(button.dataset.aiTab)));
   $d('aiGenerateDesign')?.addEventListener('click', generateAiDesign);
+  $d('aiAssistantAsk')?.addEventListener('click', answerAiAssistant);
+  $d('aiAssistantQuestion')?.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); answerAiAssistant(); } });
+  document.querySelectorAll('[data-ai-prompt]').forEach(button => button.addEventListener('click', () => { const input=$d('aiAssistantQuestion'); if (input) input.value=button.dataset.aiPrompt; answerAiAssistant(); }));
   $d('aiKnowledgeSearch')?.addEventListener('input', renderAiKnowledge);
   renderAiKnowledge();
   renderAiCatalog();
+  switchAiTab('assistant');
   generateAiDesign();
 
   updateOwnerServiceDurationHint();
@@ -197,6 +203,7 @@ function openOwnerTool(name) {
   if (name === 'manual') loadOwnerSlots();
   if (name === 'blocked') loadBlockedDates();
   if (name === 'photos') loadOwnerGallery();
+  if (name === 'clientPhotos') loadOwnerGallery();
   if (name === 'catalog') loadOwnerCatalog();
   if (name === 'calendar') loadOwnerCalendar();
 }
@@ -726,6 +733,8 @@ async function loadOwnerGallery() {
   if ($d('clientPhotoCount')) $d('clientPhotoCount').textContent = clientPhotos.length;
   renderOwnerPhotoGroup($d('ownerLoginGallery'), loginPhotos, 'login');
   renderOwnerPhotoGroup($d('ownerClientGallery'), clientPhotos, 'client');
+  renderOwnerPhotoGroup($d('ownerClientOnlyGallery'), clientPhotos, 'client');
+  if ($d('clientPhotoCountOnly')) $d('clientPhotoCountOnly').textContent = clientPhotos.length;
 }
 
 function renderOwnerPhotoGroup(container, photos, visibility) {
@@ -1061,6 +1070,48 @@ function generateAiDesign() {
   if ($d('aiDesignConcept')) $d('aiDesignConcept').textContent = concept;
   if ($d('aiDesignPreview')) $d('aiDesignPreview').innerHTML = buildDesignSvg(shape, palette, finish, inspiration);
   if ($d('aiDesignDetails')) $d('aiDesignDetails').innerHTML = details.map(item => `<span>${escapeHtml(item)}</span>`).join('');
+}
+
+
+function normalizeAiText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function answerAiAssistant() {
+  const input = $d('aiAssistantQuestion');
+  const answer = $d('aiAssistantAnswer');
+  if (!input || !answer) return;
+  const question = input.value.trim();
+  if (!question) {
+    answer.innerHTML = '<strong>Cuéntame qué quieres resolver.</strong><p>Puedes preguntar por preparación, duración, formas, semipermanente, dipping, press on, francesa, chrome, cat eye, decoración, cuidado o seguridad.</p>';
+    return;
+  }
+  const normalized = normalizeAiText(question);
+  const words = normalized.split(' ').filter(word => word.length > 3);
+  const scored = AI_NAIL_KNOWLEDGE.map(item => {
+    const corpus = normalizeAiText(`${item.title} ${item.category} ${item.text} ${item.steps.join(' ')} ${item.safety}`);
+    let score = 0;
+    words.forEach(word => { if (corpus.includes(word)) score += word.length >= 7 ? 2 : 1; });
+    if (normalized.includes('segur') && normalizeAiText(item.category).includes('segur')) score += 5;
+    return { item, score };
+  }).sort((a,b) => b.score - a.score);
+
+  const best = scored[0]?.score > 0 ? scored[0].item : null;
+  const safetyQuestion = /infecc|hongo|dolor|sangr|herida|inflam|alerg|lesion|danada|dañada|enferm/.test(normalized);
+
+  if (!best) {
+    answer.innerHTML = `<strong>Te respondería así:</strong><p>No encontré una ficha exacta para esa pregunta. Como regla de trabajo, revisa la preparación, respeta los tiempos y espesores indicados por el fabricante, y no improvises sobre una uña lesionada.</p><p><b>Seguridad:</b> si hay dolor, sangrado, inflamación o signos compatibles con infección, no realices el servicio y recomienda valoración profesional.</p>`;
+    return;
+  }
+
+  const extra = safetyQuestion ? ' Si existe dolor, inflamación, sangrado, herida o una posible infección, detén el servicio y recomienda valoración profesional.' : '';
+  answer.innerHTML = `<div class="ai-answer-title"><span>${escapeHtml(best.category)}</span><h3>${escapeHtml(best.title)}</h3></div><p>${escapeHtml(best.text)}</p><ol>${best.steps.map(step => `<li>${escapeHtml(step)}</li>`).join('')}</ol><p class="ai-answer-safety"><b>Nota:</b> ${escapeHtml(best.safety)}${escapeHtml(extra)}</p>`;
 }
 
 function renderAiKnowledge() {

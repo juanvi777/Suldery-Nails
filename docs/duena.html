@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260919-v40">
+  <link rel="stylesheet" href="style.css?v=20260919-v41">
 </head>
 <body class="dashboard-page owner-page">
   <main class="dashboard-shell">
@@ -70,8 +70,10 @@
       <button type="button" class="owner-tool-button" data-owner-tool="manual"><span class="owner-tool-icon">＋</span><span><strong>Agendar clienta</strong><small>Cita manual confirmada</small></span><b>→</b></button>
       <button type="button" class="owner-tool-button" data-owner-tool="blocked"><span class="owner-tool-icon">▣</span><span><strong>Bloquear días</strong><small>Vacaciones o descansos</small></span><b>→</b></button>
       <button type="button" class="owner-tool-button" data-owner-tool="calendar"><span class="owner-tool-icon">◷</span><span><strong>Calendario</strong><small>Citas y espacios libres</small></span><b>→</b></button>
-      <button type="button" class="owner-tool-button" data-owner-tool="photos"><span class="owner-tool-icon">✦</span><span><strong>Subir fotos</strong><small>Inicio + página de clienta</small></span><b>→</b></button><button type="button" class="owner-tool-button" data-owner-tool="catalog"><span class="owner-tool-icon">▤</span><span><strong>Catálogo</strong><small>Diseños sin límite</small></span><b>→</b></button>
-      <button type="button" class="owner-tool-button" data-owner-tool="nail-lab"><span class="owner-tool-icon">✦</span><span><strong>Nail Lab IA</strong><small>Diseños, técnicas y catálogo</small></span><b>→</b></button>
+      <button type="button" class="owner-tool-button" data-owner-tool="photos"><span class="owner-tool-icon">✦</span><span><strong>Fotos de inicio</strong><small>Hasta 8 fotos</small></span><b>→</b></button>
+      <button type="button" class="owner-tool-button" data-owner-tool="clientPhotos"><span class="owner-tool-icon">♡</span><span><strong>Fotos de clientas</strong><small>Lo que ven al entrar</small></span><b>→</b></button>
+      <button type="button" class="owner-tool-button" data-owner-tool="catalog"><span class="owner-tool-icon">▤</span><span><strong>Catálogo</strong><small>Diseños sin límite</small></span><b>→</b></button>
+      <button type="button" class="owner-tool-button" data-owner-tool="nail-lab"><span class="owner-tool-icon">✦</span><span><strong>Nail Lab IA</strong><small>Diseños, técnicas y aprendizaje</small></span><b>→</b></button>
     </section>
 
     <section id="ownerToolCalendar" class="owner-tool-panel admin-card glass-card hidden-tool-panel">
@@ -152,11 +154,29 @@
       <p class="manager-note">Un asistente gratuito integrado en Suldery Nails: reúne conocimiento de uñas, propone combinaciones y crea conceptos de diseño. Funciona sin una API de pago.</p>
 
       <div class="ai-lab-tabs" role="tablist" aria-label="Herramientas Nail Lab">
-        <button type="button" class="ai-lab-tab active" data-ai-tab="design" role="tab">Crear diseño</button>
+        <button type="button" class="ai-lab-tab active" data-ai-tab="assistant" role="tab">Asistente</button>
+        <button type="button" class="ai-lab-tab" data-ai-tab="design" role="tab">Crear diseño</button>
         <button type="button" class="ai-lab-tab" data-ai-tab="learn" role="tab">Aprender</button>
         <button type="button" class="ai-lab-tab" data-ai-tab="catalog" role="tab">Catálogo</button>
         <button type="button" class="ai-lab-tab" data-ai-tab="care" role="tab">Cuidados</button>
       </div>
+
+      <section class="ai-lab-panel" data-ai-panel="assistant">
+        <div class="ai-assistant-head">
+          <div><p class="eyebrow">ASISTENTE NAIL LAB</p><h3>Pregúntame sobre uñas 💅</h3><p class="ai-assistant-subtitle">Respuestas construidas con conocimiento técnico de preparación, estructura, decoración, cuidado, retirada y seguridad. No necesita una API de pago.</p></div>
+        </div>
+        <div class="ai-quick-prompts">
+          <button type="button" class="ai-quick-prompt" data-ai-prompt="¿Cómo preparo una uña para que el producto dure más?">Preparación</button>
+          <button type="button" class="ai-quick-prompt" data-ai-prompt="¿Qué hago si una uña se despega?">Desprendimientos</button>
+          <button type="button" class="ai-quick-prompt" data-ai-prompt="¿Cómo puedo mejorar una francesa moderna?">Francesa</button>
+          <button type="button" class="ai-quick-prompt" data-ai-prompt="¿Cuándo no debo realizar un servicio de uñas?">Seguridad</button>
+        </div>
+        <div class="ai-assistant-box">
+          <label for="aiAssistantQuestion">Tu pregunta<input id="aiAssistantQuestion" type="text" maxlength="220" placeholder="Ej. ¿Cómo mejorar la duración del semipermanente?"></label>
+          <button id="aiAssistantAsk" class="primary-button" type="button">Consultar Nail Lab <span>✦</span></button>
+        </div>
+        <article id="aiAssistantAnswer" class="ai-assistant-answer" aria-live="polite">Escribe una pregunta o toca una de las ideas de arriba y te responderé con pasos claros, recomendaciones y una nota de seguridad cuando haga falta.</article>
+      </section>
 
       <section class="ai-lab-panel" data-ai-panel="design">
         <div class="ai-lab-grid">
@@ -262,18 +282,29 @@
     </section>
 
     <section id="ownerToolPhotos" class="owner-tool-panel admin-card glass-card hidden-tool-panel">
-      <div class="card-heading"><div><p class="eyebrow">FOTOS</p><h2>Fotos de inicio y de clientas</h2></div><button class="small-button ghost" type="button" data-close-owner-tool>Cerrar</button></div>
-      <p class="manager-note">Aquí administras las 8 fotos principales. Cada foto se publica en un solo lugar. El catálogo tiene su propio apartado y no consume estos 8 espacios.</p>
-      <div class="owner-photo-upload-buttons">
-        <label class="owner-upload-choice" for="photoPickerLogin"><span>✦</span><strong>Inicio de sesión</strong><small>Máximo 8 entre las dos galerías</small></label>
-        <label class="owner-upload-choice" for="photoPickerClient"><span>♡</span><strong>Página de clienta</strong><small>Máximo 8 entre las dos galerías</small></label>
+      <div class="card-heading"><div><p class="eyebrow">FOTOS DE INICIO</p><h2>La primera impresión</h2></div><button class="small-button ghost" type="button" data-close-owner-tool>Cerrar</button></div>
+      <p class="manager-note">Aquí eliges las hasta 8 fotos que verá una persona antes de iniciar sesión. Cada foto se administra individualmente y puedes cambiarla o eliminarla.</p>
+      <div class="owner-photo-upload-buttons single-choice-grid">
+        <label class="owner-upload-choice" for="photoPickerLogin"><span>✦</span><strong>Agregar foto de inicio</strong><small>Máximo 8 fotos</small></label>
       </div>
       <input id="photoPickerLogin" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden"><input id="photoPickerClient" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden"><input id="photoReplacePicker" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden">
       <div class="photo-owner-groups">
-        <section class="photo-owner-group"><div class="subsection-heading"><div><p class="eyebrow">INICIO DE SESIÓN</p><h3>Fotos que ve quien todavía no entra</h3></div><span id="loginPhotoCount" class="photo-group-count">0</span></div><div id="ownerLoginGallery" class="photo-owner-list"></div></section>
-        <section class="photo-owner-group"><div class="subsection-heading"><div><p class="eyebrow">PÁGINA DE CLIENTA</p><h3>Fotos que ven tus clientas</h3></div><span id="clientPhotoCount" class="photo-group-count">0</span></div><div id="ownerClientGallery" class="photo-owner-list"></div></section>
+        <section class="photo-owner-group"><div class="subsection-heading"><div><p class="eyebrow">INICIO DE SESIÓN</p><h3>Fotos que ven antes de entrar</h3></div><span id="loginPhotoCount" class="photo-group-count">0</span></div><div id="ownerLoginGallery" class="photo-owner-list"></div></section>
       </div>
       <p id="photoManagerMessage" class="form-message" role="status"></p>
+    </section>
+
+    <section id="ownerToolClientPhotos" class="owner-tool-panel admin-card glass-card hidden-tool-panel">
+      <div class="card-heading"><div><p class="eyebrow">FOTOS DE CLIENTAS</p><h2>Lo que ven después de entrar</h2></div><button class="small-button ghost" type="button" data-close-owner-tool>Cerrar</button></div>
+      <p class="manager-note">Este apartado controla exclusivamente la galería de la página de clienta. Agrega, cambia o elimina las fotos que quieres mostrar una vez iniciada la sesión.</p>
+      <div class="owner-photo-upload-buttons single-choice-grid">
+        <label class="owner-upload-choice" for="photoPickerClientOnly"><span>♡</span><strong>Agregar foto de clienta</strong><small>Galería privada para clientas registradas</small></label>
+      </div>
+      <input id="photoPickerClientOnly" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden">
+      <div class="photo-owner-groups">
+        <section class="photo-owner-group"><div class="subsection-heading"><div><p class="eyebrow">PÁGINA DE CLIENTA</p><h3>Galería exclusiva de clientas</h3></div><span id="clientPhotoCountOnly" class="photo-group-count">0</span></div><div id="ownerClientOnlyGallery" class="photo-owner-list"></div></section>
+      </div>
+      <p id="clientPhotoManagerMessage" class="form-message" role="status"></p>
     </section>
 
 
@@ -305,7 +336,7 @@
       </article>
     </section>
   </main>
-  <script src="auth.js?v=20260919-v40"></script>
-  <script src="duena.js?v=20260919-v40"></script>
+  <script src="auth.js?v=20260919-v41"></script>
+  <script src="duena.js?v=20260919-v41"></script>
 </body>
 </html>
