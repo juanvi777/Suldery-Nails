@@ -663,3 +663,13 @@ body.dark-mode .ai-design-preview{background:rgba(3,3,4,.74)}
 .ai-answer-title{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}.ai-answer-title span{font-size:.6rem;font-weight:900;letter-spacing:.12em;color:var(--rose-dark);text-transform:uppercase}.ai-answer-title h3{margin:0;font:700 1.15rem "Playfair Display",serif}.ai-assistant-answer>p{margin:.45rem 0}.ai-assistant-answer ol{margin:.7rem 0;padding-left:1.1rem}.ai-assistant-answer li{margin:.28rem 0}.ai-answer-safety{padding:.75rem .85rem;border-radius:14px;background:rgba(214,59,120,.07);border:1px solid rgba(214,59,120,.13)}
 @media(max-width:700px){.ai-assistant-box{grid-template-columns:1fr}.photo-owner-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:430px){.photo-owner-list{grid-template-columns:1fr}.ai-quick-prompt{flex:1 1 calc(50% - .5rem);text-align:center}.portfolio-photo::after,.carousel-stage::after,.catalog-owner-stage::after,.catalog-client-stage::after{inset:5px}}
+
+/* v4.3 — gestión individual de fotos y SulNail IA */
+.photo-owner-list{display:grid;grid-template-columns:1fr;gap:1rem}
+.photo-owner-list .owner-photo{position:relative;display:grid;grid-template-columns:minmax(180px,240px) 1fr;align-items:stretch;gap:1rem;padding:1rem;border-radius:24px}
+.photo-owner-list .owner-photo img{width:100%;height:100%;min-height:220px;aspect-ratio:1;object-fit:cover;border-radius:18px}
+.photo-owner-list .owner-photo figcaption{padding:.2rem 0 0;font-size:.88rem;align-self:start}
+.photo-owner-list .photo-actions-vertical{display:flex;flex-wrap:wrap;gap:.6rem;padding:.7rem 0 0;align-self:end}
+.photo-owner-list .photo-actions-vertical .small-button,.photo-owner-list .photo-actions-vertical .remove-photo{min-height:40px}
+.ai-lab-panel[data-ai-panel="assistant"] .ai-assistant-answer{border-color:rgba(198,40,104,.25);box-shadow:0 12px 32px rgba(198,40,104,.09)}
+@media(max-width:680px){.photo-owner-list .owner-photo{grid-template-columns:1fr;padding:.75rem}.photo-owner-list .owner-photo img{min-height:0}.photo-owner-list .photo-actions-vertical{align-self:stretch}.photo-owner-list .photo-actions-vertical .small-button,.photo-owner-list .photo-actions-vertical .remove-photo{flex:1 1 100%}}

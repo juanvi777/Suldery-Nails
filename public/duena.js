@@ -140,8 +140,7 @@ async function initDuena() {
   $d('ownerService').addEventListener('change', () => { updateOwnerServiceDurationHint(); loadOwnerSlots(); });
   $d('ownerBookingForm').addEventListener('submit', submitManualBooking);
   $d('photoPickerLogin')?.addEventListener('change', event => subirFoto(event, 'login'));
-  $d('photoPickerClient')?.addEventListener('change', event => subirFoto(event, 'client'));
-  $d('photoPickerClientOnly')?.addEventListener('change', event => subirFoto(event, 'client'));
+    $d('photoPickerClientOnly')?.addEventListener('change', event => subirFoto(event, 'client'));
   $d('photoReplacePicker')?.addEventListener('change', reemplazarFoto);
   $d('blockedDateForm').addEventListener('submit', bloquearFecha);
   $d('blockedDatesList').addEventListener('click', handleBlockedDateAction);
@@ -195,7 +194,18 @@ async function initDuena() {
 
 function openOwnerTool(name) {
   document.querySelectorAll('.owner-tool-panel').forEach(panel => panel.classList.add('hidden-tool-panel'));
-  const panel = $d(`ownerTool${name[0].toUpperCase()}${name.slice(1)}`);
+  const toolPanelIds = {
+    nailLab: 'ownerToolNailLab',
+    clientPhotos: 'ownerToolClientPhotos',
+    photos: 'ownerToolPhotos',
+    calendar: 'ownerToolCalendar',
+    schedule: 'ownerToolSchedule',
+    manual: 'ownerToolManual',
+    blocked: 'ownerToolBlocked',
+    catalog: 'ownerToolCatalog'
+  };
+  const panelId = toolPanelIds[name] || `ownerTool${name[0].toUpperCase()}${name.slice(1)}`;
+  const panel = $d(panelId);
   if (!panel) return;
   panel.classList.remove('hidden-tool-panel');
   panel.scrollIntoView({ behavior:'smooth', block:'start' });
@@ -749,12 +759,11 @@ function renderOwnerPhotoGroup(container, photos, visibility) {
     figure.className = 'portfolio-photo owner-photo';
     figure.innerHTML = `
       <div class="owner-photo-number">${index + 1}</div>
-      <img src="${escapeAttribute(photo.image_url)}" alt="${escapeAttribute(photo.title)}" loading="lazy">
-      <figcaption>${escapeAttribute(photo.title)}</figcaption>
+      <img src="${escapeAttribute(photo.image_url)}" alt="${escapeAttribute(photo.title || 'Diseño de Suldery Nails')}" loading="lazy">
+      <figcaption>${escapeHtml(photo.title || 'Diseño Suldery Nails')}</figcaption>
       <div class="photo-actions photo-actions-vertical">
-        <button type="button" class="small-button ghost" data-photo-action="replace" data-id="${photo.id}">Cambiar foto</button>
-        <button type="button" class="remove-photo" data-photo-action="delete" data-id="${photo.id}">Eliminar</button>
-        ${photo.visibility === 'both' ? `<button type="button" class="small-button ghost" data-photo-action="set-visibility" data-id="${photo.id}" data-visibility="${visibility === 'login' ? 'login' : 'client'}">Dejar solo aquí</button>` : ''}
+        <button type="button" class="small-button ghost" data-photo-action="replace" data-id="${photo.id}">Actualizar foto</button>
+        <button type="button" class="remove-photo" data-photo-action="delete" data-id="${photo.id}">Eliminar foto</button>
       </div>`;
     container.appendChild(figure);
   });
@@ -1100,14 +1109,14 @@ function answerAiAssistant() {
   if (!input || !answer) return;
   const question = input.value.trim();
   if (!question) {
-    answer.innerHTML = '<strong>Soy la Nail Lab IA de Suldery 💕</strong><p>Pregúntame sobre técnicas, preparación, servicios de Suldery, diseños, cuidado, seguridad, organización o ideas para tus clientas.</p>';
+    answer.innerHTML = '<strong>Soy la SulNail IA de Suldery 💕</strong><p>Pregúntame sobre técnicas, preparación, servicios de Suldery, diseños, cuidado, seguridad, organización o ideas para tus clientas.</p>';
     return;
   }
 
   const normalized = normalizeAiText(question);
   const outOfScope = !/(una|unas|uña|unas|manicure|pedicure|dipping|press|nail|esmalte|gel|acril|cuticula|cuticula|diseno|francesa|chrome|cat eye|decor|forma|almendra|coffin|stiletto|segur|higiene|cuidado|retirada|servicio|clienta|cliente|cita|agenda|color|pigment|top coat|base|curar|lampara|estructura|prepar|limar|polvo)/i.test(normalized);
   if (outOfScope) {
-    answer.innerHTML = '<strong>Esta es la Nail Lab IA de Suldery 💅</strong><p>Estoy especializada en el mundo de las uñas y en apoyar el trabajo de Suldery Nails. Puedo ayudarte con técnicas, diseños, servicios, preparación, cuidado, seguridad y organización del trabajo.</p><p>Prueba con algo como: “¿cómo mejorar un semipermanente?”, “dame un diseño elegante” o “¿qué debo revisar antes de un dipping?”.</p>';
+    answer.innerHTML = '<strong>Esta es la SulNail IA de Suldery 💅</strong><p>Estoy especializada en el mundo de las uñas y en apoyar el trabajo de Suldery Nails. Puedo ayudarte con técnicas, diseños, servicios, preparación, cuidado, seguridad y organización del trabajo.</p><p>Prueba con algo como: “¿cómo mejorar un semipermanente?”, “dame un diseño elegante” o “¿qué debo revisar antes de un dipping?”.</p>';
     return;
   }
 
