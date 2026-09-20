@@ -965,6 +965,17 @@ async function copyCareMessage() {
 
 
 const AI_NAIL_KNOWLEDGE = [
+
+  { title:'Pedicure semipermanente', category:'Servicio Suldery', level:'Inicial', text:'Servicio de pies con acabado semipermanente. En Suldery dura 1 hora y debe planificarse dejando libre el bloque de almuerzo.', steps:['Revisa el estado de las uñas y piel antes de empezar.', 'Realiza una preparación cuidadosa y limpia.', 'Aplica el sistema siguiendo las indicaciones del fabricante.', 'Comprueba que el acabado quede uniforme y cómodo.'], safety:'No realices el servicio sobre lesiones, sangrado o signos compatibles con infección.' },
+  { title:'Manicure semipermanente', category:'Servicio Suldery', level:'Inicial', text:'Manicure de acabado duradero. En la agenda de Suldery ocupa 1 hora y 30 minutos, por lo que las horas disponibles dependen del tiempo completo.', steps:['Evalúa uñas y cutículas.', 'Prepara sin agredir la placa natural.', 'Aplica capas finas y uniformes.', 'Cura y sella respetando el sistema utilizado.'], safety:'Evita producto sobre piel y respeta los tiempos del fabricante.' },
+  { title:'Dipping en Suldery', category:'Servicio Suldery', level:'Intermedio', text:'Sistema de polvo/polímero que en la agenda de Suldery ocupa 2 horas completas.', steps:['Prepara la uña con suavidad.', 'Controla el grosor y la estructura.', 'Sigue el sistema y los tiempos del fabricante.', 'Perfecciona la superficie antes del acabado.'], safety:'No arranques el producto; retíralo con el protocolo adecuado del sistema.' },
+  { title:'Press on en Suldery', category:'Servicio Suldery', level:'Intermedio', text:'Diseños prefabricados personalizados. En la agenda de Suldery ocupan 2 horas para selección, ajuste y acabado.', steps:['Mide y selecciona el tamaño correcto.', 'Ajusta el diseño a la forma natural.', 'Prepara las superficies según el adhesivo elegido.', 'Comprueba comodidad, alineación y sellado.'], safety:'No fuerces una pieza que no ajuste; el ajuste correcto evita presión innecesaria.' },
+  { title:'Teoría del color para uñas', category:'Diseño', level:'Intermedio', text:'Combinar tonos cercanos genera armonía; usar un contraste controlado crea un punto protagonista.', steps:['Define el tono principal.', 'Elige uno o dos acentos como máximo.', 'Comprueba el contraste con la piel y el estilo de la clienta.', 'Repite un detalle para que el conjunto tenga unidad.'], safety:'La elección estética debe considerar preferencia de la clienta y legibilidad del diseño.' },
+  { title:'Retirada segura', category:'Seguridad', level:'Inicial', text:'La retirada debe respetar el sistema utilizado y evitar arrancar o limar en exceso la placa natural.', steps:['Identifica el producto antes de retirarlo.', 'Usa el método compatible con el sistema.', 'Trabaja de forma progresiva y sin forzar.', 'Evalúa la superficie al terminar.'], safety:'Si aparece dolor, calor, sangrado o daño evidente, detén el proceso y deriva a valoración profesional.' },
+  { title:'Higiene de herramientas', category:'Seguridad', level:'Inicial', text:'La limpieza, desinfección o esterilización debe seguir el tipo de herramienta y el protocolo aplicable al entorno de trabajo.', steps:['Retira residuos visibles.', 'Aplica el proceso adecuado al material y a la herramienta.', 'Respeta concentración y tiempo del producto utilizado.', 'Guarda las herramientas de forma protegida y ordenada.'], safety:'No sustituyas protocolos sanitarios por soluciones caseras o improvisadas.' },
+  { title:'Diagnóstico visual antes del servicio', category:'Seguridad', level:'Inicial', text:'Antes de comenzar conviene observar la placa, la piel, la longitud y el estado general para decidir si el servicio es apropiado.', steps:['Pregunta por molestias o antecedentes relevantes.', 'Observa cambios visibles en uñas y piel.', 'Adapta el servicio al estado observado.', 'Registra cualquier recomendación importante para la clienta.'], safety:'Ante signos de posible infección o lesión, no realices el servicio y recomienda valoración profesional.' },
+  { title:'Diseño para fotografía', category:'Diseño', level:'Intermedio', text:'Un diseño pensado para fotos necesita contraste, limpieza de contornos y un detalle que se entienda a distancia corta.', steps:['Elige una base que permita leer el diseño.', 'Define un detalle protagonista.', 'Cuida bordes y simetría.', 'Fotografía con luz uniforme y foco en la mano.'], safety:'No priorices el efecto visual por encima de la integridad de la uña.' },
+  { title:'Plan de aprendizaje Suldery', category:'Aprendizaje', level:'Inicial', text:'Una técnica mejora más rápido cuando se practica con objetivos pequeños y revisiones constantes.', steps:['Elige una técnica por semana.', 'Practica en tip o modelo de entrenamiento.', 'Toma fotos del antes y después.', 'Anota qué falló y qué cambiarás en la siguiente práctica.'], safety:'Practica técnicas nuevas en un entorno controlado antes de aplicarlas a una clienta.' },
   { title:'Cat eye', category:'Decoración', level:'Intermedio', text:'Acabado magnético que crea una franja luminosa. Funciona mejor con una base oscura o profunda y un imán colocado con movimientos cortos y controlados.', steps:['Prepara la uña y aplica la base correspondiente al sistema.', 'Aplica una capa fina del color magnético.', 'Acerca el imán sin tocar la uña para concentrar el reflejo.', 'Cura según el producto y sella con top coat.'], safety:'Respeta siempre el tiempo de curado indicado por el fabricante.' },
   { title:'Aura nails', category:'Diseño', level:'Intermedio', text:'Degradado suave que concentra el color alrededor de un punto central y da una sensación difuminada.', steps:['Elige una base clara o translúcida.', 'Coloca el color central con esponja o herramienta de difuminado.', 'Suaviza los bordes sin sobrecargar.', 'Sella y cura correctamente.'], safety:'Evita capas demasiado gruesas.' },
   { title:'Francesa moderna', category:'Diseño', level:'Inicial', text:'Versión contemporánea de la francesa con puntas finas, doble línea, color o acabados metálicos.', steps:['Define la base.', 'Marca una sonrisa fina y uniforme.', 'Añade una segunda línea o detalle si corresponde.', 'Sella para proteger el borde libre.'], safety:'La simetría visual importa más que hacer la línea excesivamente gruesa.' },
@@ -1089,31 +1100,42 @@ function answerAiAssistant() {
   if (!input || !answer) return;
   const question = input.value.trim();
   if (!question) {
-    answer.innerHTML = '<strong>Cuéntame qué quieres resolver.</strong><p>Puedes preguntar por preparación, duración, formas, semipermanente, dipping, press on, francesa, chrome, cat eye, decoración, cuidado o seguridad.</p>';
+    answer.innerHTML = '<strong>Soy la Nail Lab IA de Suldery 💕</strong><p>Pregúntame sobre técnicas, preparación, servicios de Suldery, diseños, cuidado, seguridad, organización o ideas para tus clientas.</p>';
     return;
   }
+
   const normalized = normalizeAiText(question);
+  const outOfScope = !/(una|unas|uña|unas|manicure|pedicure|dipping|press|nail|esmalte|gel|acril|cuticula|cuticula|diseno|francesa|chrome|cat eye|decor|forma|almendra|coffin|stiletto|segur|higiene|cuidado|retirada|servicio|clienta|cliente|cita|agenda|color|pigment|top coat|base|curar|lampara|estructura|prepar|limar|polvo)/i.test(normalized);
+  if (outOfScope) {
+    answer.innerHTML = '<strong>Esta es la Nail Lab IA de Suldery 💅</strong><p>Estoy especializada en el mundo de las uñas y en apoyar el trabajo de Suldery Nails. Puedo ayudarte con técnicas, diseños, servicios, preparación, cuidado, seguridad y organización del trabajo.</p><p>Prueba con algo como: “¿cómo mejorar un semipermanente?”, “dame un diseño elegante” o “¿qué debo revisar antes de un dipping?”.</p>';
+    return;
+  }
+
   const words = normalized.split(' ').filter(word => word.length > 3);
   const scored = AI_NAIL_KNOWLEDGE.map(item => {
     const corpus = normalizeAiText(`${item.title} ${item.category} ${item.text} ${item.steps.join(' ')} ${item.safety}`);
     let score = 0;
     words.forEach(word => { if (corpus.includes(word)) score += word.length >= 7 ? 2 : 1; });
+    if (normalized.includes('suldery')) score += 2;
     if (normalized.includes('segur') && normalizeAiText(item.category).includes('segur')) score += 5;
+    if (normalized.includes('dipping') && normalizeAiText(item.title).includes('dipping')) score += 6;
+    if (normalized.includes('pedicure') && normalizeAiText(item.title).includes('pedicure')) score += 6;
+    if (normalized.includes('manicure') && normalizeAiText(item.title).includes('manicure')) score += 6;
+    if (normalized.includes('press on') && normalizeAiText(item.title).includes('press on')) score += 6;
     return { item, score };
   }).sort((a,b) => b.score - a.score);
 
   const best = scored[0]?.score > 0 ? scored[0].item : null;
-  const safetyQuestion = /infecc|hongo|dolor|sangr|herida|inflam|alerg|lesion|danada|dañada|enferm/.test(normalized);
+  const safetyQuestion = /infecc|hongo|dolor|sangr|herida|inflam|alerg|lesion|danada|dana|enferm|ardor|pus/.test(normalized);
 
   if (!best) {
-    answer.innerHTML = `<strong>Te respondería así:</strong><p>No encontré una ficha exacta para esa pregunta. Como regla de trabajo, revisa la preparación, respeta los tiempos y espesores indicados por el fabricante, y no improvises sobre una uña lesionada.</p><p><b>Seguridad:</b> si hay dolor, sangrado, inflamación o signos compatibles con infección, no realices el servicio y recomienda valoración profesional.</p>`;
+    answer.innerHTML = '<strong>Vamos paso a paso 💕</strong><p>No tengo una ficha específica para esa pregunta. Puedo ayudarte a plantear un protocolo general de trabajo: preparación → producto adecuado → capas y estructura → curado según fabricante → acabado → cuidado posterior.</p><p><b>Seguridad:</b> si hay dolor, sangrado, inflamación o signos compatibles con infección, no realices el servicio y recomienda valoración profesional.</p>';
     return;
   }
 
   const extra = safetyQuestion ? ' Si existe dolor, inflamación, sangrado, herida o una posible infección, detén el servicio y recomienda valoración profesional.' : '';
-  answer.innerHTML = `<div class="ai-answer-title"><span>${escapeHtml(best.category)}</span><h3>${escapeHtml(best.title)}</h3></div><p>${escapeHtml(best.text)}</p><ol>${best.steps.map(step => `<li>${escapeHtml(step)}</li>`).join('')}</ol><p class="ai-answer-safety"><b>Nota:</b> ${escapeHtml(best.safety)}${escapeHtml(extra)}</p>`;
+  answer.innerHTML = `<div class="ai-answer-title"><span>${escapeHtml(best.category)}</span><h3>${escapeHtml(best.title)}</h3></div><p>${escapeHtml(best.text)}</p><ol>${best.steps.map(step => `<li>${escapeHtml(step)}</li>`).join('')}</ol><p class="ai-answer-safety"><b>Nota de Suldery:</b> ${escapeHtml(best.safety)}${escapeHtml(extra)}</p>`;
 }
-
 function renderAiKnowledge() {
   const list = $d('aiKnowledgeList');
   if (!list) return;

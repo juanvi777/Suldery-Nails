@@ -2268,13 +2268,21 @@ app.get('/api/owner/portfolio', authRequired, ownerRequired, async (_req, res) =
 app.post('/api/owner/portfolio', authRequired, ownerRequired, upload.single('photo'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: 'Selecciona una imagen.' });
-    const [countRows] = await pool.query('SELECT COUNT(*) AS total FROM portfolio_photos');
-    if (Number(countRows[0].total) >= 8) {
-      return res.status(409).json({ message: 'Ya tienes 8 fotos. Elimina o cambia una foto antes de subir otra.' });
-    }
-
     const title = String(req.body.title || 'Diseño Suldery Nails').trim().slice(0, 120) || 'Diseño Suldery Nails';
     const visibility = ['login','client'].includes(String(req.body.visibility || 'login')) ? String(req.body.visibility || 'login') : 'login';
+
+    // Límites independientes: 8 fotos para el inicio y 10 para la galería privada de clientas.
+    // Se cuentan también las fotos antiguas marcadas como "both" para no sobrepasar los límites.
+    const maxPhotos = visibility === 'client' ? 10 : 8;
+    const visibilityWhere = visibility === 'client' ? `visibility IN ('client','both')` : `visibility IN ('login','both')`;
+    const [countRows] = await pool.query(`SELECT COUNT(*) AS total FROM portfolio_photos WHERE ${visibilityWhere}`);
+    if (Number(countRows[0].total) >= maxPhotos) {
+      return res.status(409).json({
+        message: visibility === 'client'
+          ? 'Ya tienes 10 fotos de clientas. Elimina o cambia una foto antes de subir otra.'
+          : 'Ya tienes 8 fotos de inicio. Elimina o cambia una foto antes de subir otra.'
+      });
+    }
     const [orderRows] = await pool.query('SELECT COALESCE(MAX(display_order),0) + 1 AS next_order FROM portfolio_photos');
     const displayOrder = Number(orderRows[0].next_order) || 1;
     const [result] = await pool.query(
