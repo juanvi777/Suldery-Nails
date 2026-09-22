@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260919-v41">
+  <link rel="stylesheet" href="style.css?v=20260922-v45">
 </head>
 <body class="dashboard-page">
   <main class="dashboard-shell">
@@ -46,13 +46,14 @@
           <div class="time-header"><div><p class="eyebrow">PASO 1</p><span class="field-label">¿Qué te vas a realizar?</span></div><span class="time-hint">La duración determina qué horas son posibles.</span></div>
           <label class="service-field">Servicio
             <select id="service">
+              <option value="" selected>Elige un servicio…</option>
               <option value="Manicure semipermanente">Manicure semipermanente · 1 h 30 min</option>
               <option value="Pedicure semipermanente">Pedicure semipermanente · 1 hora</option>
               <option value="Dipping">Dipping · 2 horas</option>
               <option value="Press on">Press on · 2 horas</option>
             </select>
-            <small id="serviceDurationHint" class="service-duration-hint">Duración: 1 h 30 min</small>
-            <small class="service-duration-hint">Almuerzo fijo: 12:00 p. m. – 1:00 p. m. (sin citas). La hora final se calcula automáticamente.</small>
+            <small id="serviceDurationHint" class="service-duration-hint">Primero elige un servicio.</small>
+            <small class="service-duration-hint">Primero eliges el servicio. Después elegimos el día y, al final, solo una hora que permita completar todo el servicio.</small>
           </label>
         </div>
 
@@ -75,8 +76,18 @@
         </div>
 
         <div class="time-selection booking-step" id="timeStep">
-          <div class="time-header"><div><p class="eyebrow">PASO 3</p><span class="field-label">Elige una hora</span></div><span id="timeHint" class="time-hint">Selecciona primero un día</span></div>
-          <div id="timeSlots" class="time-slots"><span class="time-help">Primero selecciona una fecha.</span></div>
+          <div class="time-header"><div><p class="eyebrow">PASO 3</p><span class="field-label">Elige una hora</span></div><span id="timeHint" class="time-hint">Selecciona primero un servicio y un día</span></div>
+          <div class="time-selection-layout">
+            <div>
+              <p class="time-selection-label">Horas que sí puedes reservar</p>
+              <div id="timeSlots" class="time-slots"><span class="time-help">Primero elige un servicio y después un día.</span></div>
+            </div>
+            <aside class="day-timeline-panel">
+              <div class="day-timeline-heading"><div><p class="eyebrow">ASÍ ESTÁ TU DÍA</p><strong>Qué pasa con cada hora</strong></div><span>30 min</span></div>
+              <p class="time-help">Así sabrás si una hora está ocupada, en almuerzo o no alcanza para terminar tu servicio.</p>
+              <div id="dayTimeline" class="day-timeline"><p class="time-help">Aquí aparecerá el estado del horario cuando elijas un día.</p></div>
+            </aside>
+          </div>
         </div>
 
         <div id="bookingSummary" class="booking-summary hidden-step">
@@ -99,7 +110,7 @@
       <div id="clientGallery" class="carousel-frame"></div>
     </section>
   </main>
-  <script src="auth.js?v=20260919-v41"></script>
-  <script src="cliente.js?v=20260919-v41"></script>
+  <script src="auth.js?v=20260922-v45"></script>
+  <script src="cliente.js?v=20260922-v45"></script>
 </body>
 </html>

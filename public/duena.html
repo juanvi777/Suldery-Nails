@@ -16,14 +16,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260919-v41">
+  <link rel="stylesheet" href="style.css?v=20260922-v45">
 </head>
 <body class="dashboard-page owner-page">
   <main class="dashboard-shell">
     <header class="dashboard-header glass-card">
       <a class="logo" href="duena.html"><img src="assets/suldery-nails-logo.jpeg" alt="Suldery Nails"><span>Suldery <em>Nails</em></span></a>
       <div class="user-menu">
-        <button id="installAppButton" class="install-app-button" type="button" hidden>＋ Instalar app</button>
+        <button id="installAppButton" class="install-app-button" type="button" hidden>＋ Instalar app</button><button id="enableNotificationsButton" class="small-button ghost owner-notify-top" type="button">🔔 Avisos</button>
         <button class="theme-toggle" type="button" data-theme-toggle aria-label="Activar modo oscuro"><span class="theme-icon">☾</span><span class="theme-label">Modo oscuro</span></button>
         <span>Panel de Suldery</span>
         <button class="secondary-button" type="button" data-action="logout">Cerrar sesión</button>
@@ -37,7 +37,7 @@
         <p>Todo en un solo lugar. Abre solamente la herramienta que necesitas y mantén tu agenda sin cruces ni turnos imposibles.</p>
       </div>
       <div class="owner-mini-card"><strong id="ownerDateLabel">Hoy</strong><span>Una agenda ordenada, un día más tranquilo ♡</span>
-        <div class="sms-status-card"><strong id="notificationStatusTitle">Avisos en este dispositivo</strong><small id="notificationStatusText">Comprobando las notificaciones…</small><div class="notification-actions"><button id="enableNotificationsButton" class="small-button ghost" type="button">Activar avisos</button><button id="testNotificationButton" class="small-button ghost" type="button">Probar aviso</button></div></div></div>
+        <div class="sms-status-card"><strong id="notificationStatusTitle">Avisos en este dispositivo</strong><small id="notificationStatusText">Comprobando las notificaciones…</small><div class="notification-actions"><button id="testNotificationButton" class="small-button ghost" type="button">Probar aviso</button></div></div></div>
       </div>
     </section>
 
@@ -72,7 +72,7 @@
       <button type="button" class="owner-tool-button" data-owner-tool="calendar"><span class="owner-tool-icon">◷</span><span><strong>Calendario</strong><small>Citas y espacios libres</small></span><b>→</b></button>
       <button type="button" class="owner-tool-button" data-owner-tool="photos"><span class="owner-tool-icon">✦</span><span><strong>Fotos de inicio</strong><small>Hasta 8 fotos</small></span><b>→</b></button>
       <button type="button" class="owner-tool-button" data-owner-tool="clientPhotos"><span class="owner-tool-icon">♡</span><span><strong>Fotos de clientas</strong><small>Hasta 10 fotos · lo que ven al entrar</small></span><b>→</b></button>
-      <button type="button" class="owner-tool-button" data-owner-tool="catalog"><span class="owner-tool-icon">▤</span><span><strong>Catálogo</strong><small>Diseños sin límite</small></span><b>→</b></button>
+      <button type="button" class="owner-tool-button owner-tool-featured" data-owner-tool="catalog"><span class="owner-tool-icon">▤</span><span><strong>Catálogo</strong><small>Diseños sin límite</small></span><b>→</b></button>
       <button type="button" class="owner-tool-button" data-owner-tool="nailLab"><span class="owner-tool-icon">✦</span><span><strong>SulNail IA</strong><small>Diseños, técnicas y aprendizaje</small></span><b>→</b></button>
     </section>
 
@@ -336,7 +336,7 @@
       </article>
     </section>
   </main>
-  <script src="auth.js?v=20260919-v41"></script>
-  <script src="duena.js?v=20260919-v41"></script>
+  <script src="auth.js?v=20260922-v45"></script>
+  <script src="duena.js?v=20260922-v45"></script>
 </body>
 </html>

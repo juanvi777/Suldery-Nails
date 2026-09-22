@@ -63,7 +63,6 @@ const allowedCorsOrigins = new Set([...requiredCorsOrigins, ...configuredCorsOri
 function isAllowedCorsOrigin(origin) {
   if (!origin) return true;
   if (allowedCorsOrigins.has(origin)) return true;
-  if (/^https:\/\/[a-z0-9-]+\.github\.io$/i.test(origin)) return true;
   if (/^https:\/\/[a-z0-9-]+\.up\.railway\.app$/i.test(origin)) return true;
   return /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
 }
@@ -606,6 +605,55 @@ async function hasAppointmentOverlap(date, start, end) {
   return rows[0] || null;
 }
 
+function buildDayTimeline(date, scheduleDay, appointments, duration, blockedIntervals = []) {
+  if (!scheduleDay?.is_open || !Array.isArray(scheduleDay.intervals) || !scheduleDay.intervals.length) return [];
+
+  const starts = scheduleDay.intervals.map(interval => toMinutes(interval.start_time));
+  const ends = scheduleDay.intervals.map(interval => toMinutes(interval.end_time));
+  const firstStart = Math.min(...starts);
+  const lastEnd = Math.max(...ends);
+  const earliestAllowed = isToday(date)
+    ? Math.max(0, Math.ceil(colombiaCurrentMinutes() / SLOT_STEP) * SLOT_STEP)
+    : 0;
+  const timeline = [];
+
+  for (let minute = firstStart; minute < lastEnd; minute += SLOT_STEP) {
+    const end = minute + duration;
+    let status = 'unavailable';
+    let reason = 'No hay tiempo suficiente para terminar el servicio en este tramo.';
+    const appointment = appointments.find(appt => {
+      const start = toMinutes(appt.appointment_time);
+      const apptEnd = start + (Number(appt.duration_minutes) || 60);
+      return minute < apptEnd && end > start;
+    });
+
+    if (isToday(date) && minute < earliestAllowed) {
+      status = 'past';
+      reason = 'Esta hora ya pasó.';
+    } else if (slotOverlapsLunch(minute, end)) {
+      status = 'lunch';
+      reason = 'Almuerzo de Suldery: 12:00 PM – 1:00 PM.';
+    } else if (slotOverlapsIntervals(minute, end, blockedIntervals)) {
+      status = 'blocked';
+      reason = 'Hay una pausa/bloqueo en este horario.';
+    } else if (appointment) {
+      status = 'occupied';
+      reason = `${appointment.client_name || 'Una clienta'} ya ocupa parte de este horario.`;
+    } else if (slotFitsSchedule(minute, end, scheduleDay, blockedIntervals)) {
+      status = 'available';
+      reason = 'Este horario está disponible para el servicio elegido.';
+    }
+
+    timeline.push({
+      time: toTime(minute).slice(0, 5),
+      status,
+      reason,
+      client_name: appointment?.client_name || null
+    });
+  }
+  return timeline;
+}
+
 function slotsForDate(date, scheduleDay, appointments, duration = 60, blockedIntervals = []) {
   if (!scheduleDay?.is_open || !Array.isArray(scheduleDay.intervals)) return [];
   const slots = [];
@@ -857,7 +905,8 @@ app.get('/api/appointments/slots', authRequired, async (req, res) => {
       getBlockedIntervals(date)
     ]);
     const slots = slotsForDate(date, scheduleDay, appointments, duration, blockedIntervals);
-    res.json({ date, service, duration, blocked_intervals: blockedIntervals, slots, message: dayMessage(date, scheduleDay, slots) });
+    const timeline = buildDayTimeline(date, scheduleDay, appointments, duration, blockedIntervals);
+    res.json({ date, service, duration, blocked_intervals: blockedIntervals, slots, timeline, message: dayMessage(date, scheduleDay, slots) });
   } catch {
     res.status(500).json({ message: 'No se pudieron cargar los horarios.' });
   }
@@ -1414,36 +1463,54 @@ app.post('/api/appointments', authRequired, async (req, res) => {
       if (start <= currentMinutes) return res.status(409).json({ message: 'Esa hora ya pasó. Elige otra.' });
     }
 
-    const appointmentId = await withAppointmentDateLock(date, async connection => {
+    const result = await withAppointmentDateLock(date, async connection => {
+      const [sameExact] = await connection.query(
+        `SELECT id FROM appointments
+         WHERE user_id=? AND appointment_date=? AND appointment_time=? AND service=?
+           AND status IN ('pending','accepted') LIMIT 1`,
+        [req.auth.id, date, `${time}:00`, service]
+      );
+      if (sameExact.length) return { id: sameExact[0].id, alreadyExists: true };
+
       const lockedAppointments = await getDayAppointmentsWithConnection(connection, date);
       if (!slotIsFree(start, duration, lockedAppointments)) {
         const error = new Error('Ese horario ya no está disponible. Elige otro.');
         error.statusCode = 409;
         throw error;
       }
-      const [same] = await connection.query(
+
+      const [sameOverlap] = await connection.query(
         `SELECT id FROM appointments
          WHERE user_id=? AND appointment_date=? AND status IN ('pending','accepted')
          AND appointment_time < ? AND ADDTIME(appointment_time, SEC_TO_TIME(duration_minutes*60)) > ?`,
         [req.auth.id, date, `${time}:00`, `${time}:00`]
       );
-      if (same.length) {
-        const error = new Error('Ya tienes una cita que se cruza con ese horario.');
+      if (sameOverlap.length) {
+        const error = new Error('Ya tienes otra cita que se cruza con ese horario. Elige el espacio que está marcado como disponible.');
         error.statusCode = 409;
         throw error;
       }
-      const [result] = await connection.query(
+
+      const [insertResult] = await connection.query(
         `INSERT INTO appointments(user_id,client_name,client_phone,service,duration_minutes,appointment_date,appointment_time,status)
          VALUES(?,?,?,?,?,?,?,'pending')`,
         [req.auth.id, user.name, user.phone || null, service, duration, date, `${time}:00`]
       );
-      return result.insertId;
+      return { id: insertResult.insertId, alreadyExists: false };
     });
-    void notifyNewClientAppointment({ id: appointmentId, clientName: user.name, phone: user.phone || '', service, date, time });
+
+    if (!result.alreadyExists) {
+      void notifyNewClientAppointment({ id: result.id, clientName: user.name, phone: user.phone || '', service, date, time });
+    }
+
     const firstName = user.name.split(/\s+/)[0] || user.name;
     const prettyDate = date.split('-').reverse().join('/');
-    res.status(201).json({
-      message: `Hola ${firstName} 💕, tu cita quedó solicitada para el ${prettyDate} a las ${formatTime12(time)} para ${service}. La solicitud está en espera de confirmación por parte de Suldery. Te avisaremos apenas haya una respuesta. 💕✨`
+    res.status(result.alreadyExists ? 200 : 201).json({
+      already_exists: result.alreadyExists,
+      appointment_id: result.id,
+      message: result.alreadyExists
+        ? `Hola ${firstName} 💕, esta solicitud ya quedó registrada para el ${prettyDate} a las ${formatTime12(time)} para ${service}. Suldery ya puede revisarla; no necesitas volver a enviarla. ✨`
+        : `Hola ${firstName} 💕, tu cita quedó solicitada para el ${prettyDate} a las ${formatTime12(time)} para ${service}. La solicitud está en espera de confirmación por parte de Suldery. Te avisaremos apenas haya una respuesta. 💕✨`
     });
   } catch (error) {
     console.error(error);

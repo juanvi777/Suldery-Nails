@@ -24,6 +24,19 @@ function moveCatalog(direction) {
   renderCatalog();
 }
 
+function preloadNearbyPhotos() {
+  if (!catalogPhotos.length) return;
+  const offsets = [1, 2, 3, -1, -2, -3];
+  offsets.forEach(offset => {
+    const index = (catalogIndex + offset + catalogPhotos.length) % catalogPhotos.length;
+    const photo = catalogPhotos[index];
+    if (!photo?.image_url) return;
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = photo.image_url;
+  });
+}
+
 function renderCatalog() {
   const counter = document.getElementById('catalogCounter');
   const title = document.getElementById('catalogTitle');
@@ -46,6 +59,11 @@ function renderCatalog() {
   title.textContent = photo.title || 'Diseño Suldery Nails';
   image.src = photo.image_url;
   image.alt = photo.title || 'Diseño de Suldery Nails';
+  image.loading = 'eager';
+  image.decoding = 'async';
+  image.classList.add('is-loading');
+  image.onload = () => image.classList.remove('is-loading');
+  preloadNearbyPhotos();
   dots.innerHTML = '';
   catalogPhotos.forEach((_, index) => {
     const dot = document.createElement('button');

@@ -125,7 +125,7 @@ async function initDuena() {
   ownerUser = await requireRole('owner');
   if (!ownerUser) return;
   const now = new Date();
-  $d('ownerDateLabel').textContent = now.toLocaleDateString('es-CO', { weekday:'long', day:'numeric', month:'long' });
+  $d('ownerDateLabel').textContent = new Intl.DateTimeFormat('es-CO', { timeZone:'America/Bogota', weekday:'long', day:'numeric', month:'long' }).format(now);
   const today = localISODate(now);
   $d('ownerAppointmentDate').min = today;
   $d('ownerAppointmentDate').value = today;
@@ -827,6 +827,19 @@ async function loadOwnerCatalog() {
   }
 }
 
+function preloadOwnerCatalogNeighbors() {
+  if (!ownerCatalogCache.length) return;
+  const offsets = [1, 2, -1, -2];
+  offsets.forEach(offset => {
+    const index = (ownerCatalogIndex + offset + ownerCatalogCache.length) % ownerCatalogCache.length;
+    const photo = ownerCatalogCache[index];
+    if (!photo?.image_url) return;
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = photo.image_url;
+  });
+}
+
 function renderCatalogOwnerViewer() {
   const counter = $d('catalogOwnerCounter');
   const title = $d('catalogOwnerTitle');
@@ -849,7 +862,13 @@ function renderCatalogOwnerViewer() {
   const photo = ownerCatalogCache[ownerCatalogIndex];
   if (counter) counter.textContent = `${ownerCatalogIndex + 1} de ${ownerCatalogCache.length}`;
   if (title) title.textContent = photo.title || 'Diseño Suldery Nails';
-  if (image) { image.src = photo.image_url; image.alt = photo.title || 'Diseño de Suldery Nails'; }
+  if (image) {
+    image.src = photo.image_url;
+    image.alt = photo.title || 'Diseño de Suldery Nails';
+    image.loading = 'eager';
+    image.decoding = 'async';
+  }
+  preloadOwnerCatalogNeighbors();
 }
 
 function moveCatalogViewer(direction) {

@@ -12,6 +12,15 @@ function pageUrl(file = 'index.html') {
 }
 
 
+// Protección básica de interfaz: dificulta menús y atajos accidentales, pero el código del navegador nunca puede ocultarse al 100%.
+(function deterBasicInspection(){
+  document.addEventListener('contextmenu', e => e.preventDefault(), {capture:true});
+  document.addEventListener('keydown', e => {
+    const k = String(e.key || '').toLowerCase();
+    if (k === 'f12' || (e.ctrlKey && e.shiftKey && ['i','j','c'].includes(k)) || (e.ctrlKey && k === 'u')) e.preventDefault();
+  }, {capture:true});
+})();
+
 function clearSession() {
   localStorage.removeItem('suldery_token');
   localStorage.removeItem('suldery_user');
@@ -280,7 +289,7 @@ async function getSulderyServiceWorker() {
     throw new Error('Este dispositivo no permite instalar el sistema de avisos.');
   }
   if (!sulderyServiceWorkerRegistration) {
-    const swUrl = new URL('sw.js?v=20260919-v39', location.href);
+    const swUrl = new URL('sw.js?v=20260922-v45', location.href);
     sulderyServiceWorkerRegistration = await navigator.serviceWorker.register(swUrl, { scope: './' });
   }
   return await navigator.serviceWorker.ready;
@@ -396,7 +405,7 @@ window.enablePendingSulderyPush = enablePendingSulderyPush;
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    const swUrl = new URL('sw.js?v=20260919-v39', location.href);
+    const swUrl = new URL('sw.js?v=20260922-v45', location.href);
     navigator.serviceWorker.register(swUrl, { scope: './' }).catch(() => {});
   });
 }

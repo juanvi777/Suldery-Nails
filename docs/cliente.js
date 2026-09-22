@@ -2,7 +2,7 @@ let currentUser = null;
 let currentMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let selectedDate = '';
 let selectedTime = '';
-let selectedService = 'Manicure semipermanente';
+let selectedService = '';
 let calendarData = new Map();
 let carouselIndex = 0;
 let carouselTimer = null;
@@ -21,8 +21,18 @@ function safeFormatTime12(timeValue) {
 function isoDate(year, month, day) { return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`; }
 function monthKey(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; }
 function serviceDuration(service) { return {'Manicure semipermanente':90,'Pedicure semipermanente':60,'Dipping':120,'Press on':120}[service] || 0; }
-function durationLabel(minutes) { if(minutes===60)return '1 hora'; if(minutes===120)return '2 horas'; if(minutes===90)return '1 h 30 min'; return `${minutes} min`; }
-function updateServiceDurationHint(){ $('serviceDurationHint').textContent=`Duración de la cita: ${durationLabel(serviceDuration($('service').value))}`; }
+function durationLabel(minutes) {
+  if (minutes === 60) return '1 hora';
+  if (minutes === 120) return '2 horas';
+  if (minutes === 90) return '1 h 30 min';
+  return `${minutes} min`;
+}
+function updateServiceDurationHint(){
+  const service = $('service').value;
+  $('serviceDurationHint').textContent = service
+    ? `Duración de la cita: ${durationLabel(serviceDuration(service))}`
+    : 'Primero elige qué servicio deseas realizarte.';
+}
 function setStepVisibility(element,visible){ if(element) element.classList.toggle('hidden-step',!visible); }
 
 async function initCliente(){
@@ -35,6 +45,7 @@ async function initCliente(){
   $('enableNotificationsButton')?.addEventListener('click', async () => { try { await enableSulderyPush(); $('enableNotificationsButton').textContent='🔔 Avisos activos'; alert('Listo 💕. Este dispositivo recibirá tus avisos importantes.'); } catch (error) { alert(error.message); } });
   $('service').addEventListener('change',onServiceChange);
   updateServiceDurationHint();
+  renderCalendar();
   await refreshCalendar();
   await Promise.all([loadAppointments(),loadGallery()]);
   try { const push = await getSulderyPushStatus(); if (push.subscribed && $('enableNotificationsButton')) $('enableNotificationsButton').textContent='🔔 Avisos activos'; } catch {}
@@ -43,60 +54,207 @@ async function initCliente(){
 function openBooking(){ $('agenda').classList.remove('hidden-booking'); setTimeout(()=>$('agenda').scrollIntoView({behavior:'smooth',block:'start'}),20); $('calendarFeedback').textContent='Selecciona un día disponible para continuar.'; }
 function closeBooking(){ $('agenda').classList.add('hidden-booking'); resetBooking(); window.scrollTo({top:0,behavior:'smooth'}); }
 function resetBooking(){
-  selectedDate=''; selectedTime=''; selectedService='Manicure semipermanente'; $('service').value=selectedService; updateServiceDurationHint();
+  selectedDate=''; selectedTime=''; selectedService=''; $('service').value=''; updateServiceDurationHint();
   setStepVisibility($('serviceStep'),true); setStepVisibility($('bookingSummary'),false); setStepVisibility($('bookingButton'),false);
   $('calendarFeedback').textContent='Selecciona un día disponible para continuar.'; $('timeSlots').innerHTML='<span class="time-help">Primero selecciona una fecha.</span>'; $('timeHint').textContent='Selecciona primero un día'; setMessage($('bookingMessage'),''); renderCalendar();
 }
 async function onServiceChange(){
-  selectedService=$('service').value; updateServiceDurationHint(); selectedTime=''; selectedDate=''; setStepVisibility($('bookingSummary'),false); setStepVisibility($('bookingButton'),false); $('timeSlots').innerHTML='<span class="time-help">Primero selecciona una fecha.</span>'; await refreshCalendar();
+  selectedService = $('service').value;
+  updateServiceDurationHint();
+  selectedTime = '';
+  selectedDate = '';
+  setStepVisibility($('bookingSummary'), false);
+  setStepVisibility($('bookingButton'), false);
+  clearTimeSelection();
+  if (!selectedService) {
+    $('calendarFeedback').textContent = 'Primero elige un servicio. Así te mostraremos solo los días y horas que realmente pueden funcionar.';
+    renderCalendar();
+    return;
+  }
+  await refreshCalendar();
 }
 async function previousMonth(){const now=new Date();const minMonth=new Date(now.getFullYear(),now.getMonth(),1);const target=new Date(currentMonth.getFullYear(),currentMonth.getMonth()-1,1);if(target<minMonth)return;currentMonth=target;selectedDate='';selectedTime='';setStepVisibility($('bookingSummary'),false);setStepVisibility($('bookingButton'),false);clearTimeSelection();await refreshCalendar();}
 async function nextMonth(){currentMonth=new Date(currentMonth.getFullYear(),currentMonth.getMonth()+1,1);selectedDate='';selectedTime='';setStepVisibility($('bookingSummary'),false);setStepVisibility($('bookingButton'),false);clearTimeSelection();await refreshCalendar();}
 async function refreshCalendar(){
-  const key=monthKey(currentMonth); $('calendarMonthLabel').textContent=new Date(currentMonth).toLocaleDateString('es-CO',{month:'long',year:'numeric'});
-  try{const data=await apiFetch(`/calendar?month=${encodeURIComponent(key)}&service=${encodeURIComponent(selectedService)}`);calendarData=new Map(data.days.map(day=>[day.date,day]));renderCalendar();}
-  catch(error){$('calendarFeedback').textContent=error.message;shake(document.querySelector('.booking-card'));}
+  const key = monthKey(currentMonth);
+  $('calendarMonthLabel').textContent = new Date(currentMonth).toLocaleDateString('es-CO', { month:'long', year:'numeric' });
+
+  if (!selectedService) {
+    calendarData = new Map();
+    renderCalendar();
+    return;
+  }
+
+  try {
+    const data = await apiFetch(`/calendar?month=${encodeURIComponent(key)}&service=${encodeURIComponent(selectedService)}`);
+    calendarData = new Map(data.days.map(day => [day.date, day]));
+    renderCalendar();
+  } catch (error) {
+    $('calendarFeedback').textContent = error.message;
+    shake(document.querySelector('.booking-card'));
+  }
 }
 function renderCalendar(){
   const year=currentMonth.getFullYear(), month=currentMonth.getMonth(); const first=(new Date(year,month,1).getDay()+6)%7; const days=new Date(year,month+1,0).getDate(); const grid=$('calendarDays'); grid.innerHTML='';
   for(let i=0;i<first;i++){const empty=document.createElement('span');empty.className='calendar-empty';grid.appendChild(empty);} const today=new Date();today.setHours(0,0,0,0);
   for(let day=1;day<=days;day++){
-    const date=isoDate(year,month,day); const meta=calendarData.get(date)||{status:'closed',slots:0,message:'Fecha no disponible.'}; const localDate=new Date(year,month,day); const button=document.createElement('button');button.type='button';button.className=`calendar-day ${meta.status}`;if(date===selectedDate)button.classList.add('selected');if(localDate.getTime()===today.getTime())button.classList.add('today');
+    const date=isoDate(year,month,day);
+    const meta = !selectedService
+      ? {status:'past',slots:0,message:'Primero elige un servicio.'}
+      : (calendarData.get(date)||{status:'closed',slots:0,message:'Fecha no disponible.'}); const localDate=new Date(year,month,day); const button=document.createElement('button');button.type='button';button.className=`calendar-day ${meta.status}`;if(date===selectedDate)button.classList.add('selected');if(localDate.getTime()===today.getTime())button.classList.add('today');
     const weekday=localDate.toLocaleDateString('es-CO',{weekday:'short'}).replace('.',''); const statusLabel=meta.status==='available'?'Disponible':meta.status==='blocked'?'Bloqueado':meta.status==='rest'?'Descanso':meta.status==='full'?'Agotado':meta.status==='past'?'Pasado':'No disponible';
     button.innerHTML=`<strong>${day}</strong><span class="calendar-weekday">${weekday}</span><small>${statusLabel}</small>`;
     if(meta.status==='past'){button.disabled=true;button.title='Esta fecha ya pasó.';} else if(meta.status==='available'){button.addEventListener('click',()=>selectDate(date));button.title=`${meta.slots} horario${meta.slots===1?'':'s'} disponible${meta.slots===1?'':'s'}`;} else {button.addEventListener('click',()=>showDayMessage(meta));button.title=meta.message;}
     grid.appendChild(button);
   }
-  $('previousMonth').disabled=currentMonth<=new Date(today.getFullYear(),today.getMonth(),1);
+  $('previousMonth').disabled = !selectedService || currentMonth <= new Date(today.getFullYear(),today.getMonth(),1);
+  $('nextMonth').disabled = !selectedService;
+  if (!selectedService) $('calendarFeedback').textContent = '💕 Primero elige un servicio. Después podrás elegir el día y te mostraremos exactamente qué horas quedan libres.';
 }
 function showDayMessage(meta){selectedDate='';selectedTime='';setStepVisibility($('bookingSummary'),false);setStepVisibility($('bookingButton'),false);renderCalendar();clearTimeSelection();$('calendarFeedback').textContent=meta.message;shake($('calendarFeedback'));}
 async function selectDate(date){
-  selectedDate=date; selectedTime=''; setStepVisibility($('bookingSummary'),false); setStepVisibility($('bookingButton'),false); renderCalendar(); $('calendarFeedback').textContent=`Elegiste ${formatDate(date)}. Ahora escoge una hora que complete ${durationLabel(serviceDuration(selectedService))}.`; $('timeHint').textContent=`Turnos para ${durationLabel(serviceDuration(selectedService))}`; $('timeSlots').innerHTML='<span class="time-help">Cargando horarios…</span>';
-  try{const data=await apiFetch(`/appointments/slots?date=${encodeURIComponent(date)}&service=${encodeURIComponent(selectedService)}`);renderSlots(data.slots);if(!data.slots.length){$('calendarFeedback').textContent=data.message||'No hay horarios disponibles para ese día.';shake($('calendarFeedback'));}}catch(error){$('timeSlots').innerHTML=`<span class="time-help">${escapeHtml(error.message)}</span>`;shake(document.querySelector('.booking-card'));}
+  if (!selectedService) {
+    $('calendarFeedback').textContent = 'Primero elige el servicio para saber qué horarios realmente te sirven.';
+    return;
+  }
+
+  selectedDate = date;
+  selectedTime = '';
+  setStepVisibility($('bookingSummary'), false);
+  setStepVisibility($('bookingButton'), false);
+  renderCalendar();
+  $('calendarFeedback').textContent = `Elegiste ${formatDate(date)}. Ahora revisemos el horario completo para ${durationLabel(serviceDuration(selectedService))}.`;
+  $('timeHint').textContent = `Turnos de ${durationLabel(serviceDuration(selectedService))}`;
+  $('timeSlots').innerHTML = '<span class="time-help">Cargando horarios…</span>';
+  $('dayTimeline').innerHTML = '<p class="time-help">Cargando el estado de todo el día…</p>';
+
+  try {
+    const data = await apiFetch(`/appointments/slots?date=${encodeURIComponent(date)}&service=${encodeURIComponent(selectedService)}`);
+    renderSlots(data.slots || []);
+    renderDayTimeline(data.timeline || [], data.slots || []);
+    if (!data.slots?.length) {
+      $('calendarFeedback').textContent = data.message || 'Ese día no tiene un espacio que complete todo el servicio.';
+    }
+  } catch (error) {
+    $('timeSlots').innerHTML = `<span class="time-help">${escapeHtml(error.message)}</span>`;
+    $('dayTimeline').innerHTML = `<p class="time-help">${escapeHtml(error.message)}</p>`;
+    shake(document.querySelector('.booking-card'));
+  }
 }
-function renderSlots(slots){const wrap=$('timeSlots');wrap.innerHTML='';if(!slots.length){wrap.innerHTML='<span class="time-help">No quedan horas disponibles para este día.</span>';return;}slots.forEach(time=>{const button=document.createElement('button');button.type='button';button.className='time-slot';button.textContent=safeFormatTime12(time);if(time===selectedTime)button.classList.add('selected');button.addEventListener('click',()=>selectTime(time));wrap.appendChild(button);});}
+
+function renderSlots(slots){
+  const wrap = $('timeSlots');
+  wrap.innerHTML = '';
+  if (!slots.length) {
+    wrap.innerHTML = '<span class="time-help">No queda una hora que permita completar el servicio sin cruzar una cita, una pausa o el almuerzo.</span>';
+    return;
+  }
+  slots.forEach(time => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'time-slot';
+    button.dataset.time = time;
+    button.textContent = safeFormatTime12(time);
+    button.title = `Comienza a las ${safeFormatTime12(time)}`;
+    if (time === selectedTime) button.classList.add('selected');
+    button.addEventListener('click', () => selectTime(time));
+    wrap.appendChild(button);
+  });
+}
+
+function timelineStatusLabel(status, reason) {
+  if (status === 'available') return 'Disponible';
+  if (status === 'occupied') return 'Ocupado';
+  if (status === 'lunch') return 'Almuerzo';
+  if (status === 'blocked') return 'Bloqueado';
+  if (status === 'past') return 'Hora pasada';
+  return reason || 'No disponible';
+}
+
+function renderDayTimeline(timeline, availableSlots) {
+  const box = $('dayTimeline');
+  box.innerHTML = '';
+  if (!timeline.length) {
+    box.innerHTML = '<p class="time-help">No hay jornada configurada para este día.</p>';
+    return;
+  }
+
+  const available = new Set(availableSlots);
+  timeline.forEach(item => {
+    const row = document.createElement('div');
+    row.className = `day-timeline-row ${item.status}`;
+    if (available.has(item.time)) row.classList.add('is-selectable');
+    row.innerHTML = `
+      <strong>${safeFormatTime12(item.time)}</strong>
+      <span>${escapeHtml(timelineStatusLabel(item.status, item.reason))}</span>
+    `;
+    if (item.status === 'occupied' && item.client_name) {
+      row.title = `${item.client_name} ya tiene una cita a esta hora.`;
+    } else if (item.reason) {
+      row.title = item.reason;
+    }
+    if (available.has(item.time)) {
+      row.addEventListener('click', () => selectTime(item.time));
+    }
+    box.appendChild(row);
+  });
+}
+
 function selectTime(time){selectedTime=time;document.querySelectorAll('.time-slot').forEach(button=>button.classList.toggle('selected',button.dataset.time===time));$('calendarFeedback').textContent=`${formatDate(selectedDate)} a las ${safeFormatTime12(time)}. Verifica los datos antes de confirmar.`;updateSummary();}
 function updateSummary(){ $('summaryDate').textContent=formatDate(selectedDate); $('summaryTime').textContent=safeFormatTime12(selectedTime); $('summaryService').textContent=selectedService; $('summaryDuration').textContent=durationLabel(serviceDuration(selectedService)); setStepVisibility($('bookingSummary'),true);setStepVisibility($('bookingButton'),true);$('bookingSummary').scrollIntoView({behavior:'smooth',block:'nearest'}); }
-function clearTimeSelection(){$('timeSlots').innerHTML='<span class="time-help">Primero selecciona un día disponible.</span>';$('timeHint').textContent='Selecciona primero un día';setMessage($('bookingMessage'),'');}
+function clearTimeSelection(){
+  $('timeSlots').innerHTML='<span class="time-help">Primero elige un servicio y después un día.</span>';
+  $('dayTimeline').innerHTML='<p class="time-help">Aquí aparecerá el estado del horario cuando elijas un día.</p>';
+  $('timeHint').textContent='Selecciona primero un servicio y un día';
+  setMessage($('bookingMessage'),'');
+}
 async function crearCita(){
-  const message=$('bookingMessage'),button=$('bookingButton'); if(!selectedDate){setMessage(message,'Primero selecciona un día disponible.');return;} if(!selectedTime){setMessage(message,'Ahora selecciona una hora disponible.');return;} if(!selectedService){setMessage(message,'Selecciona el servicio.');return;}
-  button.disabled=true;setMessage(message,'Enviando tu solicitud a Suldery… 💕');
-  try{
-    const data=await apiFetch('/appointments',{method:'POST',body:JSON.stringify({service:selectedService,date:selectedDate,time:selectedTime})});
-    const booked=selectedDate;
-    setMessage(message,data.message || '💕 Tu cita quedó solicitada y está en espera de confirmación por parte de Suldery. Te avisaremos cuando haya una respuesta. ✨',true);
-    $('calendarFeedback').textContent='💕 Tu solicitud quedó enviada y está pendiente de confirmación. No tienes que hacer nada más por ahora.';
+  const message = $('bookingMessage');
+  const button = $('bookingButton');
+  if (!selectedService) { setMessage(message, 'Primero selecciona el servicio que deseas realizarte.'); return; }
+  if (!selectedDate) { setMessage(message, 'Primero selecciona un día disponible.'); return; }
+  if (!selectedTime) { setMessage(message, 'Ahora selecciona una hora disponible.'); return; }
+
+  button.disabled = true;
+  setMessage(message, 'Enviando tu solicitud a Suldery… 💕');
+
+  try {
+    const data = await apiFetch('/appointments', {
+      method:'POST',
+      body:JSON.stringify({ service:selectedService, date:selectedDate, time:selectedTime })
+    });
+
+    const bookedDate = selectedDate;
+    const successMessage = data.message || `💕 Tu cita para ${formatDate(bookedDate)} a las ${safeFormatTime12(selectedTime)} quedó enviada y está pendiente de confirmación por parte de Suldery.`;
+
+    // La creación de la cita ya fue confirmada por el servidor. Las actualizaciones
+    // de la agenda se hacen aparte para que un fallo secundario de carga nunca
+    // convierta una cita guardada en un falso mensaje de “espacio ocupado”.
+    setMessage(message, successMessage, true);
+    $('calendarFeedback').textContent = data.already_exists
+      ? '💕 Esta solicitud ya estaba registrada. Suldery la está revisando.'
+      : '💕 Tu solicitud quedó enviada y está pendiente de confirmación. Te avisaremos cuando haya una respuesta.';
     $('calendarFeedback').classList.add('success');
-    selectedTime='';
-    setStepVisibility($('bookingSummary'),false);
-    setStepVisibility($('bookingButton'),false);
-    $('timeSlots').innerHTML='<span class="time-help success-help">💕 Solicitud enviada. Esta cita queda pendiente de confirmación de Suldery.</span>';
-    await Promise.all([loadAppointments(),refreshCalendar()]);
-    selectedDate=booked;
-    renderCalendar();
+    selectedTime = '';
+    setStepVisibility($('bookingSummary'), false);
+    setStepVisibility($('bookingButton'), false);
+    $('timeSlots').innerHTML = '<span class="time-help success-help">💕 Solicitud enviada. Esta cita queda pendiente de confirmación de Suldery.</span>';
+
+    try {
+      await loadAppointments();
+      await refreshCalendar();
+      selectedDate = bookedDate;
+      renderCalendar();
+    } catch (refreshError) {
+      console.warn('La cita ya fue creada; no se pudo refrescar toda la agenda:', refreshError);
+    }
+  } catch (error) {
+    setMessage(message, error.message);
+    shake(document.querySelector('.booking-card'));
+    try { await refreshCalendar(); } catch {}
+  } finally {
+    button.disabled = false;
   }
-  catch(error){setMessage(message,error.message);shake(document.querySelector('.booking-card'));await refreshCalendar();}
-  finally{button.disabled=false;}
 }
 
 async function loadAppointments(){const data=await apiFetch('/appointments/my');const list=$('appointmentsList');list.innerHTML='';if(!data.appointments.length){list.innerHTML='<div class="empty-state">Todavía no tienes citas.</div>';return;}data.appointments.forEach(appt=>{const item=document.createElement('article');item.className='appointment-item';const statusText=appt.status==='accepted'?'Confirmada':appt.status==='pending'?'Pendiente de confirmación':appt.status==='cancelled'?'Cancelada':'Rechazada';item.innerHTML=`<div class="appointment-top"><strong>${escapeHtml(appt.service)}</strong><span class="status ${appt.status}">${statusText}</span></div><p>${formatDate(appt.appointment_date)} · ${safeFormatTime12(appt.appointment_time)} · ${durationLabel(Number(appt.duration_minutes))}</p>`;if(['pending','accepted'].includes(appt.status)){const cancel=document.createElement('button');cancel.type='button';cancel.className='link-button subtle-link';cancel.textContent='Cancelar cita';cancel.addEventListener('click',()=>cancelarCita(appt.id));item.appendChild(cancel);}list.appendChild(item);});}

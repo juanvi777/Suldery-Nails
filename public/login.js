@@ -1,3 +1,12 @@
+function renderPublicDate() {
+  const el = document.getElementById('publicDateLabel');
+  if (!el) return;
+  const value = new Intl.DateTimeFormat('es-CO', {
+    timeZone: 'America/Bogota', weekday: 'long', day: 'numeric', month: 'long'
+  }).format(new Date());
+  el.textContent = `Hoy · ${value}`;
+}
+
 
 async function loadLoginGallery() {
   const gallery = document.getElementById('loginGallery');
@@ -131,6 +140,7 @@ togglePassword.addEventListener('click', () => {
 });
 
 
+renderPublicDate();
 loadLoginGallery();
 
 const forgotPasswordButton = document.getElementById('forgotPasswordButton');
