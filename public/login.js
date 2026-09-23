@@ -1,0 +1,156 @@
+function renderPublicDate() {
+  const el = document.getElementById('publicDateLabel');
+  if (!el) return;
+  const value = new Intl.DateTimeFormat('es-CO', {
+    timeZone: 'America/Bogota', weekday: 'long', day: 'numeric', month: 'long'
+  }).format(new Date());
+  el.textContent = `Hoy · ${value}`;
+}
+
+
+async function loadLoginGallery() {
+  const gallery = document.getElementById('loginGallery');
+  if (!gallery) return;
+  try {
+    const data = await apiFetch('/portfolio?visibility=login');
+
+    gallery.innerHTML = '';
+    if (!data.photos?.length) {
+      gallery.innerHTML = '<div class="empty-state">Pronto podrás ver nuestros diseños aquí.</div>';
+      return;
+    }
+
+    let index = 0;
+    const stage = document.createElement('div');
+    stage.className = 'carousel-stage login-carousel-stage';
+    const image = document.createElement('img');
+    image.className = 'carousel-image';
+    image.alt = 'Diseño de Suldery Nails';
+    stage.appendChild(image);
+
+    const render = () => {
+      image.src = data.photos[index].image_url;
+      image.alt = data.photos[index].title || 'Diseño de Suldery Nails';
+      dots.forEach((dot, i) => dot.classList.toggle('active', i === index));
+    };
+    const previous = document.createElement('button');
+    previous.type = 'button';
+    previous.className = 'carousel-arrow left';
+    previous.textContent = '‹';
+    previous.setAttribute('aria-label', 'Foto anterior');
+    previous.addEventListener('click', () => { index = (index - 1 + data.photos.length) % data.photos.length; render(); });
+    const next = document.createElement('button');
+    next.type = 'button';
+    next.className = 'carousel-arrow right';
+    next.textContent = '›';
+    next.setAttribute('aria-label', 'Foto siguiente');
+    next.addEventListener('click', () => { index = (index + 1) % data.photos.length; render(); });
+    stage.append(previous, next);
+
+    const dots = [];
+    const dotsWrap = document.createElement('div');
+    dotsWrap.className = 'carousel-dots';
+    data.photos.forEach((_, i) => {
+      const dot = document.createElement('button');
+      dot.type = 'button';
+      dot.className = 'carousel-dot';
+      dot.setAttribute('aria-label', `Ver foto ${i + 1}`);
+      dot.addEventListener('click', () => { index = i; render(); });
+      dots.push(dot);
+      dotsWrap.appendChild(dot);
+    });
+    gallery.append(stage, dotsWrap);
+    render();
+
+    if (data.photos.length > 1) {
+      window.setInterval(() => { index = (index + 1) % data.photos.length; render(); }, 5000);
+    }
+  } catch {
+    gallery.innerHTML = '<div class="empty-state">No se pudo cargar el portafolio ahora.</div>';
+  }
+}
+
+const loginForm = document.getElementById('loginForm');
+const loginButton = document.getElementById('loginButton');
+const loginMessage = document.getElementById('loginMessage');
+const passwordInput = document.getElementById('loginPassword');
+const togglePassword = document.getElementById('togglePassword');
+
+function friendlyLoginMessage(message) {
+  const text = String(message || '');
+  if (/incorrectos|inválid/i.test(text)) return 'Correo o contraseña incorrectos.';
+  return text || 'No se pudo iniciar sesión.';
+}
+
+function showLoginError(message) {
+  setMessage(loginMessage, friendlyLoginMessage(message));
+  shake(loginForm);
+}
+
+function setLoginBusy(busy) {
+  loginButton.disabled = busy;
+  loginButton.innerHTML = busy ? 'Verificando… <span class="spinner"></span>' : 'Iniciar sesión <span>→</span>';
+}
+
+async function login() {
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const password = passwordInput.value;
+
+  setMessage(loginMessage, '');
+
+  if (!email || !password) return showLoginError('Completa tu correo y contraseña.');
+  if (!/^\S+@\S+\.\S+$/.test(email)) return showLoginError('Escribe un correo electrónico válido.');
+
+  setLoginBusy(true);
+
+  try {
+    const data = await apiFetch('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password })
+    });
+
+    if (data.token) localStorage.setItem('suldery_token', data.token);
+    localStorage.setItem('suldery_user', JSON.stringify(data.user));
+
+    if (data.user.role === 'owner') {
+      window.location.replace(pageUrl('duena.html'));
+      return;
+    }
+    window.location.replace(pageUrl('cliente.html'));
+  } catch (error) {
+    showLoginError(error.message);
+    passwordInput.value = '';
+    passwordInput.focus();
+  } finally {
+    setLoginBusy(false);
+  }
+}
+
+document.getElementById('goRegister').addEventListener('click', () => { location.href = pageUrl('registro.html'); });
+
+loginForm.addEventListener('submit', event => {
+  event.preventDefault();
+  login();
+});
+
+togglePassword.addEventListener('click', () => {
+  const visible = passwordInput.type === 'text';
+  passwordInput.type = visible ? 'password' : 'text';
+  togglePassword.textContent = visible ? '◉' : '○';
+});
+
+
+renderPublicDate();
+loadLoginGallery();
+
+const forgotPasswordButton = document.getElementById('forgotPasswordButton');
+if (forgotPasswordButton) {
+  forgotPasswordButton.addEventListener('click', () => {
+    const phone = window.prompt('Escribe el número de teléfono con el que registraste tu cuenta:');
+    if (!phone) return;
+    apiFetch('/auth/recovery/request', {
+      method: 'POST',
+      body: JSON.stringify({ phone })
+    }).then(data => alert(data.message)).catch(error => alert(error.message));
+  });
+}

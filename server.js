@@ -20,6 +20,25 @@ if (!JWT_SECRET || JWT_SECRET.length < 32) {
 const isProduction = process.env.NODE_ENV === 'production';
 const uploadDir = path.join(__dirname, 'uploads', 'portfolio');
 
+// Railway debe encontrar siempre el frontend. Si una versión se despliega
+// con docs/ pero sin public/, recuperamos automáticamente el frontend desde
+// docs/ para que / no termine en ENOENT /app/public/index.html.
+const publicDir = path.join(__dirname, 'public');
+const docsDir = path.join(__dirname, 'docs');
+function ensureFrontendDirectory() {
+  const publicIndex = path.join(publicDir, 'index.html');
+  const docsIndex = path.join(docsDir, 'index.html');
+  if (!fs.existsSync(publicIndex) && fs.existsSync(docsIndex)) {
+    fs.mkdirSync(publicDir, { recursive: true });
+    fs.cpSync(docsDir, publicDir, { recursive: true });
+  }
+  if (!fs.existsSync(path.join(publicDir, 'index.html'))) {
+    throw new Error('No se encontró public/index.html ni docs/index.html en el despliegue.');
+  }
+}
+ensureFrontendDirectory();
+const frontendDir = publicDir;
+
 const services = {
   'Manicure semipermanente': 90,
   'Pedicure semipermanente': 60,
@@ -88,7 +107,7 @@ app.use('/public', (req, res, next) => {
   res.redirect(302, target);
 });
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(frontendDir));
 
 const upload = multer({
   // Las fotos del portafolio se guardan en MySQL para que no desaparezcan
@@ -1509,8 +1528,8 @@ app.post('/api/appointments', authRequired, async (req, res) => {
       already_exists: result.alreadyExists,
       appointment_id: result.id,
       message: result.alreadyExists
-        ? `Hola ${firstName} 💕, esta solicitud ya quedó registrada para el ${prettyDate} a las ${formatTime12(time)} para ${service}. Suldery ya puede revisarla; no necesitas volver a enviarla. ✨`
-        : `Hola ${firstName} 💕, tu cita quedó solicitada para el ${prettyDate} a las ${formatTime12(time)} para ${service}. La solicitud está en espera de confirmación por parte de Suldery. Te avisaremos apenas haya una respuesta. 💕✨`
+        ? `Hola ${firstName} 💕, esta solicitud ya quedó registrada para el ${prettyDate} a las ${formatTime12Server(time)} para ${service}. Suldery ya puede revisarla; no necesitas volver a enviarla. ✨`
+        : `Hola ${firstName} 💕, tu cita quedó solicitada para el ${prettyDate} a las ${formatTime12Server(time)} para ${service}. La solicitud está en espera de confirmación por parte de Suldery. Te avisaremos apenas haya una respuesta. 💕✨`
     });
   } catch (error) {
     console.error(error);
@@ -1865,6 +1884,75 @@ app.patch('/api/owner/users/:id/status', authRequired, ownerRequired, async (req
     res.json({ message: 'Estado actualizado correctamente.' });
   } catch {
     res.status(500).json({ message: 'No se pudo actualizar la cuenta.' });
+  }
+});
+
+app.get('/api/owner/password-recovery-requests', authRequired, ownerRequired, async (_req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT r.id,r.user_id,r.phone,r.status,r.created_at,r.resolved_at,
+              u.name,u.email,u.phone AS account_phone
+       FROM password_reset_requests r
+       JOIN users u ON u.id=r.user_id
+       WHERE r.status='pending'
+       ORDER BY r.created_at ASC`
+    );
+    res.json({ requests: rows });
+  } catch (error) {
+    console.error('No se pudieron cargar las solicitudes de recuperación:', error.message);
+    res.status(500).json({ message: 'No se pudieron cargar las solicitudes de recuperación.' });
+  }
+});
+
+app.patch('/api/owner/password-recovery-requests/:id/reset', authRequired, ownerRequired, async (req, res) => {
+  try {
+    const password = String(req.body?.password || '');
+    if (password.length < 6) return res.status(400).json({ message: 'La nueva contraseña debe tener al menos 6 caracteres.' });
+
+    const [rows] = await pool.query(
+      `SELECT r.id,r.user_id,u.name,u.email,u.phone,r.status
+       FROM password_reset_requests r
+       JOIN users u ON u.id=r.user_id
+       WHERE r.id=? AND r.status='pending'
+       LIMIT 1`,
+      [req.params.id]
+    );
+    const request = rows[0];
+    if (!request) return res.status(404).json({ message: 'La solicitud ya no está pendiente o no existe.' });
+
+    const hash = await bcrypt.hash(password, 12);
+    await pool.query('UPDATE users SET password_hash=? WHERE id=?', [hash, request.user_id]);
+    await pool.query(`UPDATE password_reset_requests SET status='resolved', resolved_at=NOW() WHERE id=?`, [request.id]);
+
+    void sendPushToUser(request.user_id,
+      `Hola ${firstNameOf(request.name)}, Suldery ya te ayudó a recuperar tu acceso. Puedes iniciar sesión con tu nueva contraseña. 💕`,
+      clientPanelUrl()
+    );
+
+    res.json({ message: 'Contraseña restablecida correctamente.' });
+  } catch (error) {
+    console.error('No se pudo restablecer la contraseña:', error.message);
+    res.status(500).json({ message: 'No se pudo restablecer la contraseña.' });
+  }
+});
+
+app.patch('/api/owner/password-recovery-requests/:id/status', authRequired, ownerRequired, async (req, res) => {
+  try {
+    const status = String(req.body?.status || '').trim();
+    if (!['resolved', 'rejected', 'pending'].includes(status)) {
+      return res.status(400).json({ message: 'Estado inválido.' });
+    }
+    const [result] = await pool.query(
+      `UPDATE password_reset_requests
+       SET status=?, resolved_at=CASE WHEN ?='pending' THEN NULL ELSE NOW() END
+       WHERE id=?`,
+      [status, status, req.params.id]
+    );
+    if (!result.affectedRows) return res.status(404).json({ message: 'Solicitud de recuperación no encontrada.' });
+    res.json({ message: status === 'resolved' ? 'Solicitud marcada como atendida.' : status === 'rejected' ? 'Solicitud rechazada.' : 'Solicitud devuelta a pendientes.' });
+  } catch (error) {
+    console.error('No se pudo actualizar la solicitud de recuperación:', error.message);
+    res.status(500).json({ message: 'No se pudo actualizar la solicitud de recuperación.' });
   }
 });
 
@@ -2464,7 +2552,7 @@ app.patch('/api/owner/portfolio/:id/move', authRequired, ownerRequired, async (r
 
 app.use((req, res, next) => {
   if (req.method !== 'GET' || req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) return next();
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(frontendDir, 'index.html'));
 });
 
 app.use((error, _req, res, _next) => {
