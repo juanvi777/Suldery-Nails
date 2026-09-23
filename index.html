@@ -1,52 +1,89 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#a71f56" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="application-name" content="Suldery Nails">
+  <meta name="theme-color" content="#0c0b1d">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Suldery Nails">
+  <link rel="icon" type="image/png" sizes="48x48" href="assets/favicon-48.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="assets/suldery-nails-icon-180.png">
   <title>Suldery Nails | Iniciar sesión</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="public/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=20260922-v45">
 </head>
 <body class="auth-page">
-  <main class="access-layout">
+  <main class="auth-shell">
     <section class="brand-panel">
-      <p class="eyebrow">ESTUDIO DE UÑAS</p>
-      <h1>Donde tus manos<br /><em>brillan.</em></h1>
-      <p class="brand-copy">Un espacio creado para que te consientas, brilles y salgas feliz.</p>
-      <div class="suldery-intro"><span>17 años de experiencia</span><p>Hola, soy Suldery. Llevo años dedicando mi corazón a esta hermosa profesión y creando uñas que cuentan tu estilo.</p></div>
-      <div class="mini-card"><span>✦</span><div><strong>Reservas fáciles</strong><small>Elige día y hora desde cualquier dispositivo.</small></div></div>
-      <div class="mini-card"><span>♡</span><div><strong>Atención cercana</strong><small>Tu cuenta queda bajo aprobación para cuidar la agenda.</small></div></div>
+      <div class="brand-panel-inner">
+        <h1>Donde tus uñas<br><em>brillan.</em></h1>
+        <p class="brand-copy">Un rincón tierno para consentirte, elegir tu diseño y salir feliz con unas uñas hechas con amor.</p>
+
+        <div class="experience-cloud">
+          <span class="cloud-sparkle">✦</span>
+          <div>
+            <strong>17 años de experiencia</strong>
+            <p>Soy Suldery, y desde hace 17 años cuido cada detalle de este trabajo con mucho cariño. Mi propósito es que te sientas escuchada, cómoda y feliz con el resultado, desde que eliges tu cita hasta que sales con unas uñas que realmente sientas tuyas. 💕</p>
+          </div>
+        </div>
+
+        <div class="brand-features">
+          <div class="feature-chip"><span>♡</span><div><b>Agenda sencilla</b><small>Elige fecha y hora sin complicarte.</small></div></div>
+          <div class="feature-chip"><span>✿</span><div><b>Atención cercana</b><small>Tu solicitud queda cuidada y organizada.</small></div></div>
+        </div>
+
+        <div class="login-gallery-wrap">
+          <p class="eyebrow">INSPÍRATE</p>
+          <div id="loginGallery" class="carousel-frame login-gallery"></div>
+        </div>
+      </div>
     </section>
 
     <section class="form-panel">
-      <div class="form-content">
-        <img class="access-logo" src="assets\suldery-nails-logo.jpeg" alt="Suldery Nails" />
+      <div class="form-card">
+        <div class="logo-frame">
+          <img src="assets/suldery-nails-logo.jpeg" alt="Logo de Suldery Nails">
+        </div>
         <p class="eyebrow">BIENVENIDA</p>
         <h2>Qué alegría verte</h2>
-        <p>Ingresa a tu cuenta para reservar tu próxima cita.</p>
+        <p class="form-intro">Ingresa a tu cuenta para reservar tu próxima cita.</p>
+        <p id="publicDateLabel" class="page-date-label" aria-live="polite"></p>
 
-        <form id="loginForm" class="auth-form" novalidate>
-          <label>Correo electrónico
-            <input id="loginEmail" type="email" placeholder="tucorreo@ejemplo.com" required autocomplete="username" />
+        <form id="loginForm" novalidate>
+          <label for="loginEmail">Correo electrónico
+            <input id="loginEmail" type="email" autocomplete="username" placeholder="tucorreo@ejemplo.com">
           </label>
-          <label>Contraseña
-            <input id="loginPassword" type="password" placeholder="••••••••" required autocomplete="current-password" />
+          <label for="loginPassword">Contraseña
+            <div class="password-wrap">
+              <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Tu contraseña">
+              <button id="togglePassword" class="password-toggle" type="button" aria-label="Mostrar contraseña">◉</button>
+            </div>
           </label>
           <p id="loginMessage" class="form-message" role="alert"></p>
-          <button id="loginButton" type="button" class="primary-button" onclick="login()">Iniciar sesión <span>→</span></button>
+          <button id="loginButton" class="primary-button" type="submit">Iniciar sesión <span>→</span></button>
         </form>
+
+
+        <button id="installAppButton" class="install-app-button" type="button" hidden>＋ Instalar Suldery Nails</button>
+
+        <div class="switch-block recovery-block">
+          <button id="forgotPasswordButton" class="link-button" type="button">¿Olvidaste tu contraseña?</button>
+        </div>
 
         <div class="switch-block">
           <span>¿Aún no tienes cuenta?</span>
-          <button type="button" class="link-button" onclick="irRegistro()">Regístrate aquí</button>
+          <button id="goRegister" class="link-button" type="button">Regístrate aquí</button>
         </div>
       </div>
     </section>
   </main>
-  <script src="auth.js"></script>
-  <script src="login.js"></script>
+  <script src="auth.js?v=20260922-v45"></script>
+  <script src="login.js?v=20260922-v45"></script>
 </body>
 </html>
