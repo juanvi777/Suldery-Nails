@@ -114,18 +114,19 @@ async function ensureCompatibilityMigrations() {
     KEY idx_catalog_image_hash (image_hash)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
 
-  const [catalogHashRows] = await pool.query("SELECT id,image_data FROM catalog_photos WHERE image_data IS NOT NULL AND (image_hash IS NULL OR image_hash='')");
-  for (const row of catalogHashRows) {
-    const hash = require('crypto').createHash('sha256').update(row.image_data).digest('hex');
-    await pool.query('UPDATE catalog_photos SET image_hash=? WHERE id=?', [hash,row.id]);
-  }
-
+  // Garantiza image_hash antes de cualquier SELECT/UPDATE que la utilice.
   const [catalogHashColumn] = await pool.query(
     `SELECT COUNT(*) AS total FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME='catalog_photos' AND COLUMN_NAME='image_hash'`,
     [DB_NAME]
   );
   if (Number(catalogHashColumn[0]?.total) === 0) {
     await pool.query(`ALTER TABLE catalog_photos ADD COLUMN image_hash CHAR(64) NULL AFTER image_mime`);
+  }
+
+  const [catalogHashRows] = await pool.query("SELECT id,image_data FROM catalog_photos WHERE image_data IS NOT NULL AND (image_hash IS NULL OR image_hash='')");
+  for (const row of catalogHashRows) {
+    const hash = require('crypto').createHash('sha256').update(row.image_data).digest('hex');
+    await pool.query('UPDATE catalog_photos SET image_hash=? WHERE id=?', [hash,row.id]);
   }
 
   await pool.query(
