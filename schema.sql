@@ -36,10 +36,12 @@ CREATE TABLE IF NOT EXISTS portfolio_photos (
   image_mime VARCHAR(80) NULL,
   visibility ENUM('login','client','both') NOT NULL DEFAULT 'both',
   display_order INT NOT NULL DEFAULT 0,
+  image_hash CHAR(64) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_portfolio_order (display_order),
-  KEY idx_portfolio_created_at (created_at)
+  KEY idx_portfolio_created_at (created_at),
+  KEY idx_portfolio_image_hash (image_hash)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS catalog_photos (
@@ -47,11 +49,13 @@ CREATE TABLE IF NOT EXISTS catalog_photos (
   title VARCHAR(160) NOT NULL DEFAULT 'Diseño Suldery Nails',
   image_data MEDIUMBLOB NOT NULL,
   image_mime VARCHAR(80) NOT NULL,
+  image_hash CHAR(64) NULL,
   display_order INT NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_catalog_order (display_order),
-  KEY idx_catalog_created_at (created_at)
+  KEY idx_catalog_created_at (created_at),
+  KEY idx_catalog_image_hash (image_hash)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS working_hours (
@@ -165,6 +169,10 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
   content_encoding VARCHAR(30) NOT NULL DEFAULT 'aes128gcm',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  vapid_key_hash CHAR(64) NULL,
+  last_success_at DATETIME NULL,
+  last_error_at DATETIME NULL,
+  last_error VARCHAR(500) NULL,
   PRIMARY KEY (id),
   UNIQUE KEY uq_push_endpoint_hash (endpoint_hash),
   KEY idx_push_user (user_id),

@@ -42,12 +42,22 @@ function setStepVisibility(element,visible){ if(element) element.classList.toggl
 
 async function initCliente(){
   currentUser=await requireRole('client'); if(!currentUser)return;
+  void syncExistingSulderyPushSubscription();
   $('welcomeName').textContent=`Hola, ${currentUser.name}`;
   $('openBookingButton').addEventListener('click',openBooking);
   $('closeBookingButton').addEventListener('click',closeBooking);
   $('previousMonth').addEventListener('click',previousMonth); $('nextMonth').addEventListener('click',nextMonth);
   $('bookingButton').addEventListener('click',crearCita);
-  $('enableNotificationsButton')?.addEventListener('click', async () => { try { await enableSulderyPush(); $('enableNotificationsButton').textContent='🔔 Avisos activos'; alert('Listo 💕. Este dispositivo recibirá tus avisos importantes.'); } catch (error) { alert(error.message); } });
+  $('enableNotificationsButton')?.addEventListener('click', async () => { try { await enableSulderyPush(); $('enableNotificationsButton').textContent='🔔 Avisos activos'; alert('Listo 💕. Este dispositivo quedó registrado para recibir tus avisos importantes.'); } catch (error) { alert(error.message); } });
+  if ($('enableNotificationsButton')) {
+    const checkButton = document.createElement('button');
+    checkButton.type = 'button';
+    checkButton.className = 'small-button ghost';
+    checkButton.id = 'checkNotificationsButton';
+    checkButton.textContent = 'Comprobar avisos';
+    checkButton.addEventListener('click', async () => { try { const result = await checkSulderyPush(); alert(result.message); } catch (error) { alert(error.message); } });
+    $('enableNotificationsButton').insertAdjacentElement('afterend', checkButton);
+  }
   $('service').addEventListener('change',onServiceChange);
   $('reviewsToggleButton')?.addEventListener('click', toggleReviewsViewer);
   $('reviewPreviousButton')?.addEventListener('click', () => moveReview(-1));
@@ -59,7 +69,13 @@ async function initCliente(){
   await refreshCalendar();
   await Promise.all([loadAppointments(),loadGallery(),loadReviews()]);
   populateReviewableAppointments();
-  try { const push = await getSulderyPushStatus(); if (push.subscribed && $('enableNotificationsButton')) $('enableNotificationsButton').textContent='🔔 Avisos activos'; } catch {}
+  try {
+    const push = await getSulderyPushStatus();
+    if ($('enableNotificationsButton')) {
+      if (push.needsAttention) $('enableNotificationsButton').textContent='🔔 Revisar avisos';
+      else if (push.subscribed) $('enableNotificationsButton').textContent='🔔 Avisos activos';
+    }
+  } catch {}
 }
 
 function openBooking(){ $('agenda').classList.remove('hidden-booking'); setTimeout(()=>$('agenda').scrollIntoView({behavior:'smooth',block:'start'}),20); $('calendarFeedback').textContent='Selecciona un día disponible para continuar.'; }

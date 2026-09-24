@@ -77,7 +77,9 @@ async function ensureCompatibilityMigrations() {
     { table: 'appointments', column: 'client_phone', sql: "ALTER TABLE appointments ADD COLUMN client_phone VARCHAR(30) NULL AFTER client_name" },
     { table: 'portfolio_photos', column: 'image_data', sql: "ALTER TABLE portfolio_photos ADD COLUMN image_data MEDIUMBLOB NULL AFTER image_url" },
     { table: 'portfolio_photos', column: 'image_mime', sql: "ALTER TABLE portfolio_photos ADD COLUMN image_mime VARCHAR(80) NULL AFTER image_data" },
-    { table: 'portfolio_photos', column: 'visibility', sql: "ALTER TABLE portfolio_photos ADD COLUMN visibility ENUM('login','client','both') NOT NULL DEFAULT 'both' AFTER image_mime" }
+    { table: 'portfolio_photos', column: 'visibility', sql: "ALTER TABLE portfolio_photos ADD COLUMN visibility ENUM('login','client','both') NOT NULL DEFAULT 'both' AFTER image_mime" },
+    { table: 'portfolio_photos', column: 'display_order', sql: "ALTER TABLE portfolio_photos ADD COLUMN display_order INT NOT NULL DEFAULT 0 AFTER visibility" },
+    { table: 'portfolio_photos', column: 'image_hash', sql: "ALTER TABLE portfolio_photos ADD COLUMN image_hash CHAR(64) NULL AFTER display_order" }
   ];
   for (const migration of migrations) {
     const [rows] = await pool.query(
@@ -86,6 +88,12 @@ async function ensureCompatibilityMigrations() {
     );
     if (Number(rows[0]?.total) === 0) await pool.query(migration.sql);
   }
+  const [portfolioHashRows] = await pool.query("SELECT id,image_data FROM portfolio_photos WHERE image_data IS NOT NULL AND (image_hash IS NULL OR image_hash='')");
+  for (const row of portfolioHashRows) {
+    const hash = require('crypto').createHash('sha256').update(row.image_data).digest('hex');
+    await pool.query('UPDATE portfolio_photos SET image_hash=? WHERE id=?', [hash,row.id]);
+  }
+
   await pool.query(
     `UPDATE appointments a
      INNER JOIN users u ON u.id=a.user_id
@@ -98,11 +106,27 @@ async function ensureCompatibilityMigrations() {
     image_data MEDIUMBLOB NOT NULL,
     image_mime VARCHAR(80) NOT NULL,
     display_order INT NOT NULL DEFAULT 0,
+    image_hash CHAR(64) NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     KEY idx_catalog_order (display_order),
-    KEY idx_catalog_created_at (created_at)
+    KEY idx_catalog_created_at (created_at),
+    KEY idx_catalog_image_hash (image_hash)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+  const [catalogHashRows] = await pool.query("SELECT id,image_data FROM catalog_photos WHERE image_data IS NOT NULL AND (image_hash IS NULL OR image_hash='')");
+  for (const row of catalogHashRows) {
+    const hash = require('crypto').createHash('sha256').update(row.image_data).digest('hex');
+    await pool.query('UPDATE catalog_photos SET image_hash=? WHERE id=?', [hash,row.id]);
+  }
+
+  const [catalogHashColumn] = await pool.query(
+    `SELECT COUNT(*) AS total FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME='catalog_photos' AND COLUMN_NAME='image_hash'`,
+    [DB_NAME]
+  );
+  if (Number(catalogHashColumn[0]?.total) === 0) {
+    await pool.query(`ALTER TABLE catalog_photos ADD COLUMN image_hash CHAR(64) NULL AFTER image_mime`);
+  }
 
   await pool.query(
     `CREATE TABLE IF NOT EXISTS blocked_intervals (
@@ -147,11 +171,29 @@ async function ensureCompatibilityMigrations() {
     content_encoding VARCHAR(30) NOT NULL DEFAULT 'aes128gcm',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    vapid_key_hash CHAR(64) NULL,
+    last_success_at DATETIME NULL,
+    last_error_at DATETIME NULL,
+    last_error VARCHAR(500) NULL,
     PRIMARY KEY (id),
     UNIQUE KEY uq_push_endpoint_hash (endpoint_hash),
     KEY idx_push_user (user_id),
     CONSTRAINT fk_push_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+  const pushColumns = [
+    ['vapid_key_hash', "ALTER TABLE push_subscriptions ADD COLUMN vapid_key_hash CHAR(64) NULL AFTER updated_at"],
+    ['last_success_at', "ALTER TABLE push_subscriptions ADD COLUMN last_success_at DATETIME NULL AFTER vapid_key_hash"],
+    ['last_error_at', "ALTER TABLE push_subscriptions ADD COLUMN last_error_at DATETIME NULL AFTER last_success_at"],
+    ['last_error', "ALTER TABLE push_subscriptions ADD COLUMN last_error VARCHAR(500) NULL AFTER last_error_at"],
+  ];
+  for (const [column, sql] of pushColumns) {
+    const [rows] = await pool.query(
+      `SELECT COUNT(*) AS total FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME='push_subscriptions' AND COLUMN_NAME=?`,
+      [DB_NAME, column]
+    );
+    if (Number(rows[0]?.total) === 0) await pool.query(sql);
+  }
 
   await pool.query(`CREATE TABLE IF NOT EXISTS pending_push_registrations (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,

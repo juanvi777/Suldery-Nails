@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260923-v49">
+  <link rel="stylesheet" href="style.css?v=20260923-v51">
 </head>
 <body class="dashboard-page owner-page">
   <main class="dashboard-shell">
@@ -54,6 +54,12 @@
       <button type="button" class="stat-card stat-card-button" data-owner-stat="recovery">
         <span>RECUPERAR ACCESO</span><strong id="recoveryCount">0</strong><small>solicitudes pendientes · ver listado →</small>
       </button>
+      <button type="button" class="stat-card stat-card-button" data-owner-stat="reviews">
+        <span>CALIFICACIONES</span><strong id="reviewAverage">—</strong><small><span id="reviewCount">0</span> reseñas · ver opiniones →</small>
+      </button>
+      <button type="button" class="stat-card stat-card-button" data-owner-stat="notify">
+        <span>NOTIFICAR</span><strong>⌁</strong><small>recordar o avisar a una clienta →</small>
+      </button>
     </section>
 
     <section id="ownerStatClients" class="owner-detail-panel admin-card glass-card hidden-tool-panel">
@@ -72,15 +78,6 @@
       <div class="card-heading"><div><p class="eyebrow">ACCESO</p><h2>Solicitudes de recuperación</h2></div><button class="small-button ghost" type="button" data-close-owner-stat>Cerrar</button></div>
       <p class="manager-note">Aquí aparecen únicamente las solicitudes pendientes. Por seguridad, la contraseña anterior nunca se muestra ni se almacena en texto plano. Puedes ver el nombre, correo y teléfono y restablecer el acceso desde aquí.</p>
       <div id="passwordRecoveryRequestsList" class="admin-list"></div>
-    </section>
-
-    <section class="stats-grid owner-extra-stats" aria-label="Herramientas rápidas">
-      <button type="button" class="stat-card stat-card-button" data-owner-stat="reviews">
-        <span>CALIFICACIONES</span><strong id="reviewAverage">—</strong><small><span id="reviewCount">0</span> reseñas · ver opiniones →</small>
-      </button>
-      <button type="button" class="stat-card stat-card-button" data-owner-stat="notify">
-        <span>NOTIFICAR</span><strong>⌁</strong><small>recordar o avisar a una clienta →</small>
-      </button>
     </section>
 
     <section id="ownerStatReviews" class="owner-detail-panel admin-card glass-card hidden-tool-panel">
@@ -378,7 +375,7 @@
       </article>
     </section>
   </main>
-  <script src="auth.js?v=20260923-v49"></script>
-  <script src="duena.js?v=20260923-v49"></script>
+  <script src="auth.js?v=20260923-v51"></script>
+  <script src="duena.js?v=20260923-v51"></script>
 </body>
 </html>

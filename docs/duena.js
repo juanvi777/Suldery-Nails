@@ -243,9 +243,11 @@ async function loadNotificationStatus() {
   try {
     const data = await getSulderyPushStatus();
     if (data.subscribed) {
-      title.textContent = 'Avisos gratuitos · activos';
-      text.textContent = `Este dispositivo está listo para recibir tus avisos (${data.devices} dispositivo${data.devices === 1 ? '' : 's'}).`;
-      if (button) button.textContent = 'Avisos activos ✓';
+      title.textContent = data.needsAttention ? 'Avisos gratuitos · revisar' : 'Avisos gratuitos · activos';
+      text.textContent = data.needsAttention
+        ? 'Hay una suscripción que necesita comprobarse. Pulsa “Probar aviso” y, si hace falta, vuelve a activar los avisos.'
+        : `Este dispositivo está registrado para recibir tus avisos (${data.devices} dispositivo${data.devices === 1 ? '' : 's'}).`;
+      if (button) button.textContent = data.needsAttention ? '🔔 Revisar avisos' : 'Avisos activos ✓';
     } else {
       title.textContent = 'Avisos gratuitos · pendientes';
       text.textContent = 'Actívalos una vez en este celular para recibir solicitudes y recordatorios.';
@@ -344,6 +346,15 @@ async function loadOwnerReviews() {
   }
 }
 
+function pushHealthLabel(user) {
+  const devices = Number(user?.devices || 0);
+  if (!devices) return 'avisos no activados';
+  const errorAfterSuccess = user.last_error_at && (!user.last_success_at || new Date(user.last_error_at) > new Date(user.last_success_at));
+  if (errorAfterSuccess) return 'revisar avisos';
+  if (!user.last_success_at) return 'probar avisos';
+  return 'avisos activos';
+}
+
 function renderOwnerReviews() {
   const list = $d('ownerReviewsList');
   if (!list) return;
@@ -377,7 +388,7 @@ async function loadNotificationTargets() {
     notificationTargetsCache.users.forEach(user => {
       const option = document.createElement('option');
       option.value = user.id;
-      option.textContent = `${user.name}${user.devices ? ' · avisos activos' : ' · avisos no activados'}`;
+      option.textContent = `${user.name} · ${pushHealthLabel(user)}`;
       select.appendChild(option);
     });
     if (current && notificationTargetsCache.users.some(user => String(user.id) === String(current))) select.value = current;
@@ -397,7 +408,7 @@ function updateNotifyAppointmentOptions() {
   const user = notificationTargetsCache.users.find(item => Number(item.id) === userId);
   if (meta) {
     meta.innerHTML = user
-      ? `<strong>${escapeHtml(user.name)}</strong> · ${escapeHtml(user.phone || 'Sin teléfono registrado')} · ${Number(user.devices || 0) ? 'Avisos activados' : 'Avisos no activados'}${user.phone ? ` · <a href="https://wa.me/${whatsAppNumber(user.phone)}" target="_blank" rel="noopener">Abrir WhatsApp</a>` : ''}`
+      ? `<strong>${escapeHtml(user.name)}</strong> · ${escapeHtml(user.phone || 'Sin teléfono registrado')} · ${escapeHtml(pushHealthLabel(user))}${user.phone ? ` · <a href="https://wa.me/${whatsAppNumber(user.phone)}" target="_blank" rel="noopener">Abrir WhatsApp</a>` : ''} ${Number(user.devices || 0) ? `<button type="button" class="small-button ghost" data-test-client-push="${user.id}">Probar aviso</button>` : ''}`
       : 'Selecciona una clienta para ver sus datos de contacto.';
   }
   if (!userId) return;
@@ -411,6 +422,18 @@ function updateNotifyAppointmentOptions() {
     apptSelect.appendChild(option);
   });
 }
+
+document.addEventListener('click', async event => {
+  const button = event.target.closest('[data-test-client-push]');
+  if (!button) return;
+  button.disabled = true;
+  try {
+    const data = await apiFetch(`/owner/notifications/test-client/${button.dataset.testClientPush}`, {method:'POST'});
+    alert(data.message);
+    await loadNotificationTargets();
+  } catch (error) { alert(error.message); }
+  finally { button.disabled = false; }
+});
 
 function fillReminderMessage() {
   const userId = Number($d('notifyClientSelect')?.value || 0);
@@ -469,7 +492,8 @@ function renderActiveClients() {
   clients.forEach(user => {
     const item = document.createElement('article');
     item.className = 'admin-item';
-    item.innerHTML = `<div class="admin-item-main"><strong>${escapeHtml(user.name)}</strong><p>${escapeHtml(user.email)}${user.phone ? ` · ${escapeHtml(user.phone)}` : ''}</p><small>Activa desde ${escapeHtml(formatDate(String(user.created_at).slice(0,10)))}</small></div><span class="status accepted">Activa</span>`;
+    const pushLabel = Number(user.devices || 0) ? ((user.last_error_at && (!user.last_success_at || new Date(user.last_error_at) > new Date(user.last_success_at))) ? 'Avisos: revisar' : 'Avisos: activos') : 'Avisos: no activados';
+    item.innerHTML = `<div class="admin-item-main"><strong>${escapeHtml(user.name)}</strong><p>${escapeHtml(user.email)}${user.phone ? ` · ${escapeHtml(user.phone)}` : ''}</p><small>Activa desde ${escapeHtml(formatDate(String(user.created_at).slice(0,10)))} · ${pushLabel}</small></div><span class="status accepted">Activa</span>`;
     list.appendChild(item);
   });
 }

@@ -1,6 +1,6 @@
 {
   "name": "suldery-nails-mysql",
-  "version": "4.7.1",
+  "version": "5.1.0",
   "private": true,
   "type": "commonjs",
   "scripts": {

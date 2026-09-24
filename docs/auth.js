@@ -289,7 +289,7 @@ async function getSulderyServiceWorker() {
     throw new Error('Este dispositivo no permite instalar el sistema de avisos.');
   }
   if (!sulderyServiceWorkerRegistration) {
-    const swUrl = new URL('sw.js?v=20260923-v49', location.href);
+    const swUrl = new URL('sw.js?v=20260923-v51', location.href);
     sulderyServiceWorkerRegistration = await navigator.serviceWorker.register(swUrl, { scope: './' });
   }
   return await navigator.serviceWorker.ready;
@@ -333,6 +333,43 @@ function ensureIOSStandaloneForPush() {
   }
 }
 
+async function createOrRefreshSulderyPushSubscription(registration, publicKey) {
+  const storedKey = localStorage.getItem('suldery_vapid_public_key') || '';
+  let existing = await registration.pushManager.getSubscription();
+  if (existing && storedKey && storedKey !== publicKey) {
+    try { await existing.unsubscribe(); } catch {}
+    existing = null;
+  }
+  const subscription = existing || await registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(publicKey)
+  });
+  localStorage.setItem('suldery_vapid_public_key', publicKey);
+  await apiFetch('/notifications/subscribe', {
+    method: 'POST',
+    body: JSON.stringify(subscription.toJSON())
+  });
+  return subscription;
+}
+
+async function syncExistingSulderyPushSubscription() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return { ok: false, skipped: true };
+  if ('Notification' in window && Notification.permission !== 'granted') return { ok: false, skipped: true };
+  if (isIOSDevice() && !isInstalledPWA()) return { ok: false, skipped: true };
+  try {
+    const registration = await getSulderyServiceWorker();
+    const publicKey = await getPushPublicKey();
+    const existing = await registration.pushManager.getSubscription();
+    // Si el permiso ya fue concedido pero el navegador perdió la suscripción,
+    // la recuperamos automáticamente al volver a abrir la app.
+    await createOrRefreshSulderyPushSubscription(registration, publicKey);
+    return { ok: true, hadSubscription: Boolean(existing) };
+  } catch (error) {
+    console.warn('No se pudo sincronizar el aviso de este dispositivo:', error.message);
+    return { ok: false, error: error.message };
+  }
+}
+
 async function enableSulderyPush() {
   if (sulderyPushPromise) return sulderyPushPromise;
   sulderyPushPromise = (async () => {
@@ -347,17 +384,8 @@ async function enableSulderyPush() {
     }
 
     const registration = await getSulderyServiceWorker();
-    const existing = await registration.pushManager.getSubscription();
     const publicKey = await getPushPublicKey();
-    const subscription = existing || await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(publicKey)
-    });
-
-    await apiFetch('/notifications/subscribe', {
-      method: 'POST',
-      body: JSON.stringify(subscription.toJSON())
-    });
+    await createOrRefreshSulderyPushSubscription(registration, publicKey);
     return { ok: true };
   })().finally(() => { sulderyPushPromise = null; });
   return sulderyPushPromise;
@@ -381,12 +409,18 @@ async function enablePendingSulderyPush(registrationToken) {
   }
 
   const registration = await getSulderyServiceWorker();
-  const existing = await registration.pushManager.getSubscription();
   const publicKey = await getPushPublicKey();
+  const storedKey = localStorage.getItem('suldery_vapid_public_key') || '';
+  let existing = await registration.pushManager.getSubscription();
+  if (existing && storedKey && storedKey !== publicKey) {
+    try { await existing.unsubscribe(); } catch {}
+    existing = null;
+  }
   const subscription = existing || await registration.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: urlBase64ToUint8Array(publicKey)
   });
+  localStorage.setItem('suldery_vapid_public_key', publicKey);
 
   await apiFetch('/notifications/subscribe-pending', {
     method: 'POST',
@@ -400,12 +434,14 @@ window.isInstalledPWA = isInstalledPWA;
 window.showIOSInstallGuide = showIOSInstallGuide;
 window.enableSulderyPush = enableSulderyPush;
 window.getSulderyPushStatus = getSulderyPushStatus;
+window.checkSulderyPush = async function(){ return apiFetch('/notifications/check',{method:'POST'}); };
 window.getSulderyServiceWorker = getSulderyServiceWorker;
 window.enablePendingSulderyPush = enablePendingSulderyPush;
+window.syncExistingSulderyPushSubscription = syncExistingSulderyPushSubscription;
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    const swUrl = new URL('sw.js?v=20260923-v49', location.href);
+    const swUrl = new URL('sw.js?v=20260923-v51', location.href);
     navigator.serviceWorker.register(swUrl, { scope: './' }).catch(() => {});
   });
 }
@@ -414,3 +450,11 @@ window.setTimeout(() => {
   ensureIOSInstallGuide();
   updateInstallButtons();
 }, 0);
+
+
+window.addEventListener('pageshow', () => {
+  if (typeof syncExistingSulderyPushSubscription === 'function') void syncExistingSulderyPushSubscription();
+});
+window.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && typeof syncExistingSulderyPushSubscription === 'function') void syncExistingSulderyPushSubscription();
+});

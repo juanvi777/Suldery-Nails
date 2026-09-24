@@ -980,6 +980,10 @@ async function getDayAppointmentsWithConnection(connection, date) {
   return rows;
 }
 
+function hashImageBuffer(buffer) {
+  return crypto.createHash('sha256').update(buffer).digest('hex');
+}
+
 function normalizePhoneNumber(phone, defaultCountry = '57') {
   let value = String(phone || '').trim().replace(/[^0-9+]/g, '');
   if (!value) return '';
@@ -1109,6 +1113,10 @@ async function ensureVapidKeys() {
   return vapidConfig;
 }
 
+function currentVapidKeyHash() {
+  return crypto.createHash('sha256').update(String(vapidConfig?.publicKey || '')).digest('hex');
+}
+
 function createVapidJwt(audience) {
   if (!vapidConfig) throw new Error('Los avisos todavía no están preparados.');
   const header = base64url(Buffer.from(JSON.stringify({ typ: 'JWT', alg: 'ES256' })));
@@ -1207,29 +1215,49 @@ async function sendWebPush(subscription, payload) {
 
 async function sendPushToUser(userId, message, url) {
   if (!vapidConfig) await ensureVapidKeys();
+  const currentHash = currentVapidKeyHash();
   const [rows] = await pool.query(
-    `SELECT id,endpoint,p256dh,auth,content_encoding FROM push_subscriptions WHERE user_id=?`,
-    [userId]
+    `SELECT id,endpoint,p256dh,auth,content_encoding,vapid_key_hash,last_success_at,last_error_at,last_error
+     FROM push_subscriptions WHERE user_id=?`, [userId]
   );
-  if (!rows.length) return { sent: false, skipped: true, missing: ['avisos no activados en el dispositivo'] };
+  if (!rows.length) return { sent:false, skipped:true, missing:['avisos no activados en el dispositivo'], state:'not-active' };
 
-  let delivered = 0;
+  let delivered=0, stale=0, hadFailure=false, latestError='';
   for (const subscription of rows) {
+    if (subscription.vapid_key_hash && subscription.vapid_key_hash !== currentHash) {
+      stale += 1;
+      await pool.query('DELETE FROM push_subscriptions WHERE id=?',[subscription.id]);
+      continue;
+    }
+    if (!subscription.vapid_key_hash) await pool.query('UPDATE push_subscriptions SET vapid_key_hash=? WHERE id=?',[currentHash,subscription.id]);
     try {
-      const result = await sendWebPush(subscription, {
-        title: 'Suldery Nails 💕',
-        body: message,
-        url: url || ownerPanelUrl(),
-        icon: 'assets/suldery-nails-icon-192.png',
-        tag: `suldery-${Date.now()}`
-      });
-      if (result.sent) delivered += 1;
-      if (result.gone) await pool.query('DELETE FROM push_subscriptions WHERE id=?', [subscription.id]);
+      let result;
+      for (let attempt=1; attempt<=2; attempt++) {
+        try {
+          result=await sendWebPush(subscription,{title:'Suldery Nails 💕',body:message,url:url||ownerPanelUrl(),icon:'assets/suldery-nails-icon-192.png',tag:`suldery-${Date.now()}-${subscription.id}`});
+          break;
+        } catch (error) {
+          if (attempt===2) throw error;
+          await new Promise(resolve=>setTimeout(resolve,350));
+        }
+      }
+      if (result?.sent) {
+        delivered += 1;
+        await pool.query('UPDATE push_subscriptions SET vapid_key_hash=?,last_success_at=NOW(),last_error_at=NULL,last_error=NULL WHERE id=?',[currentHash,subscription.id]);
+      }
+      if (result?.gone) {
+        stale += 1;
+        await pool.query('DELETE FROM push_subscriptions WHERE id=?',[subscription.id]);
+      }
     } catch (error) {
-      console.error('No se pudo enviar un aviso push:', error.message);
+      hadFailure=true;
+      latestError=String(error.message||'Error desconocido').slice(0,500);
+      await pool.query('UPDATE push_subscriptions SET last_error_at=NOW(),last_error=? WHERE id=?',[latestError,subscription.id]);
+      console.error('No se pudo enviar un aviso push:',latestError);
     }
   }
-  return { sent: delivered > 0, delivered, total: rows.length };
+  const state=delivered>0?'active':stale===rows.length?'needs-resubscribe':hadFailure?'needs-attention':'not-active';
+  return {sent:delivered>0,delivered,total:rows.length,stale,needsResubscribe:stale>0||state==='needs-resubscribe',state,latestError};
 }
 
 async function sendPushOnce(notificationKey, notificationType, userId, message, url) {
@@ -1387,62 +1415,25 @@ async function sendPendingSummary() {
 
 async function sendUpcomingAppointmentReminders() {
   try {
-    const today = colombiaTodayISO();
-    const upper = new Date(`${today}T12:00:00-05:00`);
-    upper.setUTCDate(upper.getUTCDate() + 2);
-    const upperDate = upper.toISOString().slice(0, 10);
-    const [rows] = await pool.query(
-      `SELECT a.id,a.user_id,a.client_name,a.client_phone,a.service,a.appointment_date,a.appointment_time,u.phone AS user_phone
-       FROM appointments a LEFT JOIN users u ON u.id=a.user_id
-       WHERE a.status='accepted' AND a.appointment_date BETWEEN ? AND ?
-       ORDER BY a.appointment_date,a.appointment_time`, [today, upperDate]
-    );
-    const now = Date.now();
-
+    const today=colombiaTodayISO();
+    const upper=new Date(`${today}T12:00:00-05:00`); upper.setUTCDate(upper.getUTCDate()+1);
+    const upperDate=upper.toISOString().slice(0,10);
+    const [rows]=await pool.query(`SELECT a.id,a.user_id,a.client_name,a.client_phone,a.service,a.appointment_date,a.appointment_time,u.phone AS user_phone FROM appointments a LEFT JOIN users u ON u.id=a.user_id WHERE a.status='accepted' AND a.appointment_date BETWEEN ? AND ? ORDER BY a.appointment_date,a.appointment_time`,[today,upperDate]);
+    const now=Date.now();
     for (const appt of rows) {
-      const dateText = dateOnly(appt.appointment_date);
-      const timeText = formatDbTime(appt.appointment_time);
-      const when = colombiaDateTime(dateText, timeText).getTime();
-      const minutesAway = (when - now) / 60000;
-      const clientPhone = appt.client_phone || appt.user_phone || '';
-
-      if (minutesAway > 23 * 60 && minutesAway <= 25 * 60) {
-        await notifyOwners(
-          `Hola Suldery 💕, recordatorio para mañana: tienes a ${appt.client_name} a las ${formatTime12Server(timeText)} para ${appt.service}. 📱 ${clientPhone || 'sin teléfono'}.`,
-          `appointment-reminder-24h:${appt.id}`,
-          'appointment_reminder_24h_owner_push'
-        );
-        if (appt.user_id) {
-          await sendPushOnce(
-            `appointment-reminder-24h:client:${appt.id}`,
-            'appointment_reminder_24h_client_push',
-            appt.user_id,
-            `Hola ${firstNameOf(appt.client_name)} 💕, mañana tienes tu cita en Suldery Nails a las ${formatTime12Server(timeText)} para ${appt.service}. ¡Te esperamos! 💅✨`,
-            clientPanelUrl()
-          );
-        }
+      const dateText=dateOnly(appt.appointment_date), timeText=formatDbTime(appt.appointment_time);
+      const when=colombiaDateTime(dateText,timeText).getTime(), minutesAway=(when-now)/60000;
+      const clientPhone=appt.client_phone||appt.user_phone||'';
+      if (minutesAway>=29 && minutesAway<=31) {
+        await notifyOwners(`Hola Suldery 💕, faltan 30 minutos para la cita de ${appt.client_name}.\n\n💅 ${appt.service}\n📅 ${notificationDateTime(dateText,timeText)}\n📱 ${clientPhone||'sin teléfono'}\n\nTe esperamos con todo listo. ✨`,`appointment-reminder-30m:${appt.id}`,'appointment_reminder_30m_owner_push');
+        if (appt.user_id) await sendPushOnce(`appointment-reminder-30m:client:${appt.id}`,'appointment_reminder_30m_client_push',appt.user_id,`Hola ${firstNameOf(appt.client_name)} 💕, faltan 30 minutos para tu cita en Suldery Nails a las ${formatTime12Server(timeText)} para ${appt.service}. ¡Te esperamos! 💅✨`,clientPanelUrl());
       }
-
-      if (minutesAway > 25 && minutesAway <= 35) {
-        await notifyOwners(
-          `Hola Suldery 💕, faltan unos 30 minutos para la cita de ${appt.client_name} (${appt.service}) a las ${formatTime12Server(timeText)}. 📱 ${clientPhone || 'sin teléfono'}. ✨`,
-          `appointment-reminder-30m:${appt.id}`,
-          'appointment_reminder_30m_owner_push'
-        );
-        if (appt.user_id) {
-          await sendPushOnce(
-            `appointment-reminder-30m:client:${appt.id}`,
-            'appointment_reminder_30m_client_push',
-            appt.user_id,
-            `Hola ${firstNameOf(appt.client_name)} 💕, faltan unos 30 minutos para tu cita en Suldery Nails: ${formatTime12Server(timeText)} para ${appt.service}. 💅✨`,
-            clientPanelUrl()
-          );
-        }
+      if (minutesAway>=9 && minutesAway<=11) {
+        await notifyOwners(`Hola Suldery 💕, faltan 10 minutos para la cita de ${appt.client_name}.\n\n💅 ${appt.service}\n📅 ${notificationDateTime(dateText,timeText)}\n📱 ${clientPhone||'sin teléfono'}\n\nYa casi llega tu clienta. ✨`,`appointment-reminder-10m:${appt.id}`,'appointment_reminder_10m_owner_push');
+        if (appt.user_id) await sendPushOnce(`appointment-reminder-10m:client:${appt.id}`,'appointment_reminder_10m_client_push',appt.user_id,`Hola ${firstNameOf(appt.client_name)} 💕, faltan 10 minutos para tu cita en Suldery Nails a las ${formatTime12Server(timeText)} para ${appt.service}. ¡Nos vemos enseguida! 💅✨`,clientPanelUrl());
       }
     }
-  } catch (error) {
-    console.error('No se pudieron enviar recordatorios de citas:', error.message);
-  }
+  } catch(error) { console.error('No se pudieron enviar recordatorios de citas:',error.message); }
 }
 
 function startOwnerNotificationBot() {
@@ -1665,7 +1656,10 @@ app.get('/api/owner/notification-targets', authRequired, ownerRequired, async (_
   try {
     const [users] = await pool.query(
       `SELECT u.id,u.name,u.email,u.phone,
-              (SELECT COUNT(*) FROM push_subscriptions ps WHERE ps.user_id=u.id) AS devices
+              (SELECT COUNT(*) FROM push_subscriptions ps WHERE ps.user_id=u.id) AS devices,
+              (SELECT MAX(ps.last_success_at) FROM push_subscriptions ps WHERE ps.user_id=u.id) AS last_success_at,
+              (SELECT MAX(ps.last_error_at) FROM push_subscriptions ps WHERE ps.user_id=u.id) AS last_error_at,
+              (SELECT ps.last_error FROM push_subscriptions ps WHERE ps.user_id=u.id ORDER BY COALESCE(ps.last_error_at,'1970-01-01') DESC LIMIT 1) AS last_error
        FROM users u
        WHERE u.role='client' AND u.status='accepted'
        ORDER BY u.name`
@@ -1841,12 +1835,15 @@ app.get('/api/owner/catalog', authRequired, ownerRequired, async (_req, res) => 
 app.post('/api/owner/catalog', authRequired, ownerRequired, upload.single('photo'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: 'Selecciona una imagen.' });
+    const imageHash = hashImageBuffer(req.file.buffer);
+    const [duplicate] = await pool.query('SELECT id FROM catalog_photos WHERE image_hash=? LIMIT 1', [imageHash]);
+    if (duplicate.length) return res.status(409).json({ message: 'Esa foto ya está en el catálogo. Elige una imagen diferente.' });
     const title = String(req.body.title || 'Diseño Suldery Nails').trim().slice(0, 160) || 'Diseño Suldery Nails';
     const [orderRows] = await pool.query('SELECT COALESCE(MAX(display_order),0) + 1 AS next_order FROM catalog_photos');
     const displayOrder = Number(orderRows[0].next_order) || 1;
     const [result] = await pool.query(
-      'INSERT INTO catalog_photos(title,image_data,image_mime,display_order) VALUES(?,?,?,?)',
-      [title, req.file.buffer, req.file.mimetype, displayOrder]
+      'INSERT INTO catalog_photos(title,image_data,image_mime,image_hash,display_order) VALUES(?,?,?,?,?)',
+      [title, req.file.buffer, req.file.mimetype, imageHash, displayOrder]
     );
     res.status(201).json({
       message: 'Foto agregada al catálogo.',
@@ -1868,9 +1865,12 @@ app.patch('/api/owner/catalog/:id/image', authRequired, ownerRequired, upload.si
     if (!req.file) return res.status(400).json({ message: 'Selecciona una imagen nueva.' });
     const [rows] = await pool.query('SELECT id FROM catalog_photos WHERE id=? LIMIT 1', [req.params.id]);
     if (!rows.length) return res.status(404).json({ message: 'Foto de catálogo no encontrada.' });
+    const imageHash = hashImageBuffer(req.file.buffer);
+    const [duplicate] = await pool.query('SELECT id FROM catalog_photos WHERE image_hash=? AND id<>? LIMIT 1', [imageHash, req.params.id]);
+    if (duplicate.length) return res.status(409).json({ message: 'Esa foto ya existe en el catálogo. Elige una imagen diferente.' });
     await pool.query(
-      'UPDATE catalog_photos SET image_data=?, image_mime=? WHERE id=?',
-      [req.file.buffer, req.file.mimetype, req.params.id]
+      'UPDATE catalog_photos SET image_data=?, image_mime=?, image_hash=? WHERE id=?',
+      [req.file.buffer, req.file.mimetype, imageHash, req.params.id]
     );
     res.json({ message: 'Foto del catálogo actualizada.', image_url: `/api/catalog/${req.params.id}/image` });
   } catch (error) {
@@ -1931,10 +1931,34 @@ app.get('/api/notifications/public-key', async (_req, res) => {
 
 app.get('/api/notifications/status', authRequired, async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT COUNT(*) AS total FROM push_subscriptions WHERE user_id=?', [req.auth.id]);
-    res.json({ subscribed: Number(rows[0]?.total || 0) > 0, devices: Number(rows[0]?.total || 0) });
-  } catch {
-    res.status(500).json({ message: 'No se pudo comprobar el estado de los avisos.' });
+    if (!vapidConfig) await ensureVapidKeys();
+    const currentHash=currentVapidKeyHash();
+    const [rows]=await pool.query(`SELECT id,updated_at,last_success_at,last_error_at,last_error,vapid_key_hash FROM push_subscriptions WHERE user_id=? ORDER BY COALESCE(last_success_at,updated_at) DESC`,[req.auth.id]);
+    const keyMismatch=rows.some(r=>r.vapid_key_hash && r.vapid_key_hash!==currentHash);
+    const lastSuccess=rows.reduce((v,r)=>r.last_success_at&&(!v||r.last_success_at>v)?r.last_success_at:v,null);
+    const lastError=rows.reduce((v,r)=>r.last_error_at&&(!v||r.last_error_at>v)?r.last_error_at:v,null);
+    const needsAttention=keyMismatch||Boolean(lastError&&(!lastSuccess||lastError>lastSuccess));
+    res.json({subscribed:rows.length>0,devices:rows.length,healthy:rows.some(r=>r.last_success_at&&(!r.last_error_at||r.last_success_at>=r.last_error_at))&&!keyMismatch,needsAttention,needsResubscribe:keyMismatch||rows.length===0,last_success_at:lastSuccess,last_error_at:lastError,last_error:rows.find(r=>r.last_error_at===lastError)?.last_error||null});
+  } catch(error) { res.status(500).json({message:'No se pudo comprobar el estado de los avisos.'}); }
+});
+
+app.get('/api/notifications/health', authRequired, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id,updated_at,last_success_at,last_error_at,last_error FROM push_subscriptions WHERE user_id=? ORDER BY updated_at DESC`,
+      [req.auth.id]
+    );
+    const latest = rows[0] || null;
+    const needsResubscribe = rows.length === 0 || (!latest.last_success_at && latest.last_error_at && latest.last_error_at >= latest.updated_at);
+    res.json({
+      subscribed: rows.length > 0,
+      devices: rows.length,
+      latest: latest ? { id: Number(latest.id), updated_at: latest.updated_at, last_success_at: latest.last_success_at, last_error_at: latest.last_error_at, last_error: latest.last_error } : null,
+      needsResubscribe
+    });
+  } catch (error) {
+    console.error('No se pudo revisar la salud de los avisos:', error.message);
+    res.status(500).json({ message: 'No se pudo revisar el estado de los avisos.' });
   }
 });
 
@@ -1947,10 +1971,10 @@ app.post('/api/notifications/subscribe', authRequired, async (req, res) => {
     if (!/^https:\/\//i.test(endpoint) || !p256dh || !auth) return res.status(400).json({ message: 'Suscripción de avisos inválida.' });
     const endpointHash = crypto.createHash('sha256').update(endpoint).digest('hex');
     await pool.query(
-      `INSERT INTO push_subscriptions(user_id,endpoint_hash,endpoint,p256dh,auth,content_encoding)
-       VALUES(?,?,?,?,?,?)
-       ON DUPLICATE KEY UPDATE user_id=VALUES(user_id),endpoint=VALUES(endpoint),p256dh=VALUES(p256dh),auth=VALUES(auth),content_encoding=VALUES(content_encoding),updated_at=CURRENT_TIMESTAMP`,
-      [req.auth.id, endpointHash, endpoint, p256dh, auth, String(subscription.contentEncoding || subscription.content_encoding || 'aes128gcm')]
+      `INSERT INTO push_subscriptions(user_id,endpoint_hash,endpoint,p256dh,auth,content_encoding,vapid_key_hash,last_error_at,last_error)
+       VALUES(?,?,?,?,?,?,?,NULL,NULL)
+       ON DUPLICATE KEY UPDATE user_id=VALUES(user_id),endpoint=VALUES(endpoint),p256dh=VALUES(p256dh),auth=VALUES(auth),content_encoding=VALUES(content_encoding),vapid_key_hash=VALUES(vapid_key_hash),updated_at=CURRENT_TIMESTAMP,last_error_at=NULL,last_error=NULL`,
+      [req.auth.id, endpointHash, endpoint, p256dh, auth, String(subscription.contentEncoding || subscription.content_encoding || 'aes128gcm'), currentVapidKeyHash()]
     );
     res.json({ message: 'Avisos activados en este dispositivo.' });
   } catch (error) {
@@ -1976,10 +2000,10 @@ app.post('/api/notifications/subscribe-pending', async (req, res) => {
 
     const endpointHash = crypto.createHash('sha256').update(endpoint).digest('hex');
     await pool.query(
-      `INSERT INTO push_subscriptions(user_id,endpoint_hash,endpoint,p256dh,auth,content_encoding)
-       VALUES(?,?,?,?,?,?)
-       ON DUPLICATE KEY UPDATE user_id=VALUES(user_id),endpoint=VALUES(endpoint),p256dh=VALUES(p256dh),auth=VALUES(auth),content_encoding=VALUES(content_encoding),updated_at=CURRENT_TIMESTAMP`,
-      [rows[0].user_id, endpointHash, endpoint, p256dh, auth, String(subscription.contentEncoding || subscription.content_encoding || 'aes128gcm')]
+      `INSERT INTO push_subscriptions(user_id,endpoint_hash,endpoint,p256dh,auth,content_encoding,vapid_key_hash,last_error_at,last_error)
+       VALUES(?,?,?,?,?,?,?,NULL,NULL)
+       ON DUPLICATE KEY UPDATE user_id=VALUES(user_id),endpoint=VALUES(endpoint),p256dh=VALUES(p256dh),auth=VALUES(auth),content_encoding=VALUES(content_encoding),vapid_key_hash=VALUES(vapid_key_hash),updated_at=CURRENT_TIMESTAMP,last_error_at=NULL,last_error=NULL`,
+      [rows[0].user_id, endpointHash, endpoint, p256dh, auth, String(subscription.contentEncoding || subscription.content_encoding || 'aes128gcm'), currentVapidKeyHash()]
     );
     await pool.query('UPDATE pending_push_registrations SET used_at=NOW() WHERE id=?', [rows[0].id]);
     res.json({ message: 'Avisos activados.' });
@@ -2002,14 +2026,37 @@ app.delete('/api/notifications/subscribe', authRequired, async (req, res) => {
   }
 });
 
-app.get('/api/owner/notifications/status', authRequired, ownerRequired, async (req, res) => {
+app.post('/api/notifications/check', authRequired, async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT COUNT(*) AS total FROM push_subscriptions WHERE user_id=?', [req.auth.id]);
-    const devices = Number(rows[0]?.total || 0);
-    res.json({ configured: true, subscribed: devices > 0, devices, mode: 'web-push-free' });
-  } catch {
-    res.status(500).json({ message: 'No se pudo comprobar el estado de los avisos.' });
+    const result = await sendPushToUser(
+      req.auth.id,
+      'Comprobación de avisos de Suldery Nails. Si ves este mensaje, la conexión de avisos funciona correctamente. 💕',
+      req.auth.role === 'owner' ? ownerPanelUrl() : clientPanelUrl()
+    );
+    if (!result.sent) {
+      return res.status(503).json({
+        ok: false,
+        needsResubscribe: Boolean(result.needsResubscribe || result.missing),
+        message: result.needsResubscribe ? 'La suscripción de este dispositivo necesita renovarse. Pulsa “Avisos” y actívalos otra vez.' : 'No hay un dispositivo con avisos activos y válidos.'
+      });
+    }
+    res.json({ ok: true, message: 'Aviso de comprobación enviado. 💕' });
+  } catch (error) {
+    console.error('No se pudo comprobar el aviso:', error.message);
+    res.status(502).json({ ok: false, message: 'No se pudo comprobar el aviso en este momento.' });
   }
+});
+
+app.get('/api/owner/notifications/status', authRequired, ownerRequired, async (req,res)=>{
+  try {
+    if(!vapidConfig) await ensureVapidKeys();
+    const hash=currentVapidKeyHash();
+    const [rows]=await pool.query(`SELECT last_success_at,last_error_at,last_error,vapid_key_hash FROM push_subscriptions WHERE user_id=?`,[req.auth.id]);
+    const mismatch=rows.some(r=>r.vapid_key_hash&&r.vapid_key_hash!==hash);
+    const needsAttention=mismatch||rows.some(r=>r.last_error_at&&(!r.last_success_at||r.last_error_at>r.last_success_at));
+    const healthy=rows.some(r=>r.last_success_at&&(!r.last_error_at||r.last_success_at>=r.last_error_at))&&!mismatch;
+    res.json({configured:true,subscribed:rows.length>0,devices:rows.length,healthy,needsAttention,needsResubscribe:mismatch||rows.length===0,mode:'web-push-free'});
+  }catch{res.status(500).json({message:'No se pudo comprobar el estado de los avisos.'});}
 });
 
 app.post('/api/owner/notifications/test', authRequired, ownerRequired, async (req, res) => {
@@ -2604,6 +2651,9 @@ app.post('/api/owner/portfolio', authRequired, ownerRequired, upload.single('pho
     if (!req.file) return res.status(400).json({ message: 'Selecciona una imagen.' });
     const title = String(req.body.title || 'Diseño Suldery Nails').trim().slice(0, 120) || 'Diseño Suldery Nails';
     const visibility = ['login','client'].includes(String(req.body.visibility || 'login')) ? String(req.body.visibility || 'login') : 'login';
+    const imageHash = hashImageBuffer(req.file.buffer);
+    const [duplicateImage] = await pool.query('SELECT id FROM portfolio_photos WHERE image_hash=? AND visibility=? LIMIT 1', [imageHash, visibility]);
+    if (duplicateImage.length) return res.status(409).json({ message: visibility === 'client' ? 'Esa foto ya está en las fotos de clientas.' : 'Esa foto ya está en las fotos de inicio.' });
 
     // Límites independientes: 8 fotos para el inicio y 10 para la galería privada de clientas.
     // Se cuentan también las fotos antiguas marcadas como "both" para no sobrepasar los límites.
@@ -2620,8 +2670,8 @@ app.post('/api/owner/portfolio', authRequired, ownerRequired, upload.single('pho
     const [orderRows] = await pool.query('SELECT COALESCE(MAX(display_order),0) + 1 AS next_order FROM portfolio_photos');
     const displayOrder = Number(orderRows[0].next_order) || 1;
     const [result] = await pool.query(
-      'INSERT INTO portfolio_photos(title,image_url,image_data,image_mime,visibility,display_order) VALUES(?,?,?,?,?,?)',
-      [title, '', req.file.buffer, req.file.mimetype, visibility, displayOrder]
+      'INSERT INTO portfolio_photos(title,image_url,image_data,image_mime,visibility,display_order,image_hash) VALUES(?,?,?,?,?,?,?)',
+      [title, '', req.file.buffer, req.file.mimetype, visibility, displayOrder, imageHash]
     );
     res.status(201).json({
       photo: {
@@ -2645,6 +2695,12 @@ app.patch('/api/owner/portfolio/:id/visibility', authRequired, ownerRequired, as
       return res.status(400).json({ message: 'Visibilidad inválida.' });
     }
 
+    const [currentRows] = await pool.query('SELECT id,image_hash FROM portfolio_photos WHERE id=? LIMIT 1', [req.params.id]);
+    if (!currentRows.length) return res.status(404).json({ message: 'Foto no encontrada.' });
+    if (currentRows[0].image_hash) {
+      const [duplicateTarget] = await pool.query('SELECT id FROM portfolio_photos WHERE image_hash=? AND visibility=? AND id<>? LIMIT 1', [currentRows[0].image_hash, visibility, req.params.id]);
+      if (duplicateTarget.length) return res.status(409).json({ message: 'Esa foto ya existe en esa sección.' });
+    }
     const [result] = await pool.query(
       'UPDATE portfolio_photos SET visibility=? WHERE id=?',
       [visibility, req.params.id]
@@ -2660,12 +2716,15 @@ app.patch('/api/owner/portfolio/:id/visibility', authRequired, ownerRequired, as
 app.patch('/api/owner/portfolio/:id/image', authRequired, ownerRequired, upload.single('photo'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: 'Selecciona una imagen nueva.' });
-    const [rows] = await pool.query('SELECT id FROM portfolio_photos WHERE id=? LIMIT 1', [req.params.id]);
+    const [rows] = await pool.query('SELECT id,visibility FROM portfolio_photos WHERE id=? LIMIT 1', [req.params.id]);
     if (!rows.length) return res.status(404).json({ message: 'Foto no encontrada.' });
+    const imageHash = hashImageBuffer(req.file.buffer);
+    const [duplicateImage] = await pool.query('SELECT id FROM portfolio_photos WHERE image_hash=? AND visibility=? AND id<>? LIMIT 1', [imageHash, rows[0].visibility, req.params.id]);
+    if (duplicateImage.length) return res.status(409).json({ message: rows[0].visibility === 'client' ? 'Esa foto ya está en las fotos de clientas.' : 'Esa foto ya está en las fotos de inicio.' });
 
     await pool.query(
-      'UPDATE portfolio_photos SET image_url=?, image_data=?, image_mime=? WHERE id=?',
-      ['', req.file.buffer, req.file.mimetype, req.params.id]
+      'UPDATE portfolio_photos SET image_url=?, image_data=?, image_mime=?, image_hash=? WHERE id=?',
+      ['', req.file.buffer, req.file.mimetype, imageHash, req.params.id]
     );
 
     res.json({
