@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260923-v48">
+  <link rel="stylesheet" href="style.css?v=20260923-v49">
 </head>
 <body class="dashboard-page owner-page">
   <main class="dashboard-shell">
@@ -72,6 +72,37 @@
       <div class="card-heading"><div><p class="eyebrow">ACCESO</p><h2>Solicitudes de recuperación</h2></div><button class="small-button ghost" type="button" data-close-owner-stat>Cerrar</button></div>
       <p class="manager-note">Aquí aparecen únicamente las solicitudes pendientes. Por seguridad, la contraseña anterior nunca se muestra ni se almacena en texto plano. Puedes ver el nombre, correo y teléfono y restablecer el acceso desde aquí.</p>
       <div id="passwordRecoveryRequestsList" class="admin-list"></div>
+    </section>
+
+    <section class="stats-grid owner-extra-stats" aria-label="Herramientas rápidas">
+      <button type="button" class="stat-card stat-card-button" data-owner-stat="reviews">
+        <span>CALIFICACIONES</span><strong id="reviewAverage">—</strong><small><span id="reviewCount">0</span> reseñas · ver opiniones →</small>
+      </button>
+      <button type="button" class="stat-card stat-card-button" data-owner-stat="notify">
+        <span>NOTIFICAR</span><strong>⌁</strong><small>recordar o avisar a una clienta →</small>
+      </button>
+    </section>
+
+    <section id="ownerStatReviews" class="owner-detail-panel admin-card glass-card hidden-tool-panel">
+      <div class="card-heading"><div><p class="eyebrow">CALIFICACIONES</p><h2>Lo que dicen tus clientas</h2></div><button class="small-button ghost" type="button" data-close-owner-stat>Cerrar</button></div>
+      <div class="review-owner-summary"><strong id="ownerReviewAverageLarge">—</strong><span class="review-stars" id="ownerReviewStars">★★★★★</span><small><span id="ownerReviewCountLarge">0</span> reseñas publicadas</small></div>
+      <div id="ownerReviewsList" class="admin-list"></div>
+    </section>
+
+    <section id="ownerStatNotify" class="owner-detail-panel admin-card glass-card hidden-tool-panel">
+      <div class="card-heading"><div><p class="eyebrow">NOTIFICAR</p><h2>Habla con tus clientas</h2></div><button class="small-button ghost" type="button" data-close-owner-stat>Cerrar</button></div>
+      <p class="manager-note">Puedes enviar un aviso directo al dispositivo donde la clienta activó las notificaciones. También verás su teléfono para continuar por WhatsApp si lo prefieres.</p>
+      <div class="notify-grid">
+        <label>Clienta<select id="notifyClientSelect"><option value="">Selecciona una clienta</option></select></label>
+        <label>Cita relacionada <span class="optional-label">(opcional)</span><select id="notifyAppointmentSelect"><option value="">Sin cita específica</option></select></label>
+        <label class="notify-message-field">Mensaje<textarea id="notifyMessage" rows="5" maxlength="600" placeholder="Ej. Hola Sandra 💕, quería recordarte tu cita de mañana. Te esperamos con mucho cariño."></textarea></label>
+      </div>
+      <div class="notify-shortcuts">
+        <button type="button" class="small-button ghost" id="notifyReminderButton">Recordar próxima cita</button>
+        <button type="button" class="small-button ghost" id="notifyHelloButton">Enviar saludo</button>
+      </div>
+      <div class="notify-client-meta" id="notifyClientMeta">Selecciona una clienta para ver sus datos de contacto.</div>
+      <div class="owner-tool-actions"><button id="sendNotifyButton" class="primary-button" type="button">Enviar aviso <span>→</span></button><span id="notifyMessageStatus" class="form-message"></span></div>
     </section>
 
     <section class="owner-tool-grid" aria-label="Herramientas de administración">
@@ -347,7 +378,7 @@
       </article>
     </section>
   </main>
-  <script src="auth.js?v=20260923-v48"></script>
-  <script src="duena.js?v=20260923-v48"></script>
+  <script src="auth.js?v=20260923-v49"></script>
+  <script src="duena.js?v=20260923-v49"></script>
 </body>
 </html>

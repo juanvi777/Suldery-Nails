@@ -131,6 +131,22 @@ CREATE TABLE IF NOT EXISTS notification_log (
   KEY idx_notification_type_sent (notification_type, sent_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS reviews (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  appointment_id BIGINT UNSIGNED NULL,
+  user_id INT UNSIGNED NOT NULL,
+  client_name VARCHAR(120) NOT NULL,
+  stars TINYINT UNSIGNED NOT NULL,
+  comment VARCHAR(1000) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_review_appointment (appointment_id),
+  KEY idx_reviews_user (user_id),
+  KEY idx_reviews_created_at (created_at),
+  CONSTRAINT fk_reviews_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_reviews_appointment FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 
 CREATE TABLE IF NOT EXISTS app_settings (
   setting_key VARCHAR(120) NOT NULL,

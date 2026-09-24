@@ -1568,6 +1568,159 @@ app.patch('/api/appointments/:id/cancel', authRequired, async (req, res) => {
   }
 });
 
+
+app.get('/api/reviews', async (_req, res) => {
+  try {
+    const [summaryRows] = await pool.query(
+      `SELECT COUNT(*) AS total, COALESCE(AVG(stars),0) AS average FROM reviews`
+    );
+    const [rows] = await pool.query(
+      `SELECT id,client_name,stars,comment,created_at
+       FROM reviews
+       ORDER BY created_at DESC, id DESC
+       LIMIT 200`
+    );
+    res.json({
+      average: Number(Number(summaryRows[0]?.average || 0).toFixed(1)),
+      count: Number(summaryRows[0]?.total || 0),
+      reviews: rows
+    });
+  } catch (error) {
+    console.error('No se pudieron cargar las calificaciones:', error.message);
+    res.status(500).json({ message: 'No se pudieron cargar las calificaciones.' });
+  }
+});
+
+app.post('/api/reviews', authRequired, async (req, res) => {
+  try {
+    if (req.auth.role !== 'client') return res.status(403).json({ message: 'Solo las clientas pueden dejar una reseña.' });
+    const appointmentId = Number(req.body?.appointment_id);
+    const stars = Number(req.body?.stars);
+    const comment = String(req.body?.comment || '').trim();
+    if (!appointmentId || !Number.isInteger(stars) || stars < 1 || stars > 5) {
+      return res.status(400).json({ message: 'Selecciona una cita y una calificación de 1 a 5 estrellas.' });
+    }
+    if (comment.length < 3) return res.status(400).json({ message: 'Escribe un comentario antes de publicar tu reseña.' });
+    if (comment.length > 1000) return res.status(400).json({ message: 'El comentario es demasiado largo.' });
+
+    const [rows] = await pool.query(
+      `SELECT id,client_name,appointment_date,appointment_time,status
+       FROM appointments WHERE id=? AND user_id=? LIMIT 1`,
+      [appointmentId, req.auth.id]
+    );
+    const appointment = rows[0];
+    if (!appointment) return res.status(404).json({ message: 'No encontramos esa cita en tu agenda.' });
+    if (appointment.status !== 'accepted') return res.status(400).json({ message: 'Solo puedes calificar una cita confirmada.' });
+    const when = colombiaDateTime(dateOnly(appointment.appointment_date), formatDbTime(appointment.appointment_time));
+    if (when.getTime() > Date.now()) return res.status(400).json({ message: 'Podrás dejar tu reseña cuando tu cita haya terminado. 💕' });
+
+    const [existing] = await pool.query('SELECT id FROM reviews WHERE appointment_id=? LIMIT 1', [appointmentId]);
+    if (existing.length) return res.status(409).json({ message: 'Ya dejaste una reseña para esta cita. ¡Gracias por compartir tu experiencia! 💕' });
+
+    const user = await findUserById(req.auth.id);
+    await pool.query(
+      `INSERT INTO reviews(appointment_id,user_id,client_name,stars,comment) VALUES(?,?,?,?,?)`,
+      [appointmentId, req.auth.id, user?.name || appointment.client_name || 'Clienta', stars, comment]
+    );
+    res.status(201).json({ message: 'Gracias por tu reseña. 💕', stars, comment });
+  } catch (error) {
+    if (error?.code === 'ER_DUP_ENTRY') return res.status(409).json({ message: 'Esta cita ya tiene una reseña.' });
+    console.error('No se pudo guardar la reseña:', error.message);
+    res.status(500).json({ message: 'No se pudo guardar tu reseña.' });
+  }
+});
+
+app.get('/api/owner/reviews', authRequired, ownerRequired, async (_req, res) => {
+  try {
+    const [summaryRows] = await pool.query('SELECT COUNT(*) AS total, COALESCE(AVG(stars),0) AS average FROM reviews');
+    const [rows] = await pool.query(
+      `SELECT r.id,r.appointment_id,r.user_id,r.client_name,r.stars,r.comment,r.created_at,
+              u.email,u.phone
+       FROM reviews r LEFT JOIN users u ON u.id=r.user_id
+       ORDER BY r.created_at DESC, r.id DESC LIMIT 500`
+    );
+    res.json({
+      average: Number(Number(summaryRows[0]?.average || 0).toFixed(1)),
+      count: Number(summaryRows[0]?.total || 0),
+      reviews: rows
+    });
+  } catch (error) {
+    console.error('No se pudieron cargar las reseñas del panel:', error.message);
+    res.status(500).json({ message: 'No se pudieron cargar las calificaciones.' });
+  }
+});
+
+app.delete('/api/owner/reviews/:id', authRequired, ownerRequired, async (req, res) => {
+  try {
+    const [result] = await pool.query('DELETE FROM reviews WHERE id=?', [req.params.id]);
+    if (!result.affectedRows) return res.status(404).json({ message: 'Reseña no encontrada.' });
+    res.json({ message: 'Reseña eliminada.' });
+  } catch (error) {
+    console.error('No se pudo eliminar la reseña:', error.message);
+    res.status(500).json({ message: 'No se pudo eliminar la reseña.' });
+  }
+});
+
+app.get('/api/owner/notification-targets', authRequired, ownerRequired, async (_req, res) => {
+  try {
+    const [users] = await pool.query(
+      `SELECT u.id,u.name,u.email,u.phone,
+              (SELECT COUNT(*) FROM push_subscriptions ps WHERE ps.user_id=u.id) AS devices
+       FROM users u
+       WHERE u.role='client' AND u.status='accepted'
+       ORDER BY u.name`
+    );
+    const [appointments] = await pool.query(
+      `SELECT id,user_id,client_name,service,appointment_date,appointment_time,status
+       FROM appointments
+       WHERE user_id IS NOT NULL AND status IN ('pending','accepted')
+         AND appointment_date >= ?
+       ORDER BY appointment_date,appointment_time`,
+      [colombiaTodayISO()]
+    );
+    res.json({ users, appointments: appointments.map(a => ({
+      id: Number(a.id), user_id: Number(a.user_id), client_name: a.client_name, service: a.service,
+      date: dateOnly(a.appointment_date), time: formatDbTime(a.appointment_time), status: a.status
+    })) });
+  } catch (error) {
+    console.error('No se pudieron cargar los destinatarios:', error.message);
+    res.status(500).json({ message: 'No se pudieron cargar las clientas para notificar.' });
+  }
+});
+
+app.post('/api/owner/notifications/send', authRequired, ownerRequired, async (req, res) => {
+  try {
+    const userId = Number(req.body?.user_id);
+    const appointmentId = Number(req.body?.appointment_id || 0);
+    const message = String(req.body?.message || '').trim();
+    if (!userId || message.length < 2) return res.status(400).json({ message: 'Selecciona una clienta y escribe un mensaje.' });
+    if (message.length > 600) return res.status(400).json({ message: 'El mensaje es demasiado largo. Máximo 600 caracteres.' });
+
+    const [users] = await pool.query(`SELECT id,name,phone,status FROM users WHERE id=? AND role='client' LIMIT 1`, [userId]);
+    const user = users[0];
+    if (!user || user.status !== 'accepted') return res.status(404).json({ message: 'La clienta ya no está activa.' });
+
+    let finalMessage = message;
+    if (appointmentId) {
+      const [appts] = await pool.query(
+        `SELECT id,client_name,service,appointment_date,appointment_time,status,user_id
+         FROM appointments WHERE id=? AND user_id=? LIMIT 1`,
+        [appointmentId, userId]
+      );
+      const appt = appts[0];
+      if (!appt) return res.status(404).json({ message: 'La cita seleccionada no pertenece a esa clienta.' });
+      finalMessage = `${message}\n\n💅 ${appt.service}\n📅 ${notificationDateTime(appt.appointment_date, appt.appointment_time)}`;
+    }
+
+    const result = await sendPushToUser(userId, finalMessage, clientPanelUrl());
+    if (!result.sent) return res.status(503).json({ message: 'La clienta no tiene avisos activados en ningún dispositivo. Puedes comunicarte con ella por WhatsApp usando el número guardado en su perfil.' });
+    res.json({ message: `Aviso enviado a ${user.name}. 💕`, delivered: result.delivered || 0 });
+  } catch (error) {
+    console.error('No se pudo enviar un aviso a la clienta:', error.message);
+    res.status(502).json({ message: 'No se pudo enviar el aviso a la clienta.' });
+  }
+});
+
 app.get('/api/portfolio', async (req, res) => {
   try {
     const visibility = String(req.query.visibility || 'client').trim();

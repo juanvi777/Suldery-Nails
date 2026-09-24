@@ -25,6 +25,10 @@ let ownerPhotosCache = [];
 let ownerRecoveryRequestsCache = [];
 let ownerCatalogCache = [];
 let ownerCatalogIndex = 0;
+let ownerReviewsCache = [];
+let ownerReviewAverage = 0;
+let ownerReviewCount = 0;
+let notificationTargetsCache = { users: [], appointments: [] };
 let ownerCalendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let ownerCalendarData = new Map();
 let ownerCalendarSelectedDate = '';
@@ -138,6 +142,11 @@ async function initDuena() {
   document.querySelectorAll('[data-close-owner-tool]').forEach(button => button.addEventListener('click', closeOwnerTools));
   document.querySelectorAll('[data-owner-stat]').forEach(button => button.addEventListener('click', () => openOwnerStat(button.dataset.ownerStat)));
   document.querySelectorAll('[data-close-owner-stat]').forEach(button => button.addEventListener('click', closeOwnerStats));
+  $d('notifyClientSelect')?.addEventListener('change', updateNotifyAppointmentOptions);
+  $d('notifyAppointmentSelect')?.addEventListener('change', fillReminderMessage);
+  $d('notifyReminderButton')?.addEventListener('click', fillReminderMessage);
+  $d('notifyHelloButton')?.addEventListener('click', fillHelloMessage);
+  $d('sendNotifyButton')?.addEventListener('click', sendOwnerNotification);
   $d('ownerAppointmentDate').addEventListener('change', loadOwnerSlots);
   $d('ownerService').addEventListener('change', () => { updateOwnerServiceDurationHint(); loadOwnerSlots(); });
   $d('ownerBookingForm').addEventListener('submit', submitManualBooking);
@@ -259,7 +268,7 @@ async function testOwnerNotification() {
 
 
 async function refreshOwnerData() {
-  await Promise.all([loadPendingUsers(), loadOwnerAppointments(), loadPasswordRecoveryRequests(), loadNotificationStatus()]);
+  await Promise.all([loadPendingUsers(), loadOwnerAppointments(), loadPasswordRecoveryRequests(), loadNotificationStatus(), loadOwnerReviews(), loadNotificationTargets()]);
   await loadOwnerGallery();
   await loadBlockedDates();
   updateOwnerServiceDurationHint();
@@ -284,6 +293,14 @@ function openOwnerStat(name) {
     loadPasswordRecoveryRequests();
     $d('ownerStatRecovery').classList.remove('hidden-tool-panel');
     $d('ownerStatRecovery').scrollIntoView({ behavior:'smooth', block:'start' });
+  } else if (name === 'reviews') {
+    loadOwnerReviews();
+    $d('ownerStatReviews')?.classList.remove('hidden-tool-panel');
+    $d('ownerStatReviews')?.scrollIntoView({ behavior:'smooth', block:'start' });
+  } else if (name === 'notify') {
+    loadNotificationTargets();
+    $d('ownerStatNotify')?.classList.remove('hidden-tool-panel');
+    $d('ownerStatNotify')?.scrollIntoView({ behavior:'smooth', block:'start' });
   }
 }
 
@@ -293,10 +310,154 @@ function closeOwnerStats() {
 
 function renderOwnerStatsDetails() {
   $d('activeClientCount').textContent = ownerUsersCache.filter(user => user.role === 'client' && user.status === 'accepted').length;
-  $d('scheduledCount').textContent = ownerAppointmentsCache.filter(a => a.status === 'accepted').length;
+  $d('scheduledCount').textContent = ownerAppointmentsCache.filter(a => a.status === 'accepted' && String(a.appointment_date).slice(0,10) >= localISODate(new Date())).length;
   if ($d('recoveryCount')) $d('recoveryCount').textContent = ownerRecoveryRequestsCache.filter(request => request.status === 'pending').length;
+  if ($d('reviewAverage')) $d('reviewAverage').textContent = ownerReviewCount ? ownerReviewAverage.toFixed(1) + '★' : '—';
+  if ($d('reviewCount')) $d('reviewCount').textContent = ownerReviewCount;
+  if ($d('ownerReviewAverageLarge')) $d('ownerReviewAverageLarge').textContent = ownerReviewCount ? ownerReviewAverage.toFixed(1) : '—';
+  if ($d('ownerReviewCountLarge')) $d('ownerReviewCountLarge').textContent = ownerReviewCount;
+  if ($d('ownerReviewStars')) $d('ownerReviewStars').textContent = reviewStars(ownerReviewAverage);
   renderActiveClients();
   renderScheduledAppointments();
+}
+
+
+function reviewStars(value) {
+  const numeric = Math.max(0, Math.min(5, Number(value) || 0));
+  if (!numeric) return '☆☆☆☆☆';
+  const rounded = Math.round(numeric);
+  return '★'.repeat(rounded) + '☆'.repeat(5 - rounded);
+}
+
+async function loadOwnerReviews() {
+  const list = $d('ownerReviewsList');
+  try {
+    const data = await apiFetch('/owner/reviews');
+    ownerReviewsCache = Array.isArray(data.reviews) ? data.reviews : [];
+    ownerReviewAverage = Number(data.average || 0);
+    ownerReviewCount = Number(data.count || ownerReviewsCache.length || 0);
+    renderOwnerReviews();
+    renderOwnerStatsDetails();
+  } catch (error) {
+    ownerReviewsCache = [];
+    if (list) list.innerHTML = `<div class="empty-state">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+function renderOwnerReviews() {
+  const list = $d('ownerReviewsList');
+  if (!list) return;
+  list.innerHTML = '';
+  if (!ownerReviewsCache.length) {
+    list.innerHTML = '<div class="empty-state">Todavía no hay reseñas publicadas. Cuando una clienta comparta su experiencia, aparecerá aquí. 💕</div>';
+    return;
+  }
+  ownerReviewsCache.forEach(review => {
+    const item = document.createElement('article');
+    item.className = 'admin-item review-owner-item';
+    const date = review.created_at ? String(review.created_at).slice(0,10) : '';
+    item.innerHTML = `<div class="admin-item-main"><strong>${escapeHtml(review.client_name || 'Clienta')}</strong><p class="review-stars">${reviewStars(review.stars)} <span>${Number(review.stars)}/5</span></p><p>${escapeHtml(review.comment || '')}</p><small>${escapeHtml(review.email || '')}${review.phone ? ` · ${escapeHtml(review.phone)}` : ''}${date ? ` · ${escapeHtml(formatDate(date))}` : ''}</small></div><button type="button" class="small-button cancel" data-owner-review-delete="${review.id}">Eliminar</button>`;
+    list.appendChild(item);
+  });
+  list.querySelectorAll('[data-owner-review-delete]').forEach(button => button.addEventListener('click', async () => {
+    if (!confirm('¿Eliminar esta reseña?')) return;
+    try { await apiFetch(`/owner/reviews/${button.dataset.ownerReviewDelete}`, {method:'DELETE'}); await loadOwnerReviews(); }
+    catch (error) { alert(error.message); }
+  }));
+}
+
+async function loadNotificationTargets() {
+  try {
+    const data = await apiFetch('/owner/notification-targets');
+    notificationTargetsCache = { users: Array.isArray(data.users) ? data.users : [], appointments: Array.isArray(data.appointments) ? data.appointments : [] };
+    const select = $d('notifyClientSelect');
+    if (!select) return;
+    const current = select.value;
+    select.innerHTML = '<option value="">Selecciona una clienta</option>';
+    notificationTargetsCache.users.forEach(user => {
+      const option = document.createElement('option');
+      option.value = user.id;
+      option.textContent = `${user.name}${user.devices ? ' · avisos activos' : ' · avisos no activados'}`;
+      select.appendChild(option);
+    });
+    if (current && notificationTargetsCache.users.some(user => String(user.id) === String(current))) select.value = current;
+    updateNotifyAppointmentOptions();
+  } catch (error) {
+    if ($d('notifyMessageStatus')) setMessage($d('notifyMessageStatus'), error.message);
+  }
+}
+
+function updateNotifyAppointmentOptions() {
+  const clientSelect = $d('notifyClientSelect');
+  const apptSelect = $d('notifyAppointmentSelect');
+  const meta = $d('notifyClientMeta');
+  if (!clientSelect || !apptSelect) return;
+  const userId = Number(clientSelect.value || 0);
+  apptSelect.innerHTML = '<option value="">Sin cita específica</option>';
+  const user = notificationTargetsCache.users.find(item => Number(item.id) === userId);
+  if (meta) {
+    meta.innerHTML = user
+      ? `<strong>${escapeHtml(user.name)}</strong> · ${escapeHtml(user.phone || 'Sin teléfono registrado')} · ${Number(user.devices || 0) ? 'Avisos activados' : 'Avisos no activados'}${user.phone ? ` · <a href="https://wa.me/${whatsAppNumber(user.phone)}" target="_blank" rel="noopener">Abrir WhatsApp</a>` : ''}`
+      : 'Selecciona una clienta para ver sus datos de contacto.';
+  }
+  if (!userId) return;
+  notificationTargetsCache.appointments.filter(appt => Number(appt.user_id) === userId && ['pending','accepted'].includes(appt.status)).forEach(appt => {
+    const option = document.createElement('option');
+    option.value = appt.id;
+    option.textContent = `${formatDate(appt.date)} · ${safeFormatTime12(appt.time)} · ${appt.service} · ${statusLabel(appt.status)}`;
+    option.dataset.date = appt.date;
+    option.dataset.time = appt.time;
+    option.dataset.service = appt.service;
+    apptSelect.appendChild(option);
+  });
+}
+
+function fillReminderMessage() {
+  const userId = Number($d('notifyClientSelect')?.value || 0);
+  const apptId = Number($d('notifyAppointmentSelect')?.value || 0);
+  const user = notificationTargetsCache.users.find(item => Number(item.id) === userId);
+  const appt = notificationTargetsCache.appointments.find(item => Number(item.id) === apptId);
+  const box = $d('notifyMessage');
+  if (!box) return;
+  if (!user) { box.value = ''; return; }
+  if (!appt) {
+    const next = notificationTargetsCache.appointments.filter(item => Number(item.user_id) === userId && item.status === 'accepted')[0];
+    if (next) {
+      if ($d('notifyAppointmentSelect')) $d('notifyAppointmentSelect').value = String(next.id);
+      box.value = `Hola ${firstNameForNotify(user.name)} 💕, te escribo para recordarte tu próxima cita en Suldery Nails. Nos vemos con mucho cariño. 💅✨`;
+    } else {
+      box.value = `Hola ${firstNameForNotify(user.name)} 💕, quería dejarte este recordatorio de parte de Suldery Nails. 💕`;
+    }
+    return;
+  }
+  box.value = `Hola ${firstNameForNotify(user.name)} 💕, te recuerdo con mucho cariño tu cita de ${appt.service} para el ${formatDate(appt.date)} a las ${safeFormatTime12(appt.time)}. ¡Te esperamos! 💅✨`;
+}
+
+function fillHelloMessage() {
+  const userId = Number($d('notifyClientSelect')?.value || 0);
+  const user = notificationTargetsCache.users.find(item => Number(item.id) === userId);
+  if (!$d('notifyMessage')) return;
+  $d('notifyMessage').value = user ? `Hola ${firstNameForNotify(user.name)} 💕, un saludito de parte de Suldery Nails. Esperamos verte pronto. ✨` : '';
+}
+
+function firstNameForNotify(name) { return String(name || 'clienta').trim().split(/\s+/)[0] || 'clienta'; }
+function whatsAppNumber(phone) { const digits = String(phone || '').replace(/\D/g,''); return digits.startsWith('57') ? digits : `57${digits.replace(/^0+/, '')}`; }
+
+async function sendOwnerNotification() {
+  const userId = Number($d('notifyClientSelect')?.value || 0);
+  const appointmentId = Number($d('notifyAppointmentSelect')?.value || 0);
+  const messageEl = $d('notifyMessageStatus');
+  const button = $d('sendNotifyButton');
+  const message = String($d('notifyMessage')?.value || '').trim();
+  if (!userId) return setMessage(messageEl, 'Selecciona primero una clienta.');
+  if (!message) return setMessage(messageEl, 'Escribe el mensaje que quieres enviar.');
+  button.disabled = true;
+  setMessage(messageEl, 'Enviando aviso…');
+  try {
+    const data = await apiFetch('/owner/notifications/send', { method:'POST', body:JSON.stringify({user_id:userId, appointment_id:appointmentId || undefined, message}) });
+    setMessage(messageEl, data.message, true);
+  } catch (error) { setMessage(messageEl, error.message); }
+  finally { button.disabled = false; }
 }
 
 function renderActiveClients() {

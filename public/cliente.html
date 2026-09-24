@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260923-v48">
+  <link rel="stylesheet" href="style.css?v=20260923-v49">
 </head>
 <body class="dashboard-page">
   <main class="dashboard-shell">
@@ -106,12 +106,39 @@
       </aside>
     </section>
 
+    <section class="reviews-section glass-card" id="reviewsSection">
+      <div class="reviews-heading">
+        <div><p class="eyebrow">CALIFICACIONES</p><h2>Lo que cuentan nuestras clientas</h2></div>
+        <button id="reviewsToggleButton" type="button" class="review-score-button" aria-expanded="false">
+          <strong id="reviewScore">—</strong><span id="reviewStarsSummary" class="review-stars">★★★★★</span><small><span id="reviewTotal">0</span> reseñas</small>
+        </button>
+      </div>
+      <div id="reviewsViewer" class="reviews-viewer hidden-review-viewer">
+        <div class="review-viewer-card">
+          <button id="reviewPreviousButton" class="carousel-arrow left" type="button" aria-label="Reseña anterior">‹</button>
+          <article id="currentReviewCard" class="review-card"></article>
+          <button id="reviewNextButton" class="carousel-arrow right" type="button" aria-label="Reseña siguiente">›</button>
+        </div>
+        <div id="reviewDots" class="carousel-dots review-dots"></div>
+      </div>
+
+      <div class="client-review-submit">
+        <div><p class="eyebrow">TU EXPERIENCIA</p><h3>¿Ya estuviste con Suldery?</h3><p>Cuéntanos cómo te fue después de una cita terminada.</p></div>
+        <div class="review-submit-grid">
+          <label>Cita para calificar<select id="reviewAppointmentSelect"><option value="">Selecciona una cita terminada</option></select></label>
+          <div class="star-picker" id="reviewStarPicker" aria-label="Elige de 1 a 5 estrellas"></div>
+          <label class="review-comment-field">Tu comentario<textarea id="reviewComment" rows="4" maxlength="1000" placeholder="¿Qué fue lo que más te gustó? 💕"></textarea></label>
+        </div>
+        <div class="owner-tool-actions"><button id="submitReviewButton" class="primary-button" type="button">Publicar reseña <span>✦</span></button><span id="reviewSubmitMessage" class="form-message"></span></div>
+      </div>
+    </section>
+
     <section class="portfolio-section">
       <div class="portfolio-heading"><div><p class="eyebrow">INSPÍRATE</p><h2>Diseños hechos con amor</h2></div><p>Un carrusel suave para que conozcas trabajos recientes.</p></div>
       <div id="clientGallery" class="carousel-frame"></div>
     </section>
   </main>
-  <script src="auth.js?v=20260923-v48"></script>
-  <script src="cliente.js?v=20260923-v48"></script>
+  <script src="auth.js?v=20260923-v49"></script>
+  <script src="cliente.js?v=20260923-v49"></script>
 </body>
 </html>

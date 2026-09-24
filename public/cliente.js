@@ -4,6 +4,9 @@ let selectedDate = '';
 let selectedTime = '';
 let selectedService = '';
 let calendarData = new Map();
+let clientReviews = [];
+let clientReviewIndex = 0;
+let selectedReviewStars = 0;
 const $ = id => document.getElementById(id);
 function formatTime12(timeValue) {
   const text = String(timeValue ?? '').slice(0, 5);
@@ -46,10 +49,16 @@ async function initCliente(){
   $('bookingButton').addEventListener('click',crearCita);
   $('enableNotificationsButton')?.addEventListener('click', async () => { try { await enableSulderyPush(); $('enableNotificationsButton').textContent='🔔 Avisos activos'; alert('Listo 💕. Este dispositivo recibirá tus avisos importantes.'); } catch (error) { alert(error.message); } });
   $('service').addEventListener('change',onServiceChange);
+  $('reviewsToggleButton')?.addEventListener('click', toggleReviewsViewer);
+  $('reviewPreviousButton')?.addEventListener('click', () => moveReview(-1));
+  $('reviewNextButton')?.addEventListener('click', () => moveReview(1));
+  $('reviewStarPicker')?.addEventListener('click', chooseReviewStars);
+  $('submitReviewButton')?.addEventListener('click', submitClientReview);
   updateServiceDurationHint();
   renderCalendar();
   await refreshCalendar();
-  await Promise.all([loadAppointments(),loadGallery()]);
+  await Promise.all([loadAppointments(),loadGallery(),loadReviews()]);
+  populateReviewableAppointments();
   try { const push = await getSulderyPushStatus(); if (push.subscribed && $('enableNotificationsButton')) $('enableNotificationsButton').textContent='🔔 Avisos activos'; } catch {}
 }
 
@@ -259,8 +268,122 @@ async function crearCita(){
   }
 }
 
-async function loadAppointments(){const data=await apiFetch('/appointments/my');const list=$('appointmentsList');list.innerHTML='';if(!data.appointments.length){list.innerHTML='<div class="empty-state">Todavía no tienes citas.</div>';return;}data.appointments.forEach(appt=>{const item=document.createElement('article');item.className='appointment-item';const statusText=appt.status==='accepted'?'Confirmada':appt.status==='pending'?'Pendiente de confirmación':appt.status==='cancelled'?'Cancelada':'Rechazada';item.innerHTML=`<div class="appointment-top"><strong>${escapeHtml(appt.service)}</strong><span class="status ${appt.status}">${statusText}</span></div><p>${formatDate(appt.appointment_date)} · ${safeFormatTime12(appt.appointment_time)} · ${durationLabel(Number(appt.duration_minutes))}</p>`;if(['pending','accepted'].includes(appt.status)){const cancel=document.createElement('button');cancel.type='button';cancel.className='link-button subtle-link';cancel.textContent='Cancelar cita';cancel.addEventListener('click',()=>cancelarCita(appt.id));item.appendChild(cancel);}list.appendChild(item);});}
+async function loadAppointments(){const data=await apiFetch('/appointments/my'); window.__sulderyAppointments = Array.isArray(data.appointments) ? data.appointments : [];const list=$('appointmentsList');list.innerHTML='';if(!data.appointments.length){list.innerHTML='<div class="empty-state">Todavía no tienes citas.</div>';return;}data.appointments.forEach(appt=>{const item=document.createElement('article');item.className='appointment-item';const statusText=appt.status==='accepted'?'Confirmada':appt.status==='pending'?'Pendiente de confirmación':appt.status==='cancelled'?'Cancelada':'Rechazada';item.innerHTML=`<div class="appointment-top"><strong>${escapeHtml(appt.service)}</strong><span class="status ${appt.status}">${statusText}</span></div><p>${formatDate(appt.appointment_date)} · ${safeFormatTime12(appt.appointment_time)} · ${durationLabel(Number(appt.duration_minutes))}</p>`;if(['pending','accepted'].includes(appt.status)){const cancel=document.createElement('button');cancel.type='button';cancel.className='link-button subtle-link';cancel.textContent='Cancelar cita';cancel.addEventListener('click',()=>cancelarCita(appt.id));item.appendChild(cancel);}list.appendChild(item);});}
 async function cancelarCita(id){if(!confirm('¿Quieres cancelar esta cita?'))return;try{await apiFetch(`/appointments/${id}/cancel`,{method:'PATCH'});await Promise.all([loadAppointments(),refreshCalendar()]);if(selectedDate)await selectDate(selectedDate);}catch(error){setMessage($('bookingMessage'),error.message);shake(document.querySelector('.booking-card'));}}
+
+
+function reviewStars(value) {
+  const numeric = Math.max(0, Math.min(5, Number(value) || 0));
+  const rounded = Math.round(numeric);
+  return rounded ? '★'.repeat(rounded) + '☆'.repeat(5 - rounded) : '☆☆☆☆☆';
+}
+
+async function loadReviews() {
+  try {
+    const data = await apiFetch('/reviews');
+    clientReviews = Array.isArray(data.reviews) ? data.reviews : [];
+    clientReviewIndex = 0;
+    const average = Number(data.average || 0);
+    $('reviewScore').textContent = clientReviews.length ? average.toFixed(1) : '—';
+    $('reviewStarsSummary').textContent = reviewStars(average);
+    $('reviewTotal').textContent = Number(data.count || clientReviews.length || 0);
+    renderCurrentReview();
+    populateReviewableAppointments();
+  } catch (error) {
+    $('reviewScore').textContent = '—';
+    $('reviewStarsSummary').textContent = '☆☆☆☆☆';
+    $('reviewTotal').textContent = '0';
+    const card = $('currentReviewCard');
+    if (card) card.innerHTML = `<p class="empty-state">No pudimos cargar las reseñas ahora. ${escapeHtml(error.message)}</p>`;
+  }
+}
+
+function renderCurrentReview() {
+  const card = $('currentReviewCard');
+  const dots = $('reviewDots');
+  if (!card || !dots) return;
+  dots.innerHTML = '';
+  if (!clientReviews.length) {
+    card.innerHTML = '<p class="empty-state">Todavía no hay reseñas. Sé la primera en contar tu experiencia. 💕</p>';
+    return;
+  }
+  const review = clientReviews[clientReviewIndex];
+  card.innerHTML = `<div class="review-card-stars">${reviewStars(review.stars)}</div><blockquote>“${escapeHtml(review.comment || '')}”</blockquote><strong>${escapeHtml(review.client_name || 'Clienta')}</strong><small>${review.created_at ? escapeHtml(formatDate(String(review.created_at).slice(0,10))) : ''}</small>`;
+  clientReviews.forEach((_, i) => {
+    const dot = document.createElement('button');
+    dot.type = 'button'; dot.className = `carousel-dot${i === clientReviewIndex ? ' active' : ''}`;
+    dot.setAttribute('aria-label', `Ver reseña ${i + 1}`);
+    dot.addEventListener('click', () => { clientReviewIndex = i; renderCurrentReview(); });
+    dots.appendChild(dot);
+  });
+}
+
+function toggleReviewsViewer() {
+  const viewer = $('reviewsViewer');
+  const button = $('reviewsToggleButton');
+  if (!viewer || !button) return;
+  const hidden = viewer.classList.toggle('hidden-review-viewer');
+  button.setAttribute('aria-expanded', String(!hidden));
+  if (!hidden) viewer.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function moveReview(direction) {
+  if (!clientReviews.length) return;
+  clientReviewIndex = (clientReviewIndex + direction + clientReviews.length) % clientReviews.length;
+  renderCurrentReview();
+}
+
+function populateReviewableAppointments() {
+  const select = $('reviewAppointmentSelect');
+  if (!select) return;
+  const now = Date.now();
+  const reviewedAppointments = new Set(clientReviews.map(review => Number(review.appointment_id)).filter(Boolean));
+  // The backend will enforce the final eligibility check; this merely keeps the UI helpful.
+  const eligible = (window.__sulderyAppointments || []).filter(appt => {
+    if (appt.status !== 'accepted') return false;
+    if (reviewedAppointments.has(Number(appt.id))) return false;
+    const date = String(appt.appointment_date || '').slice(0,10);
+    const time = String(appt.appointment_time || '').slice(0,5);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) return false;
+    return new Date(`${date}T${time}:00-05:00`).getTime() < now;
+  });
+  select.innerHTML = '<option value="">Selecciona una cita terminada</option>';
+  eligible.forEach(appt => {
+    const option = document.createElement('option');
+    option.value = appt.id;
+    option.textContent = `${formatDate(appt.appointment_date)} · ${safeFormatTime12(appt.appointment_time)} · ${appt.service}`;
+    select.appendChild(option);
+  });
+}
+
+function chooseReviewStars(event) {
+  const button = event.target.closest('[data-review-stars]');
+  if (!button) return;
+  selectedReviewStars = Number(button.dataset.reviewStars || 0);
+  document.querySelectorAll('#reviewStarPicker button').forEach(item => item.classList.toggle('active', Number(item.dataset.reviewStars) <= selectedReviewStars));
+}
+
+async function submitClientReview() {
+  const appointmentId = Number($('reviewAppointmentSelect')?.value || 0);
+  const comment = String($('reviewComment')?.value || '').trim();
+  const message = $('reviewSubmitMessage');
+  const button = $('submitReviewButton');
+  if (!appointmentId) return setMessage(message, 'Selecciona primero una cita terminada.');
+  if (!selectedReviewStars) return setMessage(message, 'Elige de 1 a 5 estrellas.');
+  if (comment.length < 3) return setMessage(message, 'Escribe un comentario para compartir tu experiencia.');
+  button.disabled = true;
+  setMessage(message, 'Guardando tu reseña…');
+  try {
+    const data = await apiFetch('/reviews', {method:'POST', body:JSON.stringify({appointment_id:appointmentId,stars:selectedReviewStars,comment})});
+    setMessage(message, data.message, true);
+    $('reviewComment').value = '';
+    $('reviewAppointmentSelect').value = '';
+    selectedReviewStars = 0;
+    document.querySelectorAll('#reviewStarPicker button').forEach(item => item.classList.remove('active'));
+    await loadReviews();
+  } catch (error) { setMessage(message, error.message); }
+  finally { button.disabled = false; }
+}
 
 async function buildCarousel(gallery, photos, large = false) {
   if (!gallery) return;
@@ -368,4 +491,10 @@ function escapeHtml(text) {
   return String(text ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 }
 
-document.addEventListener('DOMContentLoaded', initCliente);
+document.addEventListener('DOMContentLoaded', () => {
+  const picker = document.getElementById('reviewStarPicker');
+  if (picker && !picker.children.length) {
+    picker.innerHTML = [1,2,3,4,5].map(n => `<button type="button" data-review-stars="${n}" aria-label="${n} estrellas">★</button>`).join('');
+  }
+  initCliente();
+});
