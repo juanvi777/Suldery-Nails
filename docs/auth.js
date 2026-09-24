@@ -289,7 +289,7 @@ async function getSulderyServiceWorker() {
     throw new Error('Este dispositivo no permite instalar el sistema de avisos.');
   }
   if (!sulderyServiceWorkerRegistration) {
-    const swUrl = new URL('sw.js?v=20260922-v47', location.href);
+    const swUrl = new URL('sw.js?v=20260923-v48', location.href);
     sulderyServiceWorkerRegistration = await navigator.serviceWorker.register(swUrl, { scope: './' });
   }
   return await navigator.serviceWorker.ready;
@@ -405,7 +405,7 @@ window.enablePendingSulderyPush = enablePendingSulderyPush;
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    const swUrl = new URL('sw.js?v=20260922-v47', location.href);
+    const swUrl = new URL('sw.js?v=20260923-v48', location.href);
     navigator.serviceWorker.register(swUrl, { scope: './' }).catch(() => {});
   });
 }

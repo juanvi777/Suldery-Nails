@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260922-v47">
+  <link rel="stylesheet" href="style.css?v=20260923-v48">
 </head>
 <body class="dashboard-page owner-page">
   <main class="dashboard-shell">
@@ -293,10 +293,11 @@
     <section id="ownerToolPhotos" class="owner-tool-panel admin-card glass-card hidden-tool-panel">
       <div class="card-heading"><div><p class="eyebrow">FOTOS DE INICIO</p><h2>La primera impresión</h2></div><button class="small-button ghost" type="button" data-close-owner-tool>Cerrar</button></div>
       <p class="manager-note">Aquí eliges las hasta 8 fotos que verá una persona antes de iniciar sesión. Cada foto se administra individualmente y puedes cambiarla o eliminarla.</p>
-      <div class="owner-photo-upload-buttons single-choice-grid">
-        <label class="owner-upload-choice" for="photoPickerLogin"><span>✦</span><strong>Agregar foto de inicio</strong><small>Máximo 8 fotos</small></label>
+      <div class="photo-save-toolbar">
+        <label class="owner-upload-choice compact" for="photoPickerLogin"><span>✦</span><strong>Elegir foto</strong><small>Máximo 8 fotos</small></label>
+        <div class="photo-save-actions"><span id="loginPhotoSelection" class="photo-selection-status">No hay una foto pendiente.</span><button id="saveLoginPhotoButton" class="primary-button small-primary" type="button" disabled>Guardar foto</button></div>
       </div>
-      <input id="photoPickerLogin" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden"><input id="photoPickerClient" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden"><input id="photoReplacePicker" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden">
+      <input id="photoPickerLogin" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden"><input id="photoReplacePicker" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden">
       <div class="photo-owner-groups">
         <section class="photo-owner-group"><div class="subsection-heading"><div><p class="eyebrow">INICIO DE SESIÓN</p><h3>Fotos que ven antes de entrar</h3></div><span id="loginPhotoCount" class="photo-group-count">0</span></div><div id="ownerLoginGallery" class="photo-owner-list"></div></section>
       </div>
@@ -306,8 +307,9 @@
     <section id="ownerToolClientPhotos" class="owner-tool-panel admin-card glass-card hidden-tool-panel">
       <div class="card-heading"><div><p class="eyebrow">FOTOS DE CLIENTAS</p><h2>Lo que ven después de entrar</h2></div><button class="small-button ghost" type="button" data-close-owner-tool>Cerrar</button></div>
       <p class="manager-note">Este apartado controla exclusivamente la galería de la página de clienta. Agrega, actualiza o elimina las fotos que quieres mostrar una vez iniciada la sesión. Máximo 10 fotos.</p>
-      <div class="owner-photo-upload-buttons single-choice-grid">
-        <label class="owner-upload-choice" for="photoPickerClientOnly"><span>♡</span><strong>Agregar foto de clienta</strong><small>Galería privada para clientas registradas</small></label>
+      <div class="photo-save-toolbar">
+        <label class="owner-upload-choice compact" for="photoPickerClientOnly"><span>♡</span><strong>Elegir foto</strong><small>Galería privada · máximo 10</small></label>
+        <div class="photo-save-actions"><span id="clientPhotoSelection" class="photo-selection-status">No hay una foto pendiente.</span><button id="saveClientPhotoButton" class="primary-button small-primary" type="button" disabled>Guardar foto</button></div>
       </div>
       <input id="photoPickerClientOnly" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden">
       <div class="photo-owner-groups">
@@ -345,7 +347,7 @@
       </article>
     </section>
   </main>
-  <script src="auth.js?v=20260922-v47"></script>
-  <script src="duena.js?v=20260922-v47"></script>
+  <script src="auth.js?v=20260923-v48"></script>
+  <script src="duena.js?v=20260923-v48"></script>
 </body>
 </html>

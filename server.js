@@ -1571,31 +1571,57 @@ app.patch('/api/appointments/:id/cancel', authRequired, async (req, res) => {
 app.get('/api/portfolio', async (req, res) => {
   try {
     const visibility = String(req.query.visibility || 'client').trim();
-    const allowed = ['login','client'];
+    const allowed = ['login', 'client'];
     if (!allowed.includes(visibility)) return res.status(400).json({ message: 'Visibilidad inválida.' });
 
+    const limit = visibility === 'client' ? 10 : 8;
     const [rows] = await pool.query(
-      `SELECT id,title,image_url,image_data,image_mime,visibility,display_order,created_at
+      `SELECT id,title,image_url,visibility,display_order,created_at
        FROM portfolio_photos
        WHERE visibility IN (?, 'both')
        ORDER BY display_order ASC, created_at DESC
-       LIMIT 8`,
+       LIMIT ${limit}`,
       [visibility]
     );
-    const photos = rows.map(row => ({
+
+    res.json({ photos: rows.map(row => ({
       id: row.id,
       title: row.title,
-      image_url: row.image_data
-        ? `data:${row.image_mime || 'image/jpeg'};base64,${Buffer.from(row.image_data).toString('base64')}`
-        : row.image_url,
-      visibility: row.visibility || 'login',
+      visibility: row.visibility || visibility,
       display_order: row.display_order,
-      created_at: row.created_at
-    }));
-    res.json({ photos });
+      created_at: row.created_at,
+      image_url: `/api/portfolio/${row.id}/image`
+    })) });
   } catch (error) {
     console.error('No se pudo cargar el portafolio:', error.message);
     res.status(500).json({ message: 'No se pudo cargar el portafolio.' });
+  }
+});
+
+app.get('/api/portfolio/:id/image', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT image_data,image_mime,image_url FROM portfolio_photos WHERE id=? LIMIT 1',
+      [req.params.id]
+    );
+    const photo = rows[0];
+    if (!photo) return res.status(404).send('Imagen no encontrada.');
+
+    if (photo.image_data && photo.image_data.length) {
+      res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.type(photo.image_mime || 'image/jpeg');
+      return res.send(photo.image_data);
+    }
+
+    if (photo.image_url && photo.image_url.startsWith('/uploads/portfolio/')) {
+      return res.redirect(302, photo.image_url);
+    }
+
+    return res.status(404).send('Esta foto no tiene una imagen guardada.');
+  } catch (error) {
+    console.error('No se pudo cargar una foto del portafolio:', error.message);
+    res.status(500).send('No se pudo cargar la imagen.');
   }
 });
 

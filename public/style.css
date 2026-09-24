@@ -692,3 +692,17 @@ body.dark-mode .owner-tool-featured{background:linear-gradient(145deg,rgba(39,16
 .recovery-request-item .admin-item-main{flex:1 1 auto}
 .recovery-request-item .admin-actions{max-width:380px}
 @media(max-width:680px){.catalog-hero-button{width:100%;max-width:none}.recovery-request-item{flex-direction:column}.recovery-request-item .admin-actions{width:100%;max-width:none}.recovery-request-item .admin-actions .small-button{flex:1 1 100%}}
+
+
+/* v4.8 - fotos guardadas y carruseles estables */
+.photo-save-toolbar{display:grid;grid-template-columns:minmax(220px,280px) 1fr;gap:1rem;align-items:center;margin:1rem 0;padding:1rem;border:1px solid rgba(214,59,120,.16);border-radius:22px;background:linear-gradient(145deg,rgba(255,247,250,.78),rgba(255,255,255,.94));}
+.owner-upload-choice.compact{margin:0;cursor:pointer;}
+.photo-save-actions{display:flex;align-items:center;gap:.8rem;justify-content:flex-end;flex-wrap:wrap;}
+.photo-selection-status{color:var(--muted);font-size:.78rem;line-height:1.4;}
+.small-primary{padding:.7rem 1rem;font-size:.75rem;min-height:40px;}
+.photo-order-actions{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;}
+.carousel-counter{position:absolute;right:14px;bottom:14px;z-index:3;padding:.28rem .55rem;border-radius:999px;background:rgba(12,10,16,.68);color:#fff;font-size:.68rem;font-weight:800;backdrop-filter:blur(6px);}
+.carousel-loading{position:absolute;inset:0;display:grid;place-items:center;z-index:2;color:var(--rose-dark);font-size:.76rem;font-weight:800;text-align:center;padding:2rem;pointer-events:none;background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,247,250,.35));}
+.carousel-image.is-loading{opacity:.12;}
+.carousel-stage{touch-action:pan-y;}
+@media(max-width:700px){.photo-save-toolbar{grid-template-columns:1fr}.photo-save-actions{justify-content:stretch}.photo-save-actions .small-primary{flex:1 1 100%}}

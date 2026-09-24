@@ -4,8 +4,6 @@ let selectedDate = '';
 let selectedTime = '';
 let selectedService = '';
 let calendarData = new Map();
-let carouselIndex = 0;
-let carouselTimer = null;
 const $ = id => document.getElementById(id);
 function formatTime12(timeValue) {
   const text = String(timeValue ?? '').slice(0, 5);
@@ -265,78 +263,105 @@ async function loadAppointments(){const data=await apiFetch('/appointments/my');
 async function cancelarCita(id){if(!confirm('¿Quieres cancelar esta cita?'))return;try{await apiFetch(`/appointments/${id}/cancel`,{method:'PATCH'});await Promise.all([loadAppointments(),refreshCalendar()]);if(selectedDate)await selectDate(selectedDate);}catch(error){setMessage($('bookingMessage'),error.message);shake(document.querySelector('.booking-card'));}}
 
 async function buildCarousel(gallery, photos, large = false) {
+  if (!gallery) return;
+  if (gallery._carouselCleanup) gallery._carouselCleanup();
   gallery.innerHTML = '';
   if (!photos.length) {
     gallery.innerHTML = '<div class="empty-state">Pronto verás aquí los diseños de Suldery.</div>';
     return;
   }
 
+  const state = { index: 0, timer: null, touchStartX: null };
   const stage = document.createElement('div');
   stage.className = large ? 'carousel-stage login-carousel-stage' : 'carousel-stage';
   const image = document.createElement('img');
   image.className = 'carousel-image';
   image.alt = 'Diseño de Suldery Nails';
-  stage.appendChild(image);
+  image.decoding = 'async';
+  image.loading = 'eager';
+  const loading = document.createElement('span');
+  loading.className = 'carousel-loading';
+  loading.textContent = 'Cargando diseño…';
+  stage.append(image, loading);
 
   const previous = document.createElement('button');
   previous.className = 'carousel-arrow left';
   previous.type = 'button';
   previous.textContent = '‹';
   previous.setAttribute('aria-label', 'Foto anterior');
-  previous.addEventListener('click', () => updateCarousel(photos, -1, gallery));
-
   const next = document.createElement('button');
   next.className = 'carousel-arrow right';
   next.type = 'button';
   next.textContent = '›';
   next.setAttribute('aria-label', 'Foto siguiente');
-  next.addEventListener('click', () => updateCarousel(photos, 1, gallery));
 
   const dots = document.createElement('div');
   dots.className = 'carousel-dots';
-  photos.forEach((_, index) => {
+  const counter = document.createElement('span');
+  counter.className = 'carousel-counter';
+
+  function preload(index) {
+    const url = photos[index]?.image_url;
+    if (!url) return;
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = url;
+  }
+
+  function draw() {
+    const photo = photos[state.index];
+    if (!photo) return;
+    loading.textContent = 'Cargando diseño…';
+    loading.classList.remove('hidden');
+    image.classList.add('is-loading');
+    image.onload = () => { image.classList.remove('is-loading'); loading.classList.add('hidden'); };
+    image.onerror = () => { image.classList.remove('is-loading'); loading.textContent = 'No se pudo cargar esta foto.'; loading.classList.remove('hidden'); };
+    image.src = photo.image_url;
+    image.alt = photo.title || 'Diseño de Suldery Nails';
+    dots.querySelectorAll('.carousel-dot').forEach((dot, i) => dot.classList.toggle('active', i === state.index));
+    counter.textContent = `${state.index + 1} / ${photos.length}`;
+    preload((state.index + 1) % photos.length);
+    preload((state.index - 1 + photos.length) % photos.length);
+  }
+
+  function go(delta) {
+    state.index = (state.index + delta + photos.length) % photos.length;
+    draw();
+  }
+
+  previous.addEventListener('click', () => go(-1));
+  next.addEventListener('click', () => go(1));
+  stage.addEventListener('touchstart', e => { state.touchStartX = e.changedTouches[0]?.clientX ?? null; }, { passive: true });
+  stage.addEventListener('touchend', e => {
+    if (state.touchStartX == null) return;
+    const endX = e.changedTouches[0]?.clientX ?? state.touchStartX;
+    const dx = endX - state.touchStartX;
+    state.touchStartX = null;
+    if (Math.abs(dx) > 45) go(dx < 0 ? 1 : -1);
+  }, { passive: true });
+
+  photos.forEach((_, i) => {
     const dot = document.createElement('button');
     dot.type = 'button';
     dot.className = 'carousel-dot';
-    dot.setAttribute('aria-label', `Ver foto ${index + 1}`);
-    dot.addEventListener('click', () => {
-      carouselIndex = index;
-      drawCarousel(photos, gallery);
-    });
+    dot.setAttribute('aria-label', `Ver foto ${i + 1}`);
+    dot.addEventListener('click', () => { state.index = i; draw(); });
     dots.appendChild(dot);
   });
 
   stage.append(previous, next);
-  gallery.append(stage, dots);
-  carouselIndex = 0;
-  drawCarousel(photos, gallery);
+  gallery.append(stage, dots, counter);
+  draw();
 
-  if (photos.length > 1) {
-    clearInterval(carouselTimer);
-    carouselTimer = setInterval(() => updateCarousel(photos, 1, gallery), 5000);
-  }
+  if (photos.length > 1) state.timer = window.setInterval(() => go(1), 5000);
+  gallery._carouselCleanup = () => { if (state.timer) clearInterval(state.timer); gallery._carouselCleanup = null; };
 }
 
 async function loadGallery() {
-  const data = await apiFetch('/portfolio');
-  await buildCarousel($('clientGallery'), data.photos);
-  if ($('clientHeroGallery')) {
-    await buildCarousel($('clientHeroGallery'), data.photos, true);
-  }
-}
-
-function drawCarousel(photos, gallery) {
-  const image = gallery.querySelector('.carousel-image');
-  const dots = gallery.querySelectorAll('.carousel-dot');
-  if (!image || !photos.length) return;
-  image.src = photos[carouselIndex].image_url;
-  image.alt = photos[carouselIndex].title || 'Diseño de Suldery Nails';
-  dots.forEach((dot, index) => dot.classList.toggle('active', index === carouselIndex));
-}
-
-function updateCarousel(photos, direction, gallery) {
-  carouselIndex = (carouselIndex + direction + photos.length) % photos.length;
-  drawCarousel(photos, gallery);
+  const data = await apiFetch('/portfolio?visibility=client');
+  const photos = Array.isArray(data.photos) ? data.photos : [];
+  await buildCarousel($('clientGallery'), photos);
+  if ($('clientHeroGallery')) await buildCarousel($('clientHeroGallery'), photos, true);
 }
 
 function escapeHtml(text) {

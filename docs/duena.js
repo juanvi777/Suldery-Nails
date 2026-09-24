@@ -1,4 +1,5 @@
 let ownerUser = null;
+const pendingPhotoFiles = { login: null, client: null };
 const $d = id => document.getElementById(id);
 function safeFormatTime12(timeValue) {
   const text = String(timeValue ?? '').slice(0, 5);
@@ -140,8 +141,10 @@ async function initDuena() {
   $d('ownerAppointmentDate').addEventListener('change', loadOwnerSlots);
   $d('ownerService').addEventListener('change', () => { updateOwnerServiceDurationHint(); loadOwnerSlots(); });
   $d('ownerBookingForm').addEventListener('submit', submitManualBooking);
-  $d('photoPickerLogin')?.addEventListener('change', event => subirFoto(event, 'login'));
-    $d('photoPickerClientOnly')?.addEventListener('change', event => subirFoto(event, 'client'));
+  $d('photoPickerLogin')?.addEventListener('change', event => seleccionarFoto(event, 'login'));
+  $d('photoPickerClientOnly')?.addEventListener('change', event => seleccionarFoto(event, 'client'));
+  $d('saveLoginPhotoButton')?.addEventListener('click', () => guardarFotoSeleccionada('login'));
+  $d('saveClientPhotoButton')?.addEventListener('click', () => guardarFotoSeleccionada('client'));
   $d('photoReplacePicker')?.addEventListener('change', reemplazarFoto);
   $d('blockedDateForm').addEventListener('submit', bloquearFecha);
   $d('blockedDatesList').addEventListener('click', handleBlockedDateAction);
@@ -822,9 +825,13 @@ function renderOwnerPhotoGroup(container, photos, visibility) {
     figure.className = 'portfolio-photo owner-photo';
     figure.innerHTML = `
       <div class="owner-photo-number">${index + 1}</div>
-      <img src="${escapeAttribute(photo.image_url)}" alt="${escapeAttribute(photo.title || 'Diseño de Suldery Nails')}" loading="lazy">
+      <img src="${escapeAttribute(photo.image_url)}" alt="${escapeAttribute(photo.title || 'Diseño de Suldery Nails')}" loading="lazy" decoding="async">
       <figcaption>${escapeHtml(photo.title || 'Diseño Suldery Nails')}</figcaption>
       <div class="photo-actions photo-actions-vertical">
+        <div class="photo-order-actions">
+          <button type="button" class="small-button ghost" data-photo-action="move-up" data-id="${photo.id}" ${index === 0 ? 'disabled' : ''}>↑ Subir</button>
+          <button type="button" class="small-button ghost" data-photo-action="move-down" data-id="${photo.id}" ${index === photos.length - 1 ? 'disabled' : ''}>↓ Bajar</button>
+        </div>
         <button type="button" class="small-button ghost" data-photo-action="replace" data-id="${photo.id}">Actualizar foto</button>
         <button type="button" class="remove-photo" data-photo-action="delete" data-id="${photo.id}">Eliminar foto</button>
       </div>`;
@@ -853,6 +860,8 @@ function handleGalleryAction(event) {
   if (button.dataset.photoAction === 'delete') eliminarFoto(id);
   if (button.dataset.photoAction === 'replace') prepararReemplazoFoto(id);
   if (button.dataset.photoAction === 'set-visibility') setPhotoVisibility(id, button.dataset.visibility);
+  if (button.dataset.photoAction === 'move-up') moverFoto(id, 'up');
+  if (button.dataset.photoAction === 'move-down') moverFoto(id, 'down');
 }
 
 async function setPhotoVisibility(id, visibility) {
@@ -865,7 +874,41 @@ async function setPhotoVisibility(id, visibility) {
   }
 }
 
-async function subirFoto(event, visibility){const file=event.target.files[0];if(!file)return;const form=new FormData();form.append('photo',file);form.append('title','Diseño Suldery Nails');form.append('visibility',visibility);try{await apiFetch('/owner/portfolio',{method:'POST',body:form});await loadOwnerGallery();}catch(error){alert(error.message);}finally{event.target.value='';}}
+function seleccionarFoto(event, visibility) {
+  const file = event.target.files?.[0] || null;
+  pendingPhotoFiles[visibility] = file;
+  const status = $d(visibility === 'login' ? 'loginPhotoSelection' : 'clientPhotoSelection');
+  const button = $d(visibility === 'login' ? 'saveLoginPhotoButton' : 'saveClientPhotoButton');
+  if (status) status.textContent = file ? `Lista para guardar: ${file.name}` : 'No hay una foto pendiente.';
+  if (button) button.disabled = !file;
+}
+
+async function guardarFotoSeleccionada(visibility) {
+  const file = pendingPhotoFiles[visibility];
+  if (!file) return;
+  const messageEl = $d(visibility === 'login' ? 'photoManagerMessage' : 'clientPhotoManagerMessage');
+  const button = $d(visibility === 'login' ? 'saveLoginPhotoButton' : 'saveClientPhotoButton');
+  const status = $d(visibility === 'login' ? 'loginPhotoSelection' : 'clientPhotoSelection');
+  try {
+    button.disabled = true;
+    setMessage(messageEl, 'Guardando la foto…');
+    const form = new FormData();
+    form.append('photo', file);
+    form.append('title', 'Diseño Suldery Nails');
+    form.append('visibility', visibility);
+    await apiFetch('/owner/portfolio', { method: 'POST', body: form });
+    pendingPhotoFiles[visibility] = null;
+    if (status) status.textContent = 'Foto guardada. Puedes elegir otra.';
+    setMessage(messageEl, 'La foto quedó guardada correctamente. ✨', true);
+    if (visibility === 'login') $d('photoPickerLogin').value = '';
+    if (visibility === 'client') $d('photoPickerClientOnly').value = '';
+    await loadOwnerGallery();
+  } catch (error) {
+    setMessage(messageEl, error.message);
+  } finally {
+    if (!pendingPhotoFiles[visibility] && button) button.disabled = true;
+  }
+}
 
 function prepararReemplazoFoto(id){const input=$d('photoReplacePicker');if(!input)return;input.dataset.photoId=String(id);input.value='';input.click();}
 
