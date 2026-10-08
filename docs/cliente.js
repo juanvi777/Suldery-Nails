@@ -58,7 +58,6 @@ function initClientMenu(){
     if(tool==='booking'){openBooking();return;}
     if(tool==='catalog'){location.href=pageUrl('catalogo.html');return;}
     if(tool==='tutorial'){$('openInstallTutorialButton')?.click();return;}
-    if(tool==='photo'){$('openClientPhotoButton')?.click();return;}
     if(tool==='reviews'){$('reviewsSection')?.scrollIntoView({behavior:'smooth',block:'start'});$('reviewsViewer')?.classList.remove('hidden-review-viewer');$('reviewsToggleButton')?.setAttribute('aria-expanded','true');return;}
     if(tool==='notifications'){
       try{await enableSulderyPush();alert('Listo. Este dispositivo quedó registrado para recibir tus avisos importantes.');}
@@ -88,7 +87,6 @@ async function initCliente(){
   initBookingStepFlow();
   renderClientDailyWelcome();
   initInstallTutorial();
-  initClientPhotoMessaging();
   $('reviewCameraPicker')?.addEventListener('change', e => handleReviewPhoto(e));
   $('reviewGalleryPicker')?.addEventListener('change', e => handleReviewPhoto(e));
   $('removeReviewPhotoButton')?.addEventListener('click', removeReviewPhoto);
@@ -424,49 +422,24 @@ function renderClientDailyWelcome(){
 
 function initInstallTutorial(){
   const modal=$('installTutorialModal'),open=$('openInstallTutorialButton')||(()=>{const b=document.createElement('button');b.id='openInstallTutorialButton';b.hidden=true;document.body.appendChild(b);return b;})(),close=$('closeInstallTutorialButton'),choice=$('installDeviceChoice'),steps=$('installTutorialSteps'),documentBox=$('installTutorialDocument'),back=$('installTutorialBack');
-  if(!modal||!choice||!steps)return;
-  const publicAsset=(name)=>`${location.origin}${typeof SITE_BASE!=='undefined'?SITE_BASE:'/'}assets/${name}`;
-  const openPowerPoint=(device)=>{
-    const file=device==='ios'?'Suldery-Nails-Tutorial-iPhone-iOS.pptx':'Suldery-Nails-Tutorial-Android.pptx';
-    const source=encodeURIComponent(publicAsset(file));
-    const viewer=`https://view.officeapps.live.com/op/view.aspx?src=${source}`;
-    window.open(viewer,'_blank','noopener');
-  };
-  const browser=(type)=>`<div class="tutorial-browser-bar"><span class="browser-dot"></span><span class="browser-domain">Suldery Nails</span><span class="browser-action">${type==='ios'?'Aa':'⋮'}</span></div>`;
-  const screen=(type,mode)=>{if(mode==='browser')return browser(type)+'<div class="tutorial-app-preview"><span class="tutorial-mini-logo">S</span><strong>Suldery Nails</strong><small>Tu próxima cita comienza aquí</small></div>';if(mode==='share')return browser(type)+'<div class="tutorial-share-sheet"><strong>Compartir</strong><span>Copiar</span><span>Agregar a favoritos</span><span class="focus">Añadir a pantalla de inicio</span></div>';if(mode==='menu')return browser(type)+'<div class="tutorial-browser-menu"><strong>Menú</strong><span>Compartir</span><span>Descargar</span><span class="focus">Instalar aplicación</span><span>Añadir a pantalla principal</span></div>';if(mode==='confirm')return browser(type)+'<div class="tutorial-install-dialog"><strong>Instalar Suldery Nails</strong><small>Se añadirá a tu pantalla de inicio.</small><div><span>Cancelar</span><b>Añadir</b></div></div>';return '<div class="tutorial-home"><div class="tutorial-home-icons"><span class="tutorial-home-icon">S</span><span></span><span></span></div><strong>Suldery Nails</strong><small>Abre desde este icono</small></div>';};
+  if(!modal||!choice||!documentBox)return;
   const render=device=>{
     const ios=device==='ios';
-    const data=ios?[['1','Abre Safari','En iPhone, abre Safari y entra a Suldery Nails.','browser'],['2','Pulsa Compartir','Toca Compartir para abrir las acciones de Safari.','share'],['3','Añadir a pantalla de inicio','Busca “Añadir a pantalla de inicio” y selecciónalo.','share'],['4','Confirma Añadir','Revisa el nombre Suldery Nails y confirma “Añadir”.','confirm'],['5','Abre desde el icono','Busca Suldery Nails en tu pantalla de inicio y entra desde allí.','home']]:[['1','Abre Chrome','Entra a Suldery Nails desde Google Chrome.','browser'],['2','Abre el menú','Toca los tres puntos de Chrome.','menu'],['3','Instalar aplicación','Selecciona “Instalar aplicación” o “Añadir a pantalla principal”.','menu'],['4','Confirma la instalación','Acepta la instalación cuando aparezca el aviso.','confirm'],['5','Abre Suldery Nails','Busca el nuevo icono y abre la app desde allí.','home']];
     const pdf=ios?'Suldery-Nails-Tutorial-iPhone-iOS.pdf':'Suldery-Nails-Tutorial-Android.pdf';
-    const ppt=ios?'Suldery-Nails-Tutorial-iPhone-iOS.pptx':'Suldery-Nails-Tutorial-Android.pptx';
-    steps.innerHTML=`<div class="tutorial-device-title"><div><span class="tutorial-badge">${ios?'I':'A'}</span><strong>${ios?'iPhone / iOS':'Android'}</strong></div><small>Guía visual · 5 pasos</small></div><div class="tutorial-steps-visual">${data.map(d=>`<article class="tutorial-step-visual"><div class="tutorial-phone realistic-${ios?'ios':'android'}"><div class="tutorial-phone-notch"></div><div class="tutorial-screen">${screen(ios?'ios':'android',d[3])}</div></div><div class="tutorial-copy"><span>PASO ${d[0]}</span><h3>${d[1]}</h3><p>${d[2]}</p></div></article>`).join('')}</div>`;
-    documentBox.innerHTML=`<div class="tutorial-document-actions"><button type="button" class="small-button ghost" id="openTutorialPowerPoint">Abrir PowerPoint</button><a class="small-button ghost" href="assets/${pdf}" target="_blank" rel="noopener">Abrir PDF</a></div><iframe class="tutorial-pdf-frame" title="Guía de instalación ${ios?'iPhone iOS':'Android'}" src="assets/${pdf}"></iframe><p class="tutorial-document-note">La guía PDF queda dentro de Suldery Nails. El botón PowerPoint abre la presentación correspondiente en el visor de Microsoft.</p>`;
-    documentBox.querySelector('#openTutorialPowerPoint')?.addEventListener('click',()=>openPowerPoint(device));
-    choice.classList.add('hidden-step');steps.classList.remove('hidden-step');documentBox.classList.remove('hidden-step');back.hidden=false;
-    openPowerPoint(device);
+    const label=ios?'iPhone / iOS':'Android';
+    const src=`assets/${pdf}`;
+    if(steps){steps.innerHTML='';steps.classList.add('hidden-step');steps.setAttribute('aria-hidden','true');}
+    documentBox.innerHTML=`<div class="tutorial-pdf-head"><div><span class="tutorial-pdf-kicker">GUÍA DE INSTALACIÓN</span><h3>${label}</h3><p>Guía visual oficial en PDF. Se muestra directamente aquí para que puedas seguir los pasos sin salir de Suldery Nails.</p></div><a class="small-button ghost tutorial-pdf-open" href="${src}" target="_blank" rel="noopener">Abrir PDF</a></div><iframe class="tutorial-pdf-frame" title="Guía de instalación ${label}" src="${src}"></iframe>`;
+    documentBox.classList.remove('hidden-step');
+    choice.classList.add('hidden-step');
+    back.hidden=false;
   };
-  open.addEventListener('click',()=>modal.classList.remove('hidden-modal'));close?.addEventListener('click',()=>modal.classList.add('hidden-modal'));modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.add('hidden-modal');});choice.querySelectorAll('[data-install-device]').forEach(b=>b.addEventListener('click',()=>render(b.dataset.installDevice)));back?.addEventListener('click',()=>{choice.classList.remove('hidden-step');steps.classList.add('hidden-step');documentBox?.classList.add('hidden-step');back.hidden=true;});
+  open.addEventListener('click',()=>modal.classList.remove('hidden-modal'));
+  close?.addEventListener('click',()=>modal.classList.add('hidden-modal'));
+  modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.add('hidden-modal');});
+  choice.querySelectorAll('[data-install-device]').forEach(b=>b.addEventListener('click',()=>render(b.dataset.installDevice)));
+  back?.addEventListener('click',()=>{choice.classList.remove('hidden-step');documentBox.classList.add('hidden-step');documentBox.innerHTML='';back.hidden=true;});
 }
-
-function initClientPhotoMessaging(){
-  const modal=$('clientPhotoModal');
-  let open=$('openClientPhotoButton');
-  const close=$('closeClientPhotoButton'),send=$('sendClientPhotoButton');
-  if(!open&&modal){open=document.createElement('button');open.id='openClientPhotoButton';open.hidden=true;document.body.appendChild(open);}
-  if(!modal||!open||!send)return;
-  open.addEventListener('click',()=>modal.classList.remove('hidden-modal'));close?.addEventListener('click',()=>modal.classList.add('hidden-modal'));modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.add('hidden-modal');});
-  ['clientPhotoCameraPicker','clientPhotoGalleryPicker'].forEach(id=>$(id)?.addEventListener('change',handleClientMessagePhoto));
-  send.addEventListener('click',sendClientPhotoToSuldery);
-}
-
-function handleClientMessagePhoto(event){
-  const file=event.target.files?.[0]||null;if(!file)return;clientMessagePhotoFile=file;const preview=$('clientPhotoPreview');if(preview){preview.hidden=false;preview.innerHTML='';const img=document.createElement('img');img.src=URL.createObjectURL(file);img.onload=()=>URL.revokeObjectURL(img.src);img.alt='Vista previa';preview.appendChild(img);}}
-async function sendClientPhotoToSuldery(){
-  const send=$('sendClientPhotoButton'),status=$('clientPhotoMessageStatus');
-  if(!clientMessagePhotoFile)return setMessage(status,'Selecciona o toma una foto primero.');
-  try{send.disabled=true;setMessage(status,'Enviando foto…');const form=new FormData();const optimized=await optimizeClientImage(clientMessagePhotoFile);form.append('photo',optimized,optimized.name);form.append('message',String($('clientPhotoMessage')?.value||''));const data=await apiFetch('/client/photo-messages',{method:'POST',body:form});setMessage(status,data.message,true);$('clientPhotoMessage').value='';clientMessagePhotoFile=null;['clientPhotoCameraPicker','clientPhotoGalleryPicker'].forEach(id=>{if($(id))$(id).value='';});const preview=$('clientPhotoPreview');if(preview){preview.hidden=true;preview.innerHTML='';}setTimeout(()=>{ $('clientPhotoModal')?.classList.add('hidden-modal');setMessage(status,'');},900);}catch(error){setMessage(status,error.message);}finally{send.disabled=false;}
-}
-
 
 async function buildCarousel(gallery, photos, large = false) {
   if (!gallery) return;

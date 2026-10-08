@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261008-v55.0">
+  <link rel="stylesheet" href="style.css?v=20261008-v56.0">
 </head>
 <body class="dashboard-page">
   <main class="dashboard-shell">
@@ -34,12 +34,11 @@
         <button type="button" data-client-tool="booking"><span>01</span><strong>Agendar cita</strong></button>
         <button type="button" data-client-tool="catalog"><span>02</span><strong>Ver catálogo</strong></button>
         <button type="button" data-client-tool="tutorial"><span>03</span><strong>Tutorial de instalación</strong></button>
-        <button type="button" data-client-tool="photo"><span>04</span><strong>Enviar foto a Suldery</strong></button>
-        <button type="button" data-client-tool="reviews"><span>05</span><strong>Ver / publicar reseña</strong></button>
-        <button type="button" data-client-tool="notifications"><span>06</span><strong>Avisos</strong></button>
-        <button type="button" id="installAppButton" class="install-app-menu-button" hidden><span>07</span><strong>Instalar Suldery Nails</strong></button>
+        <button type="button" data-client-tool="reviews"><span>04</span><strong>Ver / publicar reseña</strong></button>
+        <button type="button" data-client-tool="notifications"><span>05</span><strong>Avisos</strong></button>
+        <button type="button" id="installAppButton" class="install-app-menu-button" hidden><span>06</span><strong>Instalar Suldery Nails</strong></button>
         <button type="button" data-theme-toggle class="theme-toggle client-menu-theme"><span class="theme-icon">◐</span><span class="theme-label">Modo oscuro</span></button>
-        <button type="button" data-action="logout" class="client-menu-logout"><span>08</span><strong>Cerrar sesión</strong></button>
+        <button type="button" data-action="logout" class="client-menu-logout"><span>07</span><strong>Cerrar sesión</strong></button>
       </div>
       <p class="client-menu-note">El tutorial funciona con Android y iPhone. En iPhone, usa Safari para instalar la app.</p>
     </aside>
@@ -168,26 +167,14 @@
         <p class="eyebrow">SULDERY NAILS</p><h2 id="installTutorialTitle">Tutorial de instalación</h2>
         <p id="installTutorialIntro">Instala Suldery Nails como una app para abrirla rápido desde tu teléfono.</p>
         <div id="installDeviceChoice" class="install-device-choice"><button type="button" data-install-device="android" class="install-device-card"><span class="tutorial-device-code">A</span><strong>Android</strong><small>Chrome y teléfonos Android</small></button><button type="button" data-install-device="ios" class="install-device-card"><span class="tutorial-device-code">i</span><strong>iPhone / iOS</strong><small>Safari y pantalla de inicio</small></button></div>
-        <div id="installTutorialSteps" class="install-tutorial-steps hidden-step"></div>
+        <div id="installTutorialSteps" class="install-tutorial-steps hidden-step" aria-hidden="true"></div>
         <div id="installTutorialDocument" class="install-tutorial-document hidden-step"></div>
         <div class="install-tutorial-footer"><button id="installTutorialBack" class="small-button ghost" type="button" hidden>← Cambiar dispositivo</button></div>
       </div>
     </div>
 
-    <div id="clientPhotoModal" class="sn-modal hidden-modal" role="dialog" aria-modal="true" aria-labelledby="clientPhotoModalTitle">
-      <div class="sn-modal-card">
-        <button id="closeClientPhotoButton" class="sn-modal-close" type="button" aria-label="Cerrar">×</button>
-        <p class="eyebrow">CONTACTA A SULDERY</p><h2 id="clientPhotoModalTitle">Envíale una foto</h2>
-        <p>Comparte cómo quedaron tus uñas o una imagen que quieras enseñarle a Suldery.</p>
-        <div class="review-photo-actions"><label class="small-button ghost" for="clientPhotoCameraPicker">Cámara</label><label class="small-button ghost" for="clientPhotoGalleryPicker">Galería</label></div>
-        <input id="clientPhotoCameraPicker" type="file" accept="image/*" capture="environment" class="hidden"><input id="clientPhotoGalleryPicker" type="file" accept="image/*" class="hidden">
-        <div id="clientPhotoPreview" class="review-photo-preview" hidden></div>
-        <label>Mensaje <textarea id="clientPhotoMessage" rows="4" maxlength="1000" placeholder="Escribe algo para Suldery (opcional)"></textarea></label>
-        <div class="owner-tool-actions"><button id="sendClientPhotoButton" class="primary-button" type="button">Enviar foto <span>→</span></button><span id="clientPhotoMessageStatus" class="form-message"></span></div>
-      </div>
-    </div>
 
-  <script src="auth.js?v=20261008-v55.0"></script>
-  <script src="cliente.js?v=20261008-v55.0"></script>
+  <script src="auth.js?v=20261008-v56.0"></script>
+  <script src="cliente.js?v=20261008-v56.0"></script>
 </body>
 </html>

@@ -45,7 +45,7 @@ img{max-width:100%}
 .experience-cloud p{margin:.45rem 0 0;color:#745966;line-height:1.55;font-size:.84rem}
 .brand-features{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.85rem;margin-top:1rem}
 .feature-chip{display:flex;gap:.75rem;align-items:flex-start;padding:1rem;border-radius:18px;background:rgba(255,255,255,.58);border:1px solid rgba(198,40,104,.09);box-shadow:var(--shadow-soft)}
-.feature-chip>span{width:34px;height:34px;display:grid;place-items:center;border-radius:50%;background:#fff4f8;color:var(--rose);font-size:1rem}
+.feature-chip>img{width:58px;height:58px;flex:0 0 58px;object-fit:cover;border-radius:16px;border:1px solid rgba(198,40,104,.12);background:#fff;box-shadow:0 8px 20px rgba(80,20,50,.10)}
 .feature-chip b{display:block;font-size:.84rem}.feature-chip small{display:block;margin-top:.22rem;color:var(--muted);line-height:1.45}
 .brand-note{margin-top:1.2rem;color:#745966;font-size:.86rem}
 .form-panel{display:flex;align-items:center;justify-content:center;padding:clamp(1.2rem,4vw,4rem);background:rgba(255,255,255,.64)}
@@ -150,7 +150,7 @@ body:after{background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.0
 .brand-pill,.brand-pill.soft{color:#ffd3e6;background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 0 28px rgba(255,79,154,.12)}
 .experience-cloud,.feature-chip{background:linear-gradient(135deg,rgba(255,255,255,.11),rgba(255,255,255,.035));border-color:rgba(255,255,255,.12);box-shadow:var(--shadow-soft);backdrop-filter:blur(18px)}
 .experience-cloud strong,.feature-chip b{color:#fff}.feature-chip small{color:var(--muted)}
-.cloud-sparkle,.feature-chip>span{background:rgba(255,79,154,.18);color:#ffd9ec;box-shadow:0 0 24px rgba(255,79,154,.24)}
+.cloud-sparkle{background:rgba(255,79,154,.18);color:#ffd9ec;box-shadow:0 0 24px rgba(255,79,154,.24)}
 .form-card,.glass-card,.booking-card,.appointments-card,.admin-card{background:linear-gradient(140deg,rgba(29,25,57,.78),rgba(15,14,34,.82));border-color:rgba(255,255,255,.13);box-shadow:var(--shadow);backdrop-filter:blur(22px)}
 .logo-frame{background:linear-gradient(135deg,rgba(255,255,255,.9),rgba(255,79,154,.5));box-shadow:0 0 0 1px rgba(255,255,255,.25),0 18px 44px rgba(255,79,154,.3)}
 .logo-frame img,.logo img{box-shadow:0 0 0 2px rgba(255,255,255,.36),0 0 25px rgba(255,79,154,.34)}
@@ -873,3 +873,14 @@ body.owner-page .owner-tool-grid{display:none!important}
 .dark-mode .client-menu-drawer .small-button.ghost{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.15);color:#fff3f7}
 .install-tutorial-document{margin-top:16px}.install-tutorial-document.hidden-step{display:none!important}.tutorial-document-actions{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:10px}.tutorial-document-actions a{text-decoration:none}.tutorial-pdf-frame{display:block;width:100%;height:min(68vh,620px);border:1px solid var(--line);border-radius:16px;background:#fff}.tutorial-document-note{margin:9px 0 0!important;font-size:.68rem!important;line-height:1.45;color:var(--muted)}
 .dark-mode .tutorial-pdf-frame{border-color:rgba(255,105,167,.18);background:#fff}
+
+/* v5.6 — client menu title/text contrast */
+.dark-mode .client-menu-drawer .owner-menu-head h2, .dark-mode .client-menu-drawer .owner-menu-head .eyebrow, .dark-mode .client-menu-grid button strong, .dark-mode .client-menu-grid button { color:#fff3f7 !important; }
+.dark-mode .client-menu-grid button span { color:#ff9bc7 !important; }
+.feature-chip>img{display:block}
+.tutorial-pdf-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:0 0 12px;border-bottom:1px solid var(--line);margin-bottom:12px}.tutorial-pdf-head h3{margin:.2rem 0 .3rem;font:700 1.35rem "Playfair Display",serif;color:var(--ink)}.tutorial-pdf-head p{margin:0;max-width:620px;color:var(--muted);font-size:.74rem;line-height:1.5}.tutorial-pdf-kicker{font-size:.62rem;letter-spacing:.14em;font-weight:900;color:var(--rose)}.tutorial-pdf-open{white-space:nowrap;text-decoration:none}.tutorial-pdf-frame{height:min(74vh,760px);min-height:520px;border-radius:18px}.dark-mode .tutorial-pdf-head{border-color:rgba(255,255,255,.12)}.dark-mode .tutorial-pdf-head h3{color:#fff3f7}.dark-mode .tutorial-pdf-head p{color:#d8c1cc}
+@media(max-width:640px){.feature-chip>img{width:52px;height:52px;flex-basis:52px}.tutorial-pdf-head{display:block}.tutorial-pdf-open{display:inline-flex;margin-top:10px}.tutorial-pdf-frame{height:72vh;min-height:500px}}
+
+/* v5.6 final — títulos legibles en cualquier vista oscura */
+body.dark-mode h1, body.dark-mode h2, body.dark-mode h3, body.dark-mode h4 { color:#fff3f7; }
+body.dark-mode .tutorial-pdf-head h3 { color:#fff3f7; }

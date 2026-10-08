@@ -567,6 +567,9 @@ function slotIsFree(start, duration, appointments) {
     const aStart = toMinutes(appt.appointment_time);
     const aDuration = Number(appt.duration_minutes) || 60;
     const aEnd = aStart + aDuration;
+    // The whole requested service must fit before the next appointment starts.
+    // Example: existing appointment 16:00–18:00 + new service 2h => 14:00 is the
+    // latest previous start; 15:00 must NOT be offered because it would overlap.
     return start < aEnd && end > aStart;
   });
 }
@@ -698,9 +701,11 @@ function slotsForDate(date, scheduleDay, appointments, duration = 60, blockedInt
     const end = toMinutes(interval.end_time);
     for (let minute = start; minute < end; minute += SLOT_STEP) {
       if (minute < earliest) continue;
-      // La clienta reserva un INICIO disponible. Si el servicio termina después
-      // de la hora de cierre, la solicitud queda pendiente para que Suldery
-      // decida si puede atenderla. No se permite cruzar almuerzo, bloqueos ni otra cita.
+      // La clienta reserva un INICIO disponible. El servicio completo debe quedar libre
+      // hasta la siguiente cita: si existe una cita a las 16:00 y el servicio dura
+      // 2 horas, 15:00 NO se ofrece; 14:00 sí puede ofrecerse. El cierre normal
+      // puede superarse porque Suldery decide aceptar/rechazar esa solicitud.
+      // No se permite cruzar almuerzo, bloqueos ni otra cita.
       const slotEnd = minute + duration;
       if (slotOverlapsLunch(minute, slotEnd)) continue;
       if (slotOverlapsIntervals(minute, slotEnd, blockedIntervals)) continue;
