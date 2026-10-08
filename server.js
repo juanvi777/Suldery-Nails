@@ -64,7 +64,7 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('Permissions-Policy', 'camera=(self), microphone=(), geolocation=()');
   res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; connect-src 'self' https://suldery-nails-production.up.railway.app; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
   next();
 });
@@ -1566,7 +1566,8 @@ app.get('/api/reviews', async (_req, res) => {
       `SELECT COUNT(*) AS total, COALESCE(AVG(stars),0) AS average FROM reviews`
     );
     const [rows] = await pool.query(
-      `SELECT id,client_name,stars,comment,created_at
+      `SELECT id,client_name,stars,comment,created_at,
+              CASE WHEN image_data IS NULL THEN NULL ELSE CONCAT('/api/reviews/', id, '/image') END AS image_url
        FROM reviews
        ORDER BY created_at DESC, id DESC
        LIMIT 200`
@@ -1582,42 +1583,112 @@ app.get('/api/reviews', async (_req, res) => {
   }
 });
 
-app.post('/api/reviews', authRequired, async (req, res) => {
+app.post('/api/reviews', authRequired, upload.single('photo'), async (req, res) => {
+  let connection;
   try {
     if (req.auth.role !== 'client') return res.status(403).json({ message: 'Solo las clientas pueden dejar una reseña.' });
-    const appointmentId = Number(req.body?.appointment_id);
+    const appointmentId = Number(req.body?.appointment_id || 0);
     const stars = Number(req.body?.stars);
     const comment = String(req.body?.comment || '').trim();
-    if (!appointmentId || !Number.isInteger(stars) || stars < 1 || stars > 5) {
-      return res.status(400).json({ message: 'Selecciona una cita y una calificación de 1 a 5 estrellas.' });
+    if (!Number.isInteger(stars) || stars < 1 || stars > 5) {
+      return res.status(400).json({ message: 'Selecciona una calificación de 1 a 5 estrellas.' });
     }
     if (comment.length < 3) return res.status(400).json({ message: 'Escribe un comentario antes de publicar tu reseña.' });
     if (comment.length > 1000) return res.status(400).json({ message: 'El comentario es demasiado largo.' });
+    if (req.file && req.file.buffer.length > 2.5 * 1024 * 1024) {
+      return res.status(413).json({ message: 'La foto es demasiado pesada. Usa una imagen más pequeña.' });
+    }
 
-    const [rows] = await pool.query(
-      `SELECT id,client_name,appointment_date,appointment_time,status
-       FROM appointments WHERE id=? AND user_id=? LIMIT 1`,
-      [appointmentId, req.auth.id]
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+    const [lockedUsers] = await connection.query(
+      'SELECT id,name,status,review_submitted FROM users WHERE id=? FOR UPDATE',
+      [req.auth.id]
     );
-    const appointment = rows[0];
-    if (!appointment) return res.status(404).json({ message: 'No encontramos esa cita en tu agenda.' });
-    if (appointment.status !== 'accepted') return res.status(400).json({ message: 'Solo puedes calificar una cita confirmada.' });
-    const when = colombiaDateTime(dateOnly(appointment.appointment_date), formatDbTime(appointment.appointment_time));
-    if (when.getTime() > Date.now()) return res.status(400).json({ message: 'Podrás dejar tu reseña cuando tu cita haya terminado. 💕' });
+    const user = lockedUsers[0];
+    if (!user || user.status !== 'accepted' || user.role !== 'client') {
+      await connection.rollback();
+      return res.status(403).json({ message: 'Tu cuenta todavía no está habilitada para publicar reseñas.' });
+    }
+    if (Number(user.review_submitted) === 1) {
+      await connection.rollback();
+      return res.status(409).json({ message: 'Tu cuenta ya publicó una reseña. Solo se permite una reseña por cuenta. 💕' });
+    }
 
-    const [existing] = await pool.query('SELECT id FROM reviews WHERE appointment_id=? LIMIT 1', [appointmentId]);
-    if (existing.length) return res.status(409).json({ message: 'Ya dejaste una reseña para esta cita. ¡Gracias por compartir tu experiencia! 💕' });
+    let appointment = null;
+    if (appointmentId) {
+      const [rows] = await connection.query(
+        `SELECT id,client_name,appointment_date,appointment_time,status
+         FROM appointments WHERE id=? AND user_id=? LIMIT 1`,
+        [appointmentId, req.auth.id]
+      );
+      appointment = rows[0] || null;
+      if (!appointment) {
+        await connection.rollback();
+        return res.status(404).json({ message: 'No encontramos esa cita en tu agenda.' });
+      }
+      if (appointment.status !== 'accepted') {
+        await connection.rollback();
+        return res.status(400).json({ message: 'La cita relacionada debe estar confirmada.' });
+      }
+      const when = colombiaDateTime(dateOnly(appointment.appointment_date), formatDbTime(appointment.appointment_time));
+      if (when.getTime() > Date.now()) {
+        await connection.rollback();
+        return res.status(400).json({ message: 'La cita relacionada todavía no ha terminado.' });
+      }
+      const [existingLegacy] = await connection.query('SELECT id FROM reviews WHERE appointment_id=? LIMIT 1', [appointmentId]);
+      if (existingLegacy.length) {
+        await connection.rollback();
+        return res.status(409).json({ message: 'Esta cita ya tiene una reseña.' });
+      }
+    }
 
-    const user = await findUserById(req.auth.id);
-    await pool.query(
-      `INSERT INTO reviews(appointment_id,user_id,client_name,stars,comment) VALUES(?,?,?,?,?)`,
-      [appointmentId, req.auth.id, user?.name || appointment.client_name || 'Clienta', stars, comment]
+    await connection.query(
+      `INSERT INTO reviews(appointment_id,user_id,client_name,stars,comment,image_data,image_mime) VALUES(?,?,?,?,?,?,?)`,
+      [appointmentId || null, req.auth.id, user.name || appointment?.client_name || 'Clienta', stars, comment, req.file?.buffer || null, req.file?.mimetype || null]
     );
-    res.status(201).json({ message: 'Gracias por tu reseña. 💕', stars, comment });
+    await connection.query('UPDATE users SET review_submitted=1 WHERE id=?', [req.auth.id]);
+    await connection.commit();
+    res.status(201).json({ message: 'Gracias por tu reseña. 💕', stars, comment, has_photo: Boolean(req.file) });
   } catch (error) {
-    if (error?.code === 'ER_DUP_ENTRY') return res.status(409).json({ message: 'Esta cita ya tiene una reseña.' });
+    if (connection) {
+      try { await connection.rollback(); } catch {}
+    }
+    if (error?.code === 'ER_DUP_ENTRY') return res.status(409).json({ message: 'Tu cuenta ya tiene una reseña registrada.' });
     console.error('No se pudo guardar la reseña:', error.message);
     res.status(500).json({ message: 'No se pudo guardar tu reseña.' });
+  } finally {
+    connection?.release();
+  }
+});
+
+app.get('/api/reviews/mine', authRequired, async (req, res) => {
+  try {
+    if (req.auth.role !== 'client') return res.status(403).json({ message: 'Solo las clientas pueden consultar su reseña.' });
+    const [rows] = await pool.query(
+      `SELECT id,appointment_id,stars,comment,created_at,
+              CASE WHEN image_data IS NULL THEN NULL ELSE CONCAT('/api/reviews/', id, '/image') END AS image_url
+       FROM reviews WHERE user_id=? ORDER BY created_at ASC, id ASC LIMIT 1`,
+      [req.auth.id]
+    );
+    res.json({ has_review: Boolean(rows[0]), review: rows[0] || null });
+  } catch (error) {
+    console.error('No se pudo consultar la reseña de la clienta:', error.message);
+    res.status(500).json({ message: 'No se pudo comprobar tu reseña.' });
+  }
+});
+
+app.get('/api/reviews/:id/image', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT image_data,image_mime FROM reviews WHERE id=? LIMIT 1', [req.params.id]);
+    const review = rows[0];
+    if (!review?.image_data) return res.status(404).send('Esta reseña no tiene foto.');
+    res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+    res.type(review.image_mime || 'image/jpeg');
+    res.send(review.image_data);
+  } catch (error) {
+    console.error('No se pudo cargar la foto de la reseña:', error.message);
+    res.status(500).send('No se pudo cargar la foto.');
   }
 });
 
@@ -1626,6 +1697,7 @@ app.get('/api/owner/reviews', authRequired, ownerRequired, async (_req, res) => 
     const [summaryRows] = await pool.query('SELECT COUNT(*) AS total, COALESCE(AVG(stars),0) AS average FROM reviews');
     const [rows] = await pool.query(
       `SELECT r.id,r.appointment_id,r.user_id,r.client_name,r.stars,r.comment,r.created_at,
+              CASE WHEN r.image_data IS NULL THEN NULL ELSE CONCAT('/api/reviews/', r.id, '/image') END AS image_url,
               u.email,u.phone
        FROM reviews r LEFT JOIN users u ON u.id=r.user_id
        ORDER BY r.created_at DESC, r.id DESC LIMIT 500`
@@ -1649,6 +1721,61 @@ app.delete('/api/owner/reviews/:id', authRequired, ownerRequired, async (req, re
   } catch (error) {
     console.error('No se pudo eliminar la reseña:', error.message);
     res.status(500).json({ message: 'No se pudo eliminar la reseña.' });
+  }
+});
+
+app.post('/api/client/photo-messages', authRequired, upload.single('photo'), async (req, res) => {
+  try {
+    if (req.auth.role !== 'client') return res.status(403).json({ message: 'Solo las clientas pueden enviar fotos por este canal.' });
+    if (!req.file) return res.status(400).json({ message: 'Selecciona o toma una foto antes de enviarla.' });
+    const message = String(req.body?.message || '').trim().slice(0, 1000);
+    await pool.query(
+      'INSERT INTO client_photo_messages(user_id,message,image_data,image_mime) VALUES(?,?,?,?)',
+      [req.auth.id, message || null, req.file.buffer, req.file.mimetype]
+    );
+    res.status(201).json({ message: 'La foto fue enviada a Suldery. 💕' });
+  } catch (error) {
+    console.error('No se pudo recibir una foto de clienta:', error.message);
+    res.status(500).json({ message: 'No se pudo enviar la foto. Inténtalo nuevamente.' });
+  }
+});
+
+app.get('/api/owner/client-photo-messages', authRequired, ownerRequired, async (_req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT m.id,m.user_id,m.message,m.status,m.created_at,u.name AS client_name,u.email,u.phone
+       FROM client_photo_messages m
+       JOIN users u ON u.id=m.user_id
+       ORDER BY m.created_at DESC, m.id DESC LIMIT 200`
+    );
+    res.json({ messages: rows.map(row => ({ ...row, image_url: `/api/owner/client-photo-messages/${row.id}/image` })) });
+  } catch (error) {
+    console.error('No se pudieron cargar las fotos enviadas por clientas:', error.message);
+    res.status(500).json({ message: 'No se pudieron cargar las fotos recibidas.' });
+  }
+});
+
+app.get('/api/owner/client-photo-messages/:id/image', authRequired, ownerRequired, async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT image_data,image_mime FROM client_photo_messages WHERE id=? LIMIT 1', [req.params.id]);
+    const item = rows[0];
+    if (!item?.image_data) return res.status(404).send('Imagen no encontrada.');
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    res.type(item.image_mime || 'image/jpeg');
+    res.send(item.image_data);
+  } catch (error) {
+    console.error('No se pudo cargar una foto recibida:', error.message);
+    res.status(500).send('No se pudo cargar la imagen.');
+  }
+});
+
+app.patch('/api/owner/client-photo-messages/:id/read', authRequired, ownerRequired, async (req, res) => {
+  try {
+    const [result] = await pool.query("UPDATE client_photo_messages SET status='read' WHERE id=?", [req.params.id]);
+    if (!result.affectedRows) return res.status(404).json({ message: 'Mensaje no encontrado.' });
+    res.json({ message: 'Marcado como leído.' });
+  } catch (error) {
+    res.status(500).json({ message: 'No se pudo actualizar el mensaje.' });
   }
 });
 
@@ -2814,6 +2941,35 @@ app.use((error, _req, res, _next) => {
       KEY idx_password_reset_user (user_id),
       KEY idx_password_reset_status_created (status, created_at),
       CONSTRAINT fk_password_reset_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+    // Migraciones de compatibilidad para bases existentes.
+    const migrations = [
+      `ALTER TABLE users ADD COLUMN review_submitted TINYINT(1) NOT NULL DEFAULT 0 AFTER created_at`,
+      `ALTER TABLE reviews ADD COLUMN image_data MEDIUMBLOB NULL AFTER comment`,
+      `ALTER TABLE reviews ADD COLUMN image_mime VARCHAR(80) NULL AFTER image_data`,
+      `ALTER TABLE portfolio_photos ADD COLUMN image_hash CHAR(64) NULL AFTER display_order`,
+      `ALTER TABLE catalog_photos ADD COLUMN image_hash CHAR(64) NULL AFTER display_order`
+    ];
+    for (const sql of migrations) {
+      await pool.query(sql).catch(error => {
+        if (!['ER_DUP_FIELDNAME','ER_DUP_KEYNAME'].includes(error.code)) throw error;
+      });
+    }
+    await pool.query('UPDATE users u JOIN (SELECT DISTINCT user_id FROM reviews) r ON r.user_id=u.id SET u.review_submitted=1 WHERE u.review_submitted=0');
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS client_photo_messages (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      user_id INT UNSIGNED NOT NULL,
+      message VARCHAR(1000) NULL,
+      image_data MEDIUMBLOB NOT NULL,
+      image_mime VARCHAR(80) NOT NULL,
+      status ENUM('unread','read') NOT NULL DEFAULT 'unread',
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_client_photo_messages_user_created (user_id, created_at),
+      KEY idx_client_photo_messages_status (status, created_at),
+      CONSTRAINT fk_client_photo_messages_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
 
     await pool.query(`ALTER TABLE portfolio_photos ADD COLUMN visibility ENUM('login','client','both') NOT NULL DEFAULT 'both' AFTER image_mime`)

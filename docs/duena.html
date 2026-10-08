@@ -16,19 +16,39 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260923-v51">
+  <link rel="stylesheet" href="style.css?v=20261007-v52.2">
 </head>
 <body class="dashboard-page owner-page">
   <main class="dashboard-shell">
-    <header class="dashboard-header glass-card">
+    <header class="dashboard-header glass-card owner-dashboard-header">
       <a class="logo" href="duena.html"><img src="assets/suldery-nails-logo.jpeg" alt="Suldery Nails"><span>Suldery <em>Nails</em></span></a>
       <div class="user-menu">
-        <button id="installAppButton" class="install-app-button" type="button" hidden>＋ Instalar app</button><button id="enableNotificationsButton" class="small-button ghost owner-notify-top" type="button">🔔 Avisos</button>
+        <button id="ownerMenuButton" class="owner-menu-toggle" type="button" aria-expanded="false" aria-controls="ownerMenuDrawer">☰ <span>Menú</span></button>
+        <button id="enableNotificationsButton" class="small-button ghost owner-notify-top" type="button">🔔 Avisos activos</button>
         <button class="theme-toggle" type="button" data-theme-toggle aria-label="Activar modo oscuro"><span class="theme-icon">☾</span><span class="theme-label">Modo oscuro</span></button>
         <span>Panel de Suldery</span>
         <button class="secondary-button" type="button" data-action="logout">Cerrar sesión</button>
       </div>
     </header>
+    <aside id="ownerMenuDrawer" class="owner-menu-drawer" hidden>
+      <div class="owner-menu-head"><div><p class="eyebrow">SULDERY NAILS</p><h2>Menú de administración</h2></div><button id="ownerMenuClose" class="small-button ghost" type="button">Cerrar</button></div>
+      <div class="owner-menu-grid">
+        <button type="button" data-owner-stat="clients"><span>👩</span><strong>Clientas activas</strong></button>
+        <button type="button" data-owner-stat="appointments"><span>📅</span><strong>Citas agendadas</strong></button>
+        <button type="button" data-owner-tool="schedule"><span>🕐</span><strong>Horario de trabajo</strong></button>
+        <button type="button" data-owner-tool="manual"><span>＋</span><strong>Agendar clienta</strong></button>
+        <button type="button" data-owner-tool="blocked"><span>▣</span><strong>Bloquear días</strong></button>
+        <button type="button" data-owner-tool="calendar"><span>◷</span><strong>Calendario</strong></button>
+        <button type="button" data-owner-tool="photos"><span>✦</span><strong>Fotos de inicio</strong></button>
+        <button type="button" data-owner-tool="clientPhotos"><span>♡</span><strong>Fotos exclusivas</strong></button>
+        <button type="button" data-owner-tool="catalog"><span>▤</span><strong>Catálogo</strong></button>
+        <button type="button" data-owner-stat="reviews"><span>⭐</span><strong>Reseñas</strong></button>
+        <button type="button" data-owner-tool="clientMessages"><span>📷</span><strong>Fotos recibidas</strong></button>
+        <button type="button" data-owner-stat="notify"><span>🔔</span><strong>Avisos</strong></button>
+        <button type="button" data-owner-stat="recovery"><span>🔐</span><strong>Recuperar acceso</strong></button>
+        <button type="button" data-owner-tool="nailLab"><span>✨</span><strong>SulNail IA</strong></button>
+      </div>
+    </aside>
 
     <section class="hero-dashboard owner-hero">
       <div>
@@ -37,7 +57,7 @@
         <p>Todo en un solo lugar. Abre solamente la herramienta que necesitas y mantén tu agenda sin cruces ni turnos imposibles.</p>
       </div>
       <div class="owner-mini-card"><strong id="ownerDateLabel">Hoy</strong><span>Una agenda ordenada, un día más tranquilo ♡</span>
-        <div class="sms-status-card"><strong id="notificationStatusTitle">Avisos en este dispositivo</strong><small id="notificationStatusText">Comprobando las notificaciones…</small><div class="notification-actions"><button id="testNotificationButton" class="small-button ghost" type="button">Probar aviso</button></div></div></div>
+        <div class="sms-status-card owner-notification-body-status"><strong id="notificationStatusTitle">Avisos en este dispositivo</strong><small id="notificationStatusText">Comprobando las notificaciones…</small><div class="notification-actions"><button id="testNotificationButton" class="small-button ghost" type="button">Probar aviso</button></div></div></div>
       </div>
     </section>
 
@@ -100,6 +120,12 @@
       </div>
       <div class="notify-client-meta" id="notifyClientMeta">Selecciona una clienta para ver sus datos de contacto.</div>
       <div class="owner-tool-actions"><button id="sendNotifyButton" class="primary-button" type="button">Enviar aviso <span>→</span></button><span id="notifyMessageStatus" class="form-message"></span></div>
+    </section>
+
+    <section id="ownerToolClientMessages" class="owner-tool-panel admin-card glass-card hidden-tool-panel">
+      <div class="card-heading"><div><p class="eyebrow">FOTOS RECIBIDAS</p><h2>Mensajes de tus clientas</h2></div><button class="small-button ghost" type="button" data-close-owner-tool>Cerrar</button></div>
+      <p class="manager-note">Aquí aparecen las fotos que una clienta te envió desde su cuenta, junto con su mensaje y datos básicos.</p>
+      <div id="clientPhotoMessagesList" class="client-photo-messages-grid"></div>
     </section>
 
     <section class="owner-tool-grid" aria-label="Herramientas de administración">
@@ -356,8 +382,10 @@
         <input id="catalogPhotoPicker" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden"><input id="catalogReplacePicker" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden">
         <p id="catalogManagerMessage" class="form-message" role="status"></p>
       </div>
-      <div class="catalog-owner-viewer">
-        <div class="catalog-owner-head"><strong id="catalogOwnerCounter">0 fotos</strong><span id="catalogOwnerTitle"></span></div>
+      <div class="catalog-owner-head"><strong id="catalogOwnerCounter">0 fotos</strong><span>Cuadrícula rápida · cada diseño se administra individualmente</span></div>
+      <div id="catalogOwnerGrid" class="catalog-owner-grid"></div>
+      <div class="catalog-owner-viewer legacy-catalog-controls" aria-hidden="true">
+        <div class="catalog-owner-head"><span id="catalogOwnerTitle"></span></div>
         <div class="catalog-owner-stage"><button id="catalogOwnerPrevious" class="carousel-arrow left" type="button" aria-label="Diseño anterior">‹</button><img id="catalogOwnerImage" src="" alt="Catálogo Suldery Nails"><button id="catalogOwnerNext" class="carousel-arrow right" type="button" aria-label="Diseño siguiente">›</button></div>
         <div class="catalog-owner-actions"><button id="catalogOwnerReplace" class="small-button ghost" type="button">Cambiar foto</button><button id="catalogOwnerDelete" class="small-button cancel" type="button">Eliminar</button><button id="catalogOwnerUp" class="small-button ghost" type="button">↑ Subir</button><button id="catalogOwnerDown" class="small-button ghost" type="button">↓ Bajar</button></div>
         <p id="catalogOwnerEmpty" class="empty-state hidden">Todavía no hay diseños en el catálogo.</p>
@@ -375,7 +403,7 @@
       </article>
     </section>
   </main>
-  <script src="auth.js?v=20260923-v51"></script>
-  <script src="duena.js?v=20260923-v51"></script>
+  <script src="auth.js?v=20261007-v52.2"></script>
+  <script src="duena.js?v=20261007-v52.2"></script>
 </body>
 </html>

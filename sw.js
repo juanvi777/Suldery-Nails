@@ -1,7 +1,7 @@
-const CACHE_NAME = 'suldery-shell-v45-free-push';
+const CACHE_NAME = 'suldery-shell-v51-free-push';
 const ASSET_PATHS = [
-  'style.css?v=20260922-v45','auth.js?v=20260922-v45','login.js?v=20260922-v45','registro.js?v=20260922-v45','cliente.js?v=20260922-v45','duena.js?v=20260922-v45',
-  'catalogo.html','catalogo.js?v=20260922-v45','assets/suldery-nails-logo.jpeg','assets/suldery-nails-icon-192.png','assets/suldery-nails-icon-512.png','manifest.webmanifest','assets/favicon-48.png','assets/favicon-96.png','assets/suldery-nails-icon-180.png'
+  'style.css?v=20261007-v52.2','auth.js?v=20261007-v52.2','login.js?v=20261007-v52.2','registro.js?v=20261007-v52.2','cliente.js?v=20261007-v52.2','duena.js?v=20261007-v52.2',
+  'catalogo.html','catalogo.js?v=20261007-v52.2','assets/suldery-nails-logo.jpeg','assets/suldery-nails-icon-192.png','assets/suldery-nails-icon-512.png','manifest.webmanifest','assets/favicon-48.png','assets/favicon-96.png','assets/suldery-nails-icon-180.png'
 ];
 const scopedUrl = path => new URL(path, self.registration.scope).href;
 const APP_ASSETS = ASSET_PATHS.map(scopedUrl);

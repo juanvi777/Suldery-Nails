@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   role ENUM('client','owner') NOT NULL DEFAULT 'client',
   status ENUM('pending','accepted','rejected') NOT NULL DEFAULT 'pending',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  review_submitted TINYINT(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (id),
   UNIQUE KEY uq_users_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -142,6 +143,8 @@ CREATE TABLE IF NOT EXISTS reviews (
   client_name VARCHAR(120) NOT NULL,
   stars TINYINT UNSIGNED NOT NULL,
   comment VARCHAR(1000) NOT NULL,
+  image_data MEDIUMBLOB NULL,
+  image_mime VARCHAR(80) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_review_appointment (appointment_id),
@@ -149,6 +152,21 @@ CREATE TABLE IF NOT EXISTS reviews (
   KEY idx_reviews_created_at (created_at),
   CONSTRAINT fk_reviews_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT fk_reviews_appointment FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+CREATE TABLE IF NOT EXISTS client_photo_messages (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id INT UNSIGNED NOT NULL,
+  message VARCHAR(1000) NULL,
+  image_data MEDIUMBLOB NOT NULL,
+  image_mime VARCHAR(80) NOT NULL,
+  status ENUM('unread','read') NOT NULL DEFAULT 'unread',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_client_photo_messages_user_created (user_id, created_at),
+  KEY idx_client_photo_messages_status (status, created_at),
+  CONSTRAINT fk_client_photo_messages_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 

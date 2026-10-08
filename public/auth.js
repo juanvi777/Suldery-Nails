@@ -250,6 +250,15 @@ function updateInstallButtons() {
   });
 }
 
+window.installSulderyApp = async function () {
+  if (!deferredInstallPrompt) return false;
+  deferredInstallPrompt.prompt();
+  try { await deferredInstallPrompt.userChoice; } catch {}
+  deferredInstallPrompt = null;
+  updateInstallButtons();
+  return true;
+};
+
 window.addEventListener('beforeinstallprompt', event => {
   event.preventDefault();
   deferredInstallPrompt = event;
@@ -289,7 +298,7 @@ async function getSulderyServiceWorker() {
     throw new Error('Este dispositivo no permite instalar el sistema de avisos.');
   }
   if (!sulderyServiceWorkerRegistration) {
-    const swUrl = new URL('sw.js?v=20260923-v51', location.href);
+    const swUrl = new URL('sw.js?v=20261007-v52.2', location.href);
     sulderyServiceWorkerRegistration = await navigator.serviceWorker.register(swUrl, { scope: './' });
   }
   return await navigator.serviceWorker.ready;
@@ -441,7 +450,7 @@ window.syncExistingSulderyPushSubscription = syncExistingSulderyPushSubscription
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    const swUrl = new URL('sw.js?v=20260923-v51', location.href);
+    const swUrl = new URL('sw.js?v=20261007-v52.2', location.href);
     navigator.serviceWorker.register(swUrl, { scope: './' }).catch(() => {});
   });
 }

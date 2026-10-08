@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260922-v45">
+  <link rel="stylesheet" href="style.css?v=20261007-v52.2">
 </head>
 <body class="dashboard-page catalog-page">
   <main class="dashboard-shell">
@@ -29,17 +29,12 @@
       <p>Explora todos los diseños que Suldery ha preparado para ti. Puedes avanzar uno por uno y guardar tus favoritos para enseñárselos al momento de tu cita.</p>
     </section>
     <section class="catalog-client-viewer glass-card">
-      <div class="catalog-client-top"><strong id="catalogCounter">Cargando catálogo…</strong><span id="catalogTitle"></span></div>
+      <div class="catalog-client-top"><strong id="catalogCounter">Cargando catálogo…</strong><span>Diseños en cuadrícula rápida</span></div>
       <div id="catalogEmpty" class="empty-state hidden">Todavía no hay diseños publicados.</div>
-      <div id="catalogStage" class="catalog-client-stage">
-        <button id="catalogPrevious" class="carousel-arrow left" type="button" aria-label="Diseño anterior">‹</button>
-        <img id="catalogImage" src="" alt="Diseño de Suldery Nails">
-        <button id="catalogNext" class="carousel-arrow right" type="button" aria-label="Diseño siguiente">›</button>
-      </div>
-      <div class="catalog-client-dots" id="catalogDots"></div>
+      <div id="catalogGrid" class="catalog-client-grid"></div>
     </section>
   </main>
-  <script src="auth.js?v=20260922-v45"></script>
-  <script src="catalogo.js?v=20260922-v45"></script>
+  <script src="auth.js?v=20261007-v52.2"></script>
+  <script src="catalogo.js?v=20261007-v52.2"></script>
 </body>
 </html>

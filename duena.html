@@ -16,19 +16,39 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260922-v45">
+  <link rel="stylesheet" href="style.css?v=20261007-v52.2">
 </head>
 <body class="dashboard-page owner-page">
   <main class="dashboard-shell">
-    <header class="dashboard-header glass-card">
+    <header class="dashboard-header glass-card owner-dashboard-header">
       <a class="logo" href="duena.html"><img src="assets/suldery-nails-logo.jpeg" alt="Suldery Nails"><span>Suldery <em>Nails</em></span></a>
       <div class="user-menu">
-        <button id="installAppButton" class="install-app-button" type="button" hidden>＋ Instalar app</button><button id="enableNotificationsButton" class="small-button ghost owner-notify-top" type="button">🔔 Avisos</button>
+        <button id="ownerMenuButton" class="owner-menu-toggle" type="button" aria-expanded="false" aria-controls="ownerMenuDrawer">☰ <span>Menú</span></button>
+        <button id="enableNotificationsButton" class="small-button ghost owner-notify-top" type="button">🔔 Avisos activos</button>
         <button class="theme-toggle" type="button" data-theme-toggle aria-label="Activar modo oscuro"><span class="theme-icon">☾</span><span class="theme-label">Modo oscuro</span></button>
         <span>Panel de Suldery</span>
         <button class="secondary-button" type="button" data-action="logout">Cerrar sesión</button>
       </div>
     </header>
+    <aside id="ownerMenuDrawer" class="owner-menu-drawer" hidden>
+      <div class="owner-menu-head"><div><p class="eyebrow">SULDERY NAILS</p><h2>Menú de administración</h2></div><button id="ownerMenuClose" class="small-button ghost" type="button">Cerrar</button></div>
+      <div class="owner-menu-grid">
+        <button type="button" data-owner-stat="clients"><span>👩</span><strong>Clientas activas</strong></button>
+        <button type="button" data-owner-stat="appointments"><span>📅</span><strong>Citas agendadas</strong></button>
+        <button type="button" data-owner-tool="schedule"><span>🕐</span><strong>Horario de trabajo</strong></button>
+        <button type="button" data-owner-tool="manual"><span>＋</span><strong>Agendar clienta</strong></button>
+        <button type="button" data-owner-tool="blocked"><span>▣</span><strong>Bloquear días</strong></button>
+        <button type="button" data-owner-tool="calendar"><span>◷</span><strong>Calendario</strong></button>
+        <button type="button" data-owner-tool="photos"><span>✦</span><strong>Fotos de inicio</strong></button>
+        <button type="button" data-owner-tool="clientPhotos"><span>♡</span><strong>Fotos exclusivas</strong></button>
+        <button type="button" data-owner-tool="catalog"><span>▤</span><strong>Catálogo</strong></button>
+        <button type="button" data-owner-stat="reviews"><span>⭐</span><strong>Reseñas</strong></button>
+        <button type="button" data-owner-tool="clientMessages"><span>📷</span><strong>Fotos recibidas</strong></button>
+        <button type="button" data-owner-stat="notify"><span>🔔</span><strong>Avisos</strong></button>
+        <button type="button" data-owner-stat="recovery"><span>🔐</span><strong>Recuperar acceso</strong></button>
+        <button type="button" data-owner-tool="nailLab"><span>✨</span><strong>SulNail IA</strong></button>
+      </div>
+    </aside>
 
     <section class="hero-dashboard owner-hero">
       <div>
@@ -37,7 +57,7 @@
         <p>Todo en un solo lugar. Abre solamente la herramienta que necesitas y mantén tu agenda sin cruces ni turnos imposibles.</p>
       </div>
       <div class="owner-mini-card"><strong id="ownerDateLabel">Hoy</strong><span>Una agenda ordenada, un día más tranquilo ♡</span>
-        <div class="sms-status-card"><strong id="notificationStatusTitle">Avisos en este dispositivo</strong><small id="notificationStatusText">Comprobando las notificaciones…</small><div class="notification-actions"><button id="testNotificationButton" class="small-button ghost" type="button">Probar aviso</button></div></div></div>
+        <div class="sms-status-card owner-notification-body-status"><strong id="notificationStatusTitle">Avisos en este dispositivo</strong><small id="notificationStatusText">Comprobando las notificaciones…</small><div class="notification-actions"><button id="testNotificationButton" class="small-button ghost" type="button">Probar aviso</button></div></div></div>
       </div>
     </section>
 
@@ -51,6 +71,15 @@
       <button type="button" class="stat-card stat-card-button" data-owner-stat="calendar">
         <span>CALENDARIO</span><strong>◷</strong><small>ver citas por día y espacios libres →</small>
       </button>
+      <button type="button" class="stat-card stat-card-button" data-owner-stat="recovery">
+        <span>RECUPERAR ACCESO</span><strong id="recoveryCount">0</strong><small>solicitudes pendientes · ver listado →</small>
+      </button>
+      <button type="button" class="stat-card stat-card-button" data-owner-stat="reviews">
+        <span>CALIFICACIONES</span><strong id="reviewAverage">—</strong><small><span id="reviewCount">0</span> reseñas · ver opiniones →</small>
+      </button>
+      <button type="button" class="stat-card stat-card-button" data-owner-stat="notify">
+        <span>NOTIFICAR</span><strong>⌁</strong><small>recordar o avisar a una clienta →</small>
+      </button>
     </section>
 
     <section id="ownerStatClients" class="owner-detail-panel admin-card glass-card hidden-tool-panel">
@@ -63,6 +92,40 @@
       <div class="card-heading"><div><p class="eyebrow">AGENDA</p><h2>Citas agendadas</h2></div><button class="small-button ghost" type="button" data-close-owner-stat>Cerrar</button></div>
       <p class="manager-note">Aquí aparecen las citas confirmadas de hoy en adelante, incluidas las que agendaste manualmente. Las solicitudes pendientes están separadas en “Solicitudes de citas”.</p>
       <div id="scheduledAppointmentsList" class="admin-list"></div>
+    </section>
+
+    <section id="ownerStatRecovery" class="owner-detail-panel admin-card glass-card hidden-tool-panel">
+      <div class="card-heading"><div><p class="eyebrow">ACCESO</p><h2>Solicitudes de recuperación</h2></div><button class="small-button ghost" type="button" data-close-owner-stat>Cerrar</button></div>
+      <p class="manager-note">Aquí aparecen únicamente las solicitudes pendientes. Por seguridad, la contraseña anterior nunca se muestra ni se almacena en texto plano. Puedes ver el nombre, correo y teléfono y restablecer el acceso desde aquí.</p>
+      <div id="passwordRecoveryRequestsList" class="admin-list"></div>
+    </section>
+
+    <section id="ownerStatReviews" class="owner-detail-panel admin-card glass-card hidden-tool-panel">
+      <div class="card-heading"><div><p class="eyebrow">CALIFICACIONES</p><h2>Lo que dicen tus clientas</h2></div><button class="small-button ghost" type="button" data-close-owner-stat>Cerrar</button></div>
+      <div class="review-owner-summary"><strong id="ownerReviewAverageLarge">—</strong><span class="review-stars" id="ownerReviewStars">★★★★★</span><small><span id="ownerReviewCountLarge">0</span> reseñas publicadas</small></div>
+      <div id="ownerReviewsList" class="admin-list"></div>
+    </section>
+
+    <section id="ownerStatNotify" class="owner-detail-panel admin-card glass-card hidden-tool-panel">
+      <div class="card-heading"><div><p class="eyebrow">NOTIFICAR</p><h2>Habla con tus clientas</h2></div><button class="small-button ghost" type="button" data-close-owner-stat>Cerrar</button></div>
+      <p class="manager-note">Puedes enviar un aviso directo al dispositivo donde la clienta activó las notificaciones. También verás su teléfono para continuar por WhatsApp si lo prefieres.</p>
+      <div class="notify-grid">
+        <label>Clienta<select id="notifyClientSelect"><option value="">Selecciona una clienta</option></select></label>
+        <label>Cita relacionada <span class="optional-label">(opcional)</span><select id="notifyAppointmentSelect"><option value="">Sin cita específica</option></select></label>
+        <label class="notify-message-field">Mensaje<textarea id="notifyMessage" rows="5" maxlength="600" placeholder="Ej. Hola Sandra 💕, quería recordarte tu cita de mañana. Te esperamos con mucho cariño."></textarea></label>
+      </div>
+      <div class="notify-shortcuts">
+        <button type="button" class="small-button ghost" id="notifyReminderButton">Recordar próxima cita</button>
+        <button type="button" class="small-button ghost" id="notifyHelloButton">Enviar saludo</button>
+      </div>
+      <div class="notify-client-meta" id="notifyClientMeta">Selecciona una clienta para ver sus datos de contacto.</div>
+      <div class="owner-tool-actions"><button id="sendNotifyButton" class="primary-button" type="button">Enviar aviso <span>→</span></button><span id="notifyMessageStatus" class="form-message"></span></div>
+    </section>
+
+    <section id="ownerToolClientMessages" class="owner-tool-panel admin-card glass-card hidden-tool-panel">
+      <div class="card-heading"><div><p class="eyebrow">FOTOS RECIBIDAS</p><h2>Mensajes de tus clientas</h2></div><button class="small-button ghost" type="button" data-close-owner-tool>Cerrar</button></div>
+      <p class="manager-note">Aquí aparecen las fotos que una clienta te envió desde su cuenta, junto con su mensaje y datos básicos.</p>
+      <div id="clientPhotoMessagesList" class="client-photo-messages-grid"></div>
     </section>
 
     <section class="owner-tool-grid" aria-label="Herramientas de administración">
@@ -284,10 +347,11 @@
     <section id="ownerToolPhotos" class="owner-tool-panel admin-card glass-card hidden-tool-panel">
       <div class="card-heading"><div><p class="eyebrow">FOTOS DE INICIO</p><h2>La primera impresión</h2></div><button class="small-button ghost" type="button" data-close-owner-tool>Cerrar</button></div>
       <p class="manager-note">Aquí eliges las hasta 8 fotos que verá una persona antes de iniciar sesión. Cada foto se administra individualmente y puedes cambiarla o eliminarla.</p>
-      <div class="owner-photo-upload-buttons single-choice-grid">
-        <label class="owner-upload-choice" for="photoPickerLogin"><span>✦</span><strong>Agregar foto de inicio</strong><small>Máximo 8 fotos</small></label>
+      <div class="photo-save-toolbar">
+        <label class="owner-upload-choice compact" for="photoPickerLogin"><span>✦</span><strong>Elegir foto</strong><small>Máximo 8 fotos</small></label>
+        <div class="photo-save-actions"><span id="loginPhotoSelection" class="photo-selection-status">No hay una foto pendiente.</span><button id="saveLoginPhotoButton" class="primary-button small-primary" type="button" disabled>Guardar foto</button></div>
       </div>
-      <input id="photoPickerLogin" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden"><input id="photoPickerClient" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden"><input id="photoReplacePicker" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden">
+      <input id="photoPickerLogin" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden"><input id="photoReplacePicker" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden">
       <div class="photo-owner-groups">
         <section class="photo-owner-group"><div class="subsection-heading"><div><p class="eyebrow">INICIO DE SESIÓN</p><h3>Fotos que ven antes de entrar</h3></div><span id="loginPhotoCount" class="photo-group-count">0</span></div><div id="ownerLoginGallery" class="photo-owner-list"></div></section>
       </div>
@@ -297,8 +361,9 @@
     <section id="ownerToolClientPhotos" class="owner-tool-panel admin-card glass-card hidden-tool-panel">
       <div class="card-heading"><div><p class="eyebrow">FOTOS DE CLIENTAS</p><h2>Lo que ven después de entrar</h2></div><button class="small-button ghost" type="button" data-close-owner-tool>Cerrar</button></div>
       <p class="manager-note">Este apartado controla exclusivamente la galería de la página de clienta. Agrega, actualiza o elimina las fotos que quieres mostrar una vez iniciada la sesión. Máximo 10 fotos.</p>
-      <div class="owner-photo-upload-buttons single-choice-grid">
-        <label class="owner-upload-choice" for="photoPickerClientOnly"><span>♡</span><strong>Agregar foto de clienta</strong><small>Galería privada para clientas registradas</small></label>
+      <div class="photo-save-toolbar">
+        <label class="owner-upload-choice compact" for="photoPickerClientOnly"><span>♡</span><strong>Elegir foto</strong><small>Galería privada · máximo 10</small></label>
+        <div class="photo-save-actions"><span id="clientPhotoSelection" class="photo-selection-status">No hay una foto pendiente.</span><button id="saveClientPhotoButton" class="primary-button small-primary" type="button" disabled>Guardar foto</button></div>
       </div>
       <input id="photoPickerClientOnly" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden">
       <div class="photo-owner-groups">
@@ -317,8 +382,10 @@
         <input id="catalogPhotoPicker" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden"><input id="catalogReplacePicker" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" class="hidden">
         <p id="catalogManagerMessage" class="form-message" role="status"></p>
       </div>
-      <div class="catalog-owner-viewer">
-        <div class="catalog-owner-head"><strong id="catalogOwnerCounter">0 fotos</strong><span id="catalogOwnerTitle"></span></div>
+      <div class="catalog-owner-head"><strong id="catalogOwnerCounter">0 fotos</strong><span>Cuadrícula rápida · cada diseño se administra individualmente</span></div>
+      <div id="catalogOwnerGrid" class="catalog-owner-grid"></div>
+      <div class="catalog-owner-viewer legacy-catalog-controls" aria-hidden="true">
+        <div class="catalog-owner-head"><span id="catalogOwnerTitle"></span></div>
         <div class="catalog-owner-stage"><button id="catalogOwnerPrevious" class="carousel-arrow left" type="button" aria-label="Diseño anterior">‹</button><img id="catalogOwnerImage" src="" alt="Catálogo Suldery Nails"><button id="catalogOwnerNext" class="carousel-arrow right" type="button" aria-label="Diseño siguiente">›</button></div>
         <div class="catalog-owner-actions"><button id="catalogOwnerReplace" class="small-button ghost" type="button">Cambiar foto</button><button id="catalogOwnerDelete" class="small-button cancel" type="button">Eliminar</button><button id="catalogOwnerUp" class="small-button ghost" type="button">↑ Subir</button><button id="catalogOwnerDown" class="small-button ghost" type="button">↓ Bajar</button></div>
         <p id="catalogOwnerEmpty" class="empty-state hidden">Todavía no hay diseños en el catálogo.</p>
@@ -336,7 +403,7 @@
       </article>
     </section>
   </main>
-  <script src="auth.js?v=20260922-v45"></script>
-  <script src="duena.js?v=20260922-v45"></script>
+  <script src="auth.js?v=20261007-v52.2"></script>
+  <script src="duena.js?v=20261007-v52.2"></script>
 </body>
 </html>

@@ -754,3 +754,85 @@ body.dark-mode .owner-tool-featured{background:linear-gradient(145deg,rgba(39,16
 .dark-mode .notify-grid input,.dark-mode .notify-grid select,.dark-mode .notify-grid textarea,.dark-mode .review-submit-grid select,.dark-mode .review-submit-grid textarea{background:rgba(255,255,255,.045);border-color:rgba(255,255,255,.12);color:#fff}
 @media(max-width:900px){.notify-grid{grid-template-columns:1fr}.notify-message-field{grid-column:auto}.reviews-heading{align-items:flex-start;flex-direction:column}.review-score-button{align-self:stretch}.review-submit-grid{grid-template-columns:1fr}.review-comment-field{grid-column:auto}}
 @media(max-width:600px){.review-viewer-card{padding:1.25rem 2.5rem}.review-card blockquote{font-size:1rem}.owner-extra-stats{margin-top:0}}
+
+
+/* ================================================================
+   SULDERY NAILS v5.2 — GALERÍAS COMPACTAS + MENÚ + NUEVOS FLUJOS
+   ================================================================ */
+.owner-dashboard-header{position:sticky;top:0;z-index:80}
+.owner-menu-toggle{border:1px solid rgba(198,40,104,.24);background:rgba(255,255,255,.84);border-radius:14px;padding:10px 14px;font-weight:800;cursor:pointer}
+.owner-menu-drawer{position:fixed;top:86px;right:18px;z-index:120;width:min(560px,calc(100vw - 36px));padding:18px;border-radius:24px;background:rgba(255,250,253,.98);backdrop-filter:blur(18px);box-shadow:0 24px 80px rgba(30,10,26,.18);border:1px solid rgba(198,40,104,.14)}
+.owner-menu-drawer[hidden]{display:none}
+.owner-menu-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.owner-menu-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;max-height:min(70vh,620px);overflow:auto}
+.owner-menu-grid button{min-height:68px;border:1px solid rgba(198,40,104,.12);background:rgba(255,255,255,.92);border-radius:16px;padding:12px;text-align:left;display:flex;align-items:center;gap:10px;cursor:pointer}
+.owner-menu-grid button span{font-size:22px}.owner-menu-grid button strong{font-size:13px}
+.owner-hero .owner-notification-body-status{display:none!important}
+body.owner-page .stats-grid{display:none!important}
+body.owner-page .owner-tool-grid{display:none!important}
+
+.photo-owner-list{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;align-items:start}
+.owner-photo-tile{position:relative;aspect-ratio:1/1;min-width:0;border-radius:18px;overflow:hidden;margin:0;background:rgba(255,255,255,.86);border:1px solid rgba(198,40,104,.12);box-shadow:0 10px 28px rgba(40,10,24,.08)}
+.owner-photo-tile img{width:100%;height:100%;display:block;object-fit:cover}
+.owner-photo-tile figcaption{position:absolute;left:8px;right:8px;bottom:8px;border-radius:10px;padding:6px 8px;font-size:10px;line-height:1.2;background:rgba(20,10,20,.66);color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.owner-photo-number{position:absolute;top:8px;left:8px;z-index:2;background:rgba(255,255,255,.9);border-radius:999px;min-width:24px;height:24px;display:grid;place-items:center;font-size:11px;font-weight:800}
+.photo-tile-actions{position:absolute;top:8px;right:8px;z-index:3;display:flex;gap:5px;align-items:center}
+.photo-icon-button,.photo-tile-edit{border:0;border-radius:10px;cursor:pointer;font-weight:800;backdrop-filter:blur(8px)}
+.photo-icon-button{width:34px;height:34px;display:grid;place-items:center;background:rgba(255,255,255,.93);box-shadow:0 5px 16px rgba(30,10,24,.18)}
+.photo-tile-edit{padding:7px 9px;background:rgba(255,255,255,.93);font-size:10px}
+.photo-grid-empty{grid-column:1/-1}
+
+.catalog-owner-grid,.catalog-client-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}
+.catalog-owner-card,.catalog-client-card{min-width:0;border:1px solid rgba(198,40,104,.12);background:rgba(255,255,255,.9);border-radius:18px;overflow:hidden;box-shadow:0 10px 28px rgba(40,10,24,.07)}
+.catalog-owner-card{position:relative}
+.catalog-owner-card img,.catalog-client-card img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block;background:rgba(198,40,104,.05)}
+.catalog-owner-index{position:absolute;top:8px;left:8px;z-index:2;background:rgba(255,255,255,.9);border-radius:999px;min-width:24px;height:24px;display:grid;place-items:center;font-size:11px;font-weight:800}
+.catalog-owner-card-body{padding:9px}.catalog-owner-card-body strong,.catalog-client-card-caption strong{display:block;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.catalog-owner-card-actions{display:flex;gap:6px;margin-top:8px}.catalog-owner-card-actions .small-button{flex:1;min-width:0;padding:7px 6px;font-size:10px}
+.legacy-catalog-controls{display:none!important}
+.catalog-client-image-button{display:block;width:100%;border:0;padding:0;background:none;cursor:pointer}
+.catalog-client-card-caption{padding:9px 10px 11px}
+.catalog-page .catalog-client-viewer{padding-bottom:22px}
+
+.client-daily-welcome{display:grid;gap:4px;margin:0 0 16px;max-width:540px;padding:12px 15px;border-radius:16px;border:1px solid rgba(198,40,104,.13);background:rgba(255,255,255,.65);box-shadow:0 10px 30px rgba(50,14,32,.05)}
+.client-daily-welcome span{text-transform:capitalize;font-size:12px;font-weight:800;letter-spacing:.04em}.client-daily-welcome strong{font-size:14px;line-height:1.4}
+.photo-gallery-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px!important}
+.client-photo-tile{margin:0;overflow:hidden;border-radius:16px;background:rgba(255,255,255,.8);border:1px solid rgba(198,40,104,.12)}
+.client-photo-tile img{display:block;width:100%;aspect-ratio:1/1;object-fit:cover}.client-photo-tile figcaption{padding:7px 8px;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.client-photo-messages-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.client-photo-message-card{border-radius:18px;overflow:hidden;border:1px solid rgba(198,40,104,.12);background:rgba(255,255,255,.9)}
+.client-photo-message-card.unread{box-shadow:0 0 0 2px rgba(198,40,104,.14)}
+.client-photo-message-image-wrap{aspect-ratio:1/1;overflow:hidden;background:rgba(198,40,104,.06)}
+.client-photo-message-image-wrap img{width:100%;height:100%;object-fit:cover;display:block}.client-photo-message-body{padding:12px}.client-photo-message-meta{display:flex;justify-content:space-between;gap:10px}.client-photo-message-meta span{font-size:10px;font-weight:800;text-transform:uppercase}.client-photo-message-body p{font-size:12px;line-height:1.45}.client-photo-message-body small{display:block;margin-top:4px;opacity:.72;font-size:10px}
+
+.sn-modal{position:fixed;inset:0;z-index:300;display:grid;place-items:center;padding:18px;background:rgba(20,8,18,.58);backdrop-filter:blur(8px)}
+.sn-modal.hidden-modal{display:none}.sn-modal-card{position:relative;width:min(620px,100%);max-height:min(90vh,760px);overflow:auto;padding:24px;border-radius:26px;background:rgba(255,250,253,.99);box-shadow:0 28px 100px rgba(20,7,20,.35)}
+.sn-modal-close{position:absolute;top:12px;right:12px;width:36px;height:36px;border:0;border-radius:50%;cursor:pointer;font-size:22px;background:rgba(198,40,104,.08)}
+.install-device-choice{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:18px}.install-device-card{border:1px solid rgba(198,40,104,.16);border-radius:18px;padding:18px;background:#fff;display:grid;gap:6px;text-align:left;cursor:pointer}.install-device-card span{font-size:28px}.install-device-card strong{font-size:16px}.install-device-card small{opacity:.7}
+.install-tutorial-steps{display:grid;gap:10px;margin-top:18px}.tutorial-device-title{display:flex;justify-content:space-between;gap:10px;align-items:end;margin-bottom:8px}.tutorial-step{display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:15px;background:rgba(198,40,104,.05)}.tutorial-step b{min-width:30px;height:30px;display:grid;place-items:center;border-radius:50%;background:rgba(198,40,104,.12)}.tutorial-step p{margin:4px 0;line-height:1.45;font-size:13px}.install-tutorial-footer{display:flex;justify-content:space-between;gap:10px;margin-top:18px}
+.review-photo-field{display:grid;gap:8px;margin-top:8px}.review-photo-actions{display:flex;flex-wrap:wrap;gap:7px}.review-photo-preview{margin-top:8px;max-width:180px;border-radius:16px;overflow:hidden;border:1px solid rgba(198,40,104,.14)}.review-photo-preview img{display:block;width:100%;aspect-ratio:1/1;object-fit:cover}.review-card-photo{display:block;width:min(220px,100%);aspect-ratio:1/1;object-fit:cover;border-radius:16px;margin:10px auto}
+
+@media (max-width: 900px){
+  .photo-owner-list,.catalog-owner-grid,.catalog-client-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .client-photo-messages-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width: 640px){
+  .owner-menu-drawer{right:10px;top:74px;width:calc(100vw - 20px)}
+  .owner-menu-grid{grid-template-columns:repeat(2,minmax(0,1fr));max-height:72vh}
+  .photo-owner-list,.catalog-owner-grid,.catalog-client-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+  .photo-gallery-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:9px!important}
+  .client-photo-messages-grid{grid-template-columns:1fr}
+  .install-device-choice{grid-template-columns:1fr}
+  .owner-photo-tile{border-radius:13px}.catalog-owner-card,.catalog-client-card{border-radius:13px}
+  .photo-tile-edit{display:none}.photo-icon-button{width:30px;height:30px}
+}
+@media (max-width: 390px){
+  .owner-menu-grid{gap:7px}.owner-menu-grid button{min-height:60px;padding:9px}.owner-menu-grid button strong{font-size:11px}
+  .photo-owner-list,.catalog-owner-grid,.catalog-client-grid,.photo-gallery-grid{gap:7px!important}
+}
+
+.review-one-time-notice{margin:14px 0;padding:14px 16px;border-radius:16px;background:rgba(198,40,104,.07);border:1px solid rgba(198,40,104,.15)}
+.review-one-time-notice strong{display:block;margin-bottom:4px}.review-one-time-notice p{margin:0;font-size:12px;line-height:1.45}.star-picker.disabled{opacity:.45;pointer-events:none}.owner-review-photo{max-width:140px!important;margin:9px 0!important}
+
+.client-review-submit .hidden-step{display:none!important}.review-submit-grid small,.review-photo-field small{opacity:.7;font-size:10px}

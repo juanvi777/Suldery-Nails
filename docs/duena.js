@@ -141,6 +141,7 @@ async function initDuena() {
   document.querySelectorAll('[data-owner-tool]').forEach(button => button.addEventListener('click', () => openOwnerTool(button.dataset.ownerTool)));
   document.querySelectorAll('[data-close-owner-tool]').forEach(button => button.addEventListener('click', closeOwnerTools));
   document.querySelectorAll('[data-owner-stat]').forEach(button => button.addEventListener('click', () => openOwnerStat(button.dataset.ownerStat)));
+  initOwnerHamburgerMenu();
   document.querySelectorAll('[data-close-owner-stat]').forEach(button => button.addEventListener('click', closeOwnerStats));
   $d('notifyClientSelect')?.addEventListener('change', updateNotifyAppointmentOptions);
   $d('notifyAppointmentSelect')?.addEventListener('change', fillReminderMessage);
@@ -215,7 +216,8 @@ function openOwnerTool(name) {
     schedule: 'ownerToolSchedule',
     manual: 'ownerToolManual',
     blocked: 'ownerToolBlocked',
-    catalog: 'ownerToolCatalog'
+    catalog: 'ownerToolCatalog',
+    clientMessages: 'ownerToolClientMessages'
   };
   const panelId = toolPanelIds[name] || `ownerTool${name[0].toUpperCase()}${name.slice(1)}`;
   const panel = $d(panelId);
@@ -228,6 +230,7 @@ function openOwnerTool(name) {
   if (name === 'photos') loadOwnerGallery();
   if (name === 'clientPhotos') loadOwnerGallery();
   if (name === 'catalog') loadOwnerCatalog();
+  if (name === 'clientMessages') loadClientPhotoMessages();
   if (name === 'calendar') loadOwnerCalendar();
 }
 
@@ -367,7 +370,7 @@ function renderOwnerReviews() {
     const item = document.createElement('article');
     item.className = 'admin-item review-owner-item';
     const date = review.created_at ? String(review.created_at).slice(0,10) : '';
-    item.innerHTML = `<div class="admin-item-main"><strong>${escapeHtml(review.client_name || 'Clienta')}</strong><p class="review-stars">${reviewStars(review.stars)} <span>${Number(review.stars)}/5</span></p><p>${escapeHtml(review.comment || '')}</p><small>${escapeHtml(review.email || '')}${review.phone ? ` · ${escapeHtml(review.phone)}` : ''}${date ? ` · ${escapeHtml(formatDate(date))}` : ''}</small></div><button type="button" class="small-button cancel" data-owner-review-delete="${review.id}">Eliminar</button>`;
+    item.innerHTML = `<div class="admin-item-main"><strong>${escapeHtml(review.client_name || 'Clienta')}</strong><p class="review-stars">${reviewStars(review.stars)} <span>${Number(review.stars)}/5</span></p><p>${escapeHtml(review.comment || '')}</p>${review.image_url ? `<img class="review-card-photo owner-review-photo" src="${escapeAttribute(review.image_url)}" loading="lazy" alt="Foto de uñas de ${escapeAttribute(review.client_name || 'clienta')}">` : ''}<small>${escapeHtml(review.email || '')}${review.phone ? ` · ${escapeHtml(review.phone)}` : ''}${date ? ` · ${escapeHtml(formatDate(date))}` : ''}</small></div><button type="button" class="small-button cancel" data-owner-review-delete="${review.id}">Eliminar</button>`;
     list.appendChild(item);
   });
   list.querySelectorAll('[data-owner-review-delete]').forEach(button => button.addEventListener('click', async () => {
@@ -1002,40 +1005,22 @@ function renderOwnerPhotoGroup(container, photos, visibility) {
   if (!container) return;
   container.innerHTML = '';
   if (!photos.length) {
-    container.innerHTML = `<div class="empty-state">Todavía no hay fotos en ${visibility === 'login' ? 'inicio de sesión' : 'la página de clienta'}.</div>`;
+    container.innerHTML = `<div class="empty-state photo-grid-empty">Todavía no hay fotos en ${visibility === 'login' ? 'inicio de sesión' : 'la página de clienta'}.</div>`;
     return;
   }
   photos.forEach((photo, index) => {
     const figure = document.createElement('figure');
-    figure.className = 'portfolio-photo owner-photo';
+    figure.className = 'portfolio-photo owner-photo owner-photo-tile';
     figure.innerHTML = `
       <div class="owner-photo-number">${index + 1}</div>
       <img src="${escapeAttribute(photo.image_url)}" alt="${escapeAttribute(photo.title || 'Diseño de Suldery Nails')}" loading="lazy" decoding="async">
       <figcaption>${escapeHtml(photo.title || 'Diseño Suldery Nails')}</figcaption>
-      <div class="photo-actions photo-actions-vertical">
-        <div class="photo-order-actions">
-          <button type="button" class="small-button ghost" data-photo-action="move-up" data-id="${photo.id}" ${index === 0 ? 'disabled' : ''}>↑ Subir</button>
-          <button type="button" class="small-button ghost" data-photo-action="move-down" data-id="${photo.id}" ${index === photos.length - 1 ? 'disabled' : ''}>↓ Bajar</button>
-        </div>
-        <button type="button" class="small-button ghost" data-photo-action="replace" data-id="${photo.id}">Actualizar foto</button>
-        <button type="button" class="remove-photo" data-photo-action="delete" data-id="${photo.id}">Eliminar foto</button>
+      <div class="photo-tile-actions">
+        <button type="button" class="photo-icon-button photo-delete-button" data-photo-action="delete" data-id="${photo.id}" aria-label="Eliminar foto">🗑️</button>
+        <button type="button" class="photo-tile-edit" data-photo-action="replace" data-id="${photo.id}">Cambiar</button>
       </div>`;
     container.appendChild(figure);
   });
-}
-
-async function handlePhotoVisibilityChange(event) {
-  const select = event.target.closest('[data-photo-visibility]');
-  if (!select) return;
-  try {
-    await apiFetch(`/owner/portfolio/${select.dataset.photoVisibility}/visibility`, {
-      method: 'PATCH',
-      body: JSON.stringify({ visibility: select.value })
-    });
-  } catch (error) {
-    alert(error.message);
-    await loadOwnerGallery();
-  }
 }
 
 function handleGalleryAction(event) {
@@ -1069,25 +1054,36 @@ function seleccionarFoto(event, visibility) {
 }
 
 async function guardarFotoSeleccionada(visibility) {
-  const file = pendingPhotoFiles[visibility];
-  if (!file) return;
+  const rawFile = pendingPhotoFiles[visibility];
+  if (!rawFile) return;
   const messageEl = $d(visibility === 'login' ? 'photoManagerMessage' : 'clientPhotoManagerMessage');
   const button = $d(visibility === 'login' ? 'saveLoginPhotoButton' : 'saveClientPhotoButton');
   const status = $d(visibility === 'login' ? 'loginPhotoSelection' : 'clientPhotoSelection');
   try {
     button.disabled = true;
-    setMessage(messageEl, 'Guardando la foto…');
+    setMessage(messageEl, 'Optimizando y guardando la foto…');
+    const file = await optimizeImageForUpload(rawFile);
     const form = new FormData();
-    form.append('photo', file);
+    form.append('photo', file, file.name);
     form.append('title', 'Diseño Suldery Nails');
     form.append('visibility', visibility);
-    await apiFetch('/owner/portfolio', { method: 'POST', body: form });
+    const data = await apiFetch('/owner/portfolio', { method: 'POST', body: form });
     pendingPhotoFiles[visibility] = null;
     if (status) status.textContent = 'Foto guardada. Puedes elegir otra.';
     setMessage(messageEl, 'La foto quedó guardada correctamente. ✨', true);
+    const target = visibility === 'login' ? $d('ownerLoginGallery') : $d('ownerClientOnlyGallery');
+    if (target && data.photo) {
+      // Añadir la nueva tarjeta sin descargar de nuevo toda la galería.
+      const current = ownerPhotosCache.filter(photo => photo.visibility === visibility || photo.visibility === 'both');
+      current.push(data.photo);
+      renderOwnerPhotoGroup(target, current, visibility);
+      if (visibility === 'login' && $d('loginPhotoCount')) $d('loginPhotoCount').textContent = current.length;
+      if (visibility === 'client' && $d('clientPhotoCountOnly')) $d('clientPhotoCountOnly').textContent = current.length;
+    } else {
+      await loadOwnerGallery();
+    }
     if (visibility === 'login') $d('photoPickerLogin').value = '';
     if (visibility === 'client') $d('photoPickerClientOnly').value = '';
-    await loadOwnerGallery();
   } catch (error) {
     setMessage(messageEl, error.message);
   } finally {
@@ -1112,54 +1108,55 @@ async function loadOwnerCatalog() {
     const data = await apiFetch('/owner/catalog');
     ownerCatalogCache = Array.isArray(data.photos) ? data.photos : [];
     if (ownerCatalogIndex >= ownerCatalogCache.length) ownerCatalogIndex = Math.max(0, ownerCatalogCache.length - 1);
-    renderCatalogOwnerViewer();
+    renderCatalogOwnerGrid();
   } catch (error) {
     setMessage($d('catalogManagerMessage'), error.message);
   }
 }
 
-function preloadOwnerCatalogNeighbors() {
-  if (!ownerCatalogCache.length) return;
-  const offsets = [1, 2, -1, -2];
-  offsets.forEach(offset => {
-    const index = (ownerCatalogIndex + offset + ownerCatalogCache.length) % ownerCatalogCache.length;
-    const photo = ownerCatalogCache[index];
-    if (!photo?.image_url) return;
-    const img = new Image();
-    img.decoding = 'async';
-    img.src = photo.image_url;
+function renderCatalogOwnerGrid() {
+  const grid = $d('catalogOwnerGrid');
+  const counter = $d('catalogOwnerCounter');
+  if (!grid) return;
+  grid.innerHTML = '';
+  if (counter) counter.textContent = `${ownerCatalogCache.length} ${ownerCatalogCache.length === 1 ? 'foto' : 'fotos'}`;
+  if (!ownerCatalogCache.length) {
+    grid.innerHTML = '<div id="catalogOwnerEmpty" class="empty-state">Todavía no hay diseños en el catálogo.</div>';
+    return;
+  }
+  ownerCatalogCache.forEach((photo,index) => {
+    const card=document.createElement('article');
+    card.className='catalog-owner-card';
+    card.innerHTML=`<div class="catalog-owner-index">${index+1}</div><img src="${escapeAttribute(photo.image_url)}" alt="${escapeAttribute(photo.title || 'Diseño Suldery Nails')}" loading="lazy" decoding="async"><div class="catalog-owner-card-body"><strong>${escapeHtml(photo.title || 'Diseño Suldery Nails')}</strong><div class="catalog-owner-card-actions"><button type="button" class="small-button ghost" data-catalog-action="replace" data-id="${photo.id}">Cambiar</button><button type="button" class="small-button cancel" data-catalog-action="delete" data-id="${photo.id}">Eliminar</button></div></div>`;
+    grid.appendChild(card);
+  });
+  grid.querySelectorAll('[data-catalog-action]').forEach(button=>{
+    button.addEventListener('click',()=>{
+      const id=Number(button.dataset.id);
+      if(button.dataset.catalogAction==='replace') prepararReemplazoCatalogo(id);
+      else eliminarCatalogoFoto(id);
+    });
   });
 }
 
-function renderCatalogOwnerViewer() {
-  const counter = $d('catalogOwnerCounter');
-  const title = $d('catalogOwnerTitle');
-  const image = $d('catalogOwnerImage');
-  const empty = $d('catalogOwnerEmpty');
-  const stage = document.querySelector('.catalog-owner-stage');
-  const actions = document.querySelector('.catalog-owner-actions');
-  if (!ownerCatalogCache.length) {
-    if (counter) counter.textContent = '0 fotos';
-    if (title) title.textContent = '';
-    if (image) { image.removeAttribute('src'); image.alt = 'Sin fotos de catálogo'; }
-    empty?.classList.remove('hidden');
-    if (stage) stage.classList.add('empty-catalog');
-    if (actions) actions.classList.add('hidden');
-    return;
-  }
-  empty?.classList.add('hidden');
-  stage?.classList.remove('empty-catalog');
-  actions?.classList.remove('hidden');
-  const photo = ownerCatalogCache[ownerCatalogIndex];
-  if (counter) counter.textContent = `${ownerCatalogIndex + 1} de ${ownerCatalogCache.length}`;
-  if (title) title.textContent = photo.title || 'Diseño Suldery Nails';
-  if (image) {
-    image.src = photo.image_url;
-    image.alt = photo.title || 'Diseño de Suldery Nails';
-    image.loading = 'eager';
-    image.decoding = 'async';
-  }
-  preloadOwnerCatalogNeighbors();
+function prepararReemplazoCatalogo(id){
+  const input=$d('catalogReplacePicker');
+  if(!input)return;
+  input.dataset.photoId=String(id);
+  input.value='';
+  input.click();
+}
+
+async function eliminarCatalogoFoto(id){
+  const photo=ownerCatalogCache.find(item=>Number(item.id)===Number(id));
+  if(!photo)return;
+  if(!confirm(`¿Eliminar “${photo.title || 'este diseño'}” del catálogo?`))return;
+  try{
+    await apiFetch(`/owner/catalog/${id}`,{method:'DELETE'});
+    ownerCatalogCache=ownerCatalogCache.filter(item=>Number(item.id)!==Number(id));
+    renderCatalogOwnerGrid();
+    setMessage($d('catalogManagerMessage'),'Diseño eliminado del catálogo.',true);
+  }catch(error){setMessage($d('catalogManagerMessage'),error.message);}
 }
 
 function moveCatalogViewer(direction) {
@@ -1169,20 +1166,27 @@ function moveCatalogViewer(direction) {
 }
 
 async function subirCatalogoFoto(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  const form = new FormData();
-  form.append('photo', file);
-  form.append('title', ($d('catalogPhotoTitle')?.value || '').trim() || 'Diseño Suldery Nails');
+  const rawFile = event.target.files[0];
+  if (!rawFile) return;
+  const picker = event.target;
+  const addButton = document.querySelector('label[for="catalogPhotoPicker"]');
   try {
-    await apiFetch('/owner/catalog', { method:'POST', body:form });
+    if (addButton) addButton.classList.add('is-uploading');
+    setMessage($d('catalogManagerMessage'), 'Optimizando imagen y subiendo…');
+    const file = await optimizeImageForUpload(rawFile, 1800, 2.0 * 1024 * 1024);
+    const form = new FormData();
+    form.append('photo', file, file.name);
+    form.append('title', ($d('catalogPhotoTitle')?.value || '').trim() || 'Diseño Suldery Nails');
+    const data = await apiFetch('/owner/catalog', { method:'POST', body:form });
     if ($d('catalogPhotoTitle')) $d('catalogPhotoTitle').value = '';
+    if (data.photo) ownerCatalogCache.push(data.photo);
+    renderCatalogOwnerGrid();
     setMessage($d('catalogManagerMessage'), 'Foto agregada al catálogo. 💕', true);
-    await loadOwnerCatalog();
   } catch (error) {
     setMessage($d('catalogManagerMessage'), error.message);
   } finally {
-    event.target.value = '';
+    if (addButton) addButton.classList.remove('is-uploading');
+    picker.value = '';
   }
 }
 
@@ -1200,7 +1204,8 @@ async function reemplazarCatalogoFoto(event) {
   const id = Number(event.target.dataset.photoId);
   if (!file || !id) return;
   const form = new FormData();
-  form.append('photo', file);
+  const optimized = await optimizeImageForUpload(file, 1800, 2.0 * 1024 * 1024);
+  form.append('photo', optimized, optimized.name);
   try {
     await apiFetch(`/owner/catalog/${id}/image`, { method:'PATCH', body:form });
     setMessage($d('catalogManagerMessage'), 'Foto actualizada. ✨', true);
@@ -1488,3 +1493,63 @@ function renderAiCatalog() {
 }
 
 document.addEventListener('DOMContentLoaded',initDuena);
+
+
+// ===== Suldery Nails v5.2: mejoras de experiencia =====
+async function optimizeImageForUpload(file, maxDimension = 1600, maxBytes = 1.8 * 1024 * 1024) {
+  if (!file || !file.type.startsWith('image/')) return file;
+  if (file.size <= maxBytes) return file;
+  const sourceUrl = URL.createObjectURL(file);
+  try {
+    const image = new Image();
+    image.decoding = 'async';
+    image.src = sourceUrl;
+    await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; });
+    const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth || image.width, image.naturalHeight || image.height));
+    const width = Math.max(1, Math.round((image.naturalWidth || image.width) * scale));
+    const height = Math.max(1, Math.round((image.naturalHeight || image.height) * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width; canvas.height = height;
+    const ctx = canvas.getContext('2d', { alpha: true });
+    if (!ctx) return file;
+    ctx.drawImage(image, 0, 0, width, height);
+    const type = file.type === 'image/png' && file.size < 2.8 * 1024 * 1024 ? 'image/png' : 'image/jpeg';
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, type, 0.84));
+    if (!blob || blob.size >= file.size) return file;
+    const extension = type === 'image/png' ? '.png' : '.jpg';
+    const base = file.name.replace(/\.[^.]+$/, '') || 'suldery-nails';
+    return new File([blob], `${base}${extension}`, { type, lastModified: Date.now() });
+  } finally {
+    URL.revokeObjectURL(sourceUrl);
+  }
+}
+
+function initOwnerHamburgerMenu() {
+  const button=$d('ownerMenuButton'), drawer=$d('ownerMenuDrawer'), close=$d('ownerMenuClose');
+  if(!button || !drawer) return;
+  const closeMenu=()=>{ drawer.hidden=true; button.setAttribute('aria-expanded','false'); };
+  const openMenu=()=>{ drawer.hidden=false; button.setAttribute('aria-expanded','true'); };
+  button.addEventListener('click',()=>drawer.hidden?openMenu():closeMenu());
+  close?.addEventListener('click',closeMenu);
+  document.addEventListener('click',e=>{ if(!drawer.hidden && !drawer.contains(e.target) && !button.contains(e.target)) closeMenu(); });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeMenu(); });
+  drawer.querySelectorAll('[data-owner-tool],[data-owner-stat]').forEach(item=>item.addEventListener('click',closeMenu));
+}
+
+async function loadClientPhotoMessages() {
+  const list=$d('clientPhotoMessagesList');
+  if(!list)return;
+  try{
+    const data=await apiFetch('/owner/client-photo-messages');
+    const messages=Array.isArray(data.messages)?data.messages:[];
+    list.innerHTML='';
+    if(!messages.length){list.innerHTML='<div class="empty-state">Todavía no has recibido fotos de clientas. 📷</div>';return;}
+    messages.forEach(item=>{
+      const card=document.createElement('article');
+      card.className=`client-photo-message-card ${item.status==='unread'?'unread':''}`;
+      card.innerHTML=`<div class="client-photo-message-image-wrap"><img src="${escapeAttribute(item.image_url)}" loading="lazy" decoding="async" alt="Foto enviada por ${escapeAttribute(item.client_name || 'Clienta')}"></div><div class="client-photo-message-body"><div class="client-photo-message-meta"><strong>${escapeHtml(item.client_name || 'Clienta')}</strong><span>${escapeHtml(item.status==='unread'?'Sin leer':'Leída')}</span></div><p>${escapeHtml(item.message || 'La clienta envió una foto sin mensaje.')}</p><small>${escapeHtml(item.email || '')}${item.phone ? ` · ${escapeHtml(item.phone)}`:''}</small><small>${item.created_at ? escapeHtml(String(item.created_at).slice(0,16)) : ''}</small><div class="owner-tool-actions">${item.status==='unread'?`<button type="button" class="small-button ghost" data-mark-message="${item.id}">Marcar como leída</button>`:''}</div></div>`;
+      list.appendChild(card);
+    });
+    list.querySelectorAll('[data-mark-message]').forEach(btn=>btn.addEventListener('click',async()=>{try{await apiFetch(`/owner/client-photo-messages/${btn.dataset.markMessage}/read`,{method:'PATCH'});await loadClientPhotoMessages();}catch(error){alert(error.message);}}));
+  }catch(error){list.innerHTML=`<div class="empty-state">${escapeHtml(error.message)}</div>`;}
+}
