@@ -1513,7 +1513,17 @@ app.post('/api/appointments', authRequired, async (req, res) => {
 
       const lockedAppointments = await getDayAppointmentsWithConnection(connection, date);
       if (!slotIsFree(start, duration, lockedAppointments)) {
-        const error = new Error('Ese horario ya no está disponible. Elige otro.');
+        const conflicting = lockedAppointments.find(appt => {
+          const aStart = toMinutes(appt.appointment_time);
+          const aDuration = Number(appt.duration_minutes) || 60;
+          const aEnd = aStart + aDuration;
+          return start < aEnd && (start + duration) > aStart;
+        });
+        const error = new Error(
+          conflicting
+            ? `No da el tiempo para realizar el servicio a esa hora porque ya hay una cita a las ${String(conflicting.appointment_time).slice(0,5)}. Selecciona otra hora o otro día.`
+            : 'No da el tiempo para realizar el servicio a esa hora. Selecciona otra hora o otro día.'
+        );
         error.statusCode = 409;
         throw error;
       }

@@ -228,9 +228,19 @@ async function crearCita(){
   if (!selectedTime) { setMessage(message, 'Ahora selecciona una hora disponible.'); return; }
 
   button.disabled = true;
-  setMessage(message, 'Enviando tu solicitud a Suldery… ');
+  setMessage(message, 'Comprobando disponibilidad del horario…');
 
   try {
+    // Revalidar justo antes de guardar. Así, si la agenda cambió o el horario
+    // quedó con menos tiempo del necesario, la clienta recibe una explicación
+    // clara en vez de una confirmación falsa.
+    const availability = await apiFetch(`/appointments/slots?date=${encodeURIComponent(selectedDate)}&service=${encodeURIComponent(selectedService)}`);
+    const availableSlots = Array.isArray(availability.slots) ? availability.slots : [];
+    if (!availableSlots.includes(selectedTime)) {
+      throw new Error('No da el tiempo para realizar el servicio a esa hora. Selecciona otra hora o otro día.');
+    }
+
+    setMessage(message, 'Enviando tu solicitud a Suldery…');
     const data = await apiFetch('/appointments', {
       method:'POST',
       body:JSON.stringify({ service:selectedService, date:selectedDate, time:selectedTime })
