@@ -181,7 +181,7 @@ async function initDuena() {
   $d('ownerCalendarToday')?.addEventListener('click', goToOwnerCalendarToday);
   $d('ownerCalendarService')?.addEventListener('change', () => { if (ownerCalendarSelectedDate) loadOwnerCalendarDay(ownerCalendarSelectedDate); });
   $d('ownerCalendarAppointments')?.addEventListener('click', handleOwnerCalendarAppointmentAction);
-  $d('enableNotificationsButton')?.addEventListener('click', async () => { try { await enableSulderyPush(); await loadNotificationStatus(); alert('Listo 💕. Este dispositivo ya puede recibir tus avisos.'); } catch (error) { alert(error.message); } });
+  $d('enableNotificationsButton')?.addEventListener('click', async () => { try { await enableSulderyPush(); await loadNotificationStatus(); alert('Listo. Este dispositivo ya puede recibir tus avisos.'); } catch (error) { alert(error.message); } });
   $d('testNotificationButton')?.addEventListener('click', testOwnerNotification);
 
   $d('careGuideService')?.addEventListener('change', renderCareGuide);
@@ -1127,7 +1127,7 @@ function renderCatalogOwnerGrid() {
   ownerCatalogCache.forEach((photo,index) => {
     const card=document.createElement('article');
     card.className='catalog-owner-card';
-    card.innerHTML=`<div class="catalog-owner-index">${index+1}</div><img src="${escapeAttribute(apiAssetUrl(photo.image_url))}" alt="${escapeAttribute(photo.title || 'Diseño Suldery Nails')}" loading="lazy" decoding="async"><div class="catalog-owner-card-body"><strong>${escapeHtml(photo.title || 'Diseño Suldery Nails')}</strong><div class="catalog-owner-card-actions"><button type="button" class="small-button ghost" data-catalog-action="replace" data-id="${photo.id}">Cambiar</button><button type="button" class="small-button cancel" data-catalog-action="delete" data-id="${photo.id}">Eliminar</button></div></div>`;
+    card.innerHTML=`<div class="catalog-owner-index">${index+1}</div><button type="button" class="catalog-owner-image-button" data-catalog-preview="${photo.id}" aria-label="Ampliar imagen"><img src="${escapeAttribute(apiAssetUrl(photo.image_url))}" alt="${escapeAttribute(photo.title || 'Diseño Suldery Nails')}" loading="lazy" decoding="async"></button><div class="catalog-owner-card-body"><strong>${escapeHtml(photo.title || 'Diseño Suldery Nails')}</strong><div class="catalog-owner-card-actions"><button type="button" class="small-button ghost" data-catalog-action="replace" data-id="${photo.id}">Cambiar</button><button type="button" class="small-button cancel" data-catalog-action="delete" data-id="${photo.id}">Eliminar</button></div></div>`;
     grid.appendChild(card);
   });
   grid.querySelectorAll('[data-catalog-action]').forEach(button=>{
@@ -1137,6 +1137,14 @@ function renderCatalogOwnerGrid() {
       else eliminarCatalogoFoto(id);
     });
   });
+  grid.querySelectorAll('[data-catalog-preview]').forEach(button=>button.addEventListener('click',()=>openOwnerCatalogPreview(Number(button.dataset.catalogPreview))));
+}
+
+function openOwnerCatalogPreview(id){
+  const photo=ownerCatalogCache.find(item=>Number(item.id)===Number(id)); if(!photo)return;
+  let modal=document.getElementById('ownerCatalogLightbox');
+  if(!modal){modal=document.createElement('div');modal.id='ownerCatalogLightbox';modal.className='catalog-lightbox';modal.innerHTML='<div class="catalog-lightbox-card"><button class="catalog-lightbox-close" type="button" aria-label="Cerrar">×</button><img class="catalog-lightbox-image" alt=""><div class="catalog-lightbox-caption"></div></div>';document.body.appendChild(modal);modal.querySelector('.catalog-lightbox-close').addEventListener('click',()=>modal.classList.remove('open'));modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('open');});}
+  modal.querySelector('.catalog-lightbox-image').src=apiAssetUrl(photo.image_url); modal.querySelector('.catalog-lightbox-image').alt=photo.title||'Diseño Suldery Nails'; modal.querySelector('.catalog-lightbox-caption').textContent=photo.title||'Diseño Suldery Nails'; modal.classList.add('open');
 }
 
 function prepararReemplazoCatalogo(id){
@@ -1181,7 +1189,7 @@ async function subirCatalogoFoto(event) {
     if ($d('catalogPhotoTitle')) $d('catalogPhotoTitle').value = '';
     if (data.photo) ownerCatalogCache.push(data.photo);
     renderCatalogOwnerGrid();
-    setMessage($d('catalogManagerMessage'), 'Foto agregada al catálogo. 💕', true);
+    setMessage($d('catalogManagerMessage'), 'Foto agregada al catálogo.', true);
   } catch (error) {
     setMessage($d('catalogManagerMessage'), error.message);
   } finally {
@@ -1543,7 +1551,7 @@ async function loadClientPhotoMessages() {
     const data=await apiFetch('/owner/client-photo-messages');
     const messages=Array.isArray(data.messages)?data.messages:[];
     list.innerHTML='';
-    if(!messages.length){list.innerHTML='<div class="empty-state">Todavía no has recibido fotos de clientas. 📷</div>';return;}
+    if(!messages.length){list.innerHTML='<div class="empty-state">Todavía no has recibido fotos de clientas.</div>';return;}
     messages.forEach(item=>{
       const card=document.createElement('article');
       card.className=`client-photo-message-card ${item.status==='unread'?'unread':''}`;

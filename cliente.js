@@ -59,10 +59,9 @@ function initClientMenu(){
     if(tool==='catalog'){location.href=pageUrl('catalogo.html');return;}
     if(tool==='tutorial'){$('openInstallTutorialButton')?.click();return;}
     if(tool==='photo'){$('openClientPhotoButton')?.click();return;}
-    if(tool==='exclusive'){$('exclusivePhotosSection')?.scrollIntoView({behavior:'smooth',block:'start'});return;}
     if(tool==='reviews'){$('reviewsSection')?.scrollIntoView({behavior:'smooth',block:'start'});$('reviewsViewer')?.classList.remove('hidden-review-viewer');$('reviewsToggleButton')?.setAttribute('aria-expanded','true');return;}
     if(tool==='notifications'){
-      try{await enableSulderyPush();alert('Listo 💕. Este dispositivo quedó registrado para recibir tus avisos importantes.');}
+      try{await enableSulderyPush();alert('Listo. Este dispositivo quedó registrado para recibir tus avisos importantes.');}
       catch(error){alert(error.message);}
     }
   });
@@ -78,6 +77,9 @@ async function initCliente(){
   $('previousMonth').addEventListener('click',previousMonth); $('nextMonth').addEventListener('click',nextMonth);
   $('bookingButton').addEventListener('click',crearCita);
   $('service').addEventListener('change',onServiceChange);
+  $('serviceNextButton')?.addEventListener('click',nextFromService);
+  $('dateNextButton')?.addEventListener('click',nextFromDate);
+  $('timeNextButton')?.addEventListener('click',nextFromTime);
   $('reviewsToggleButton')?.addEventListener('click', toggleReviewsViewer);
   $('reviewPreviousButton')?.addEventListener('click', () => moveReview(-1));
   $('reviewNextButton')?.addEventListener('click', () => moveReview(1));
@@ -100,8 +102,8 @@ async function initCliente(){
   try {
     const push = await getSulderyPushStatus();
     if ($('enableNotificationsButton')) {
-      if (push.needsAttention) $('enableNotificationsButton').textContent='🔔 Revisar avisos';
-      else if (push.subscribed) $('enableNotificationsButton').textContent='🔔 Avisos activos';
+      if (push.needsAttention) $('enableNotificationsButton').textContent='Revisar avisos';
+      else if (push.subscribed) $('enableNotificationsButton').textContent='Avisos activos';
     }
   } catch {}
 }
@@ -121,7 +123,7 @@ function initBookingStepFlow(){
 }
 function showBookingStep(step){
   bookingStep=Math.max(1,Math.min(4,step));
-  const map={1:document.querySelector('.calendar-card'),2:$('timeStep'),3:$('serviceStep'),4:$('bookingSummary')};
+  const map={1:$('serviceStep'),2:document.querySelector('.calendar-card'),3:$('timeStep'),4:$('bookingSummary')};
   Object.entries(map).forEach(([n,el])=>{ if(el) el.classList.toggle('hidden-step',Number(n)!==bookingStep); });
   setStepVisibility($('bookingButton'), bookingStep===4);
   const progress=$('bookingProgressLabel'), fill=$('bookingProgressFill'), back=$('bookingStepBack');
@@ -149,32 +151,31 @@ function resetBooking(){
   $('calendarFeedback').textContent='Selecciona un día disponible para continuar.'; $('timeSlots').innerHTML='<span class="time-help">Primero selecciona un día.</span>'; $('timeHint').textContent='Selecciona primero un día'; setMessage($('bookingMessage'),''); renderCalendar();
 }
 async function onServiceChange(){
-  selectedService = $('service').value;
-  updateServiceDurationHint();
-  setStepVisibility($('bookingSummary'), false);
-  setStepVisibility($('bookingButton'), false);
-  if (!selectedService) return;
-  if (!selectedDate || !selectedTime) return setMessage($('bookingMessage'),'Vuelve al paso anterior y elige primero el día y la hora.');
-  try {
-    const data = await apiFetch(`/appointments/slots?date=${encodeURIComponent(selectedDate)}&service=${encodeURIComponent(selectedService)}`);
-    const slots=Array.isArray(data.slots)?data.slots:[];
-    if (!slots.includes(selectedTime)) {
-      setMessage($('bookingMessage'),`La hora ${safeFormatTime12(selectedTime)} ya no sirve para ${selectedService}. Elige otra hora.`);
-      $('calendarFeedback').textContent='La duración de este servicio no cabe en la hora seleccionada.';
-      selectedTime='';
-      showBookingStep(2);
-      return;
-    }
-    setMessage($('bookingMessage'),'');
-    updateSummary();
-  } catch(error){ setMessage($('bookingMessage'),error.message); showBookingStep(2); }
+  selectedService=$('service').value; updateServiceDurationHint(); selectedDate=''; selectedTime='';
+  setStepVisibility($('bookingSummary'),false); setStepVisibility($('bookingButton'),false); setMessage($('bookingMessage'),'');
 }
+async function nextFromService(){
+  if(!selectedService)return setMessage($('bookingMessage'),'Primero selecciona qué servicio deseas realizarte.');
+  setMessage($('bookingMessage'),''); await refreshCalendar(); showBookingStep(2);
+}
+async function nextFromDate(){
+  if(!selectedDate)return setMessage($('bookingMessage'),'Primero selecciona un día disponible.');
+  $('timeSlots').innerHTML='<span class="time-help">Cargando horarios…</span>'; $('dayTimeline').innerHTML='<p class="time-help">Cargando el estado del día…</p>';
+  try{
+    const data=await apiFetch(`/appointments/slots?date=${encodeURIComponent(selectedDate)}&service=${encodeURIComponent(selectedService)}`);
+    renderSlots(data.slots||[]); renderDayTimeline(data.timeline||[],data.slots||[]);
+    if(!data.slots?.length)return setMessage($('bookingMessage'),data.message||'No hay inicios disponibles para ese día.');
+    $('timeHint').textContent='Selecciona una hora de inicio'; setMessage($('bookingMessage'),''); showBookingStep(3);
+  }catch(error){setMessage($('bookingMessage'),error.message);}
+}
+function nextFromTime(){if(!selectedTime)return setMessage($('bookingMessage'),'Selecciona una hora disponible.');setMessage($('bookingMessage'),'');updateSummary();}
+
 async function previousMonth(){
   const now=new Date(); const minMonth=new Date(now.getFullYear(),now.getMonth(),1); const target=new Date(currentMonth.getFullYear(),currentMonth.getMonth()-1,1); if(target<minMonth)return;
-  currentMonth=target; selectedDate=''; selectedTime=''; setStepVisibility($('bookingSummary'),false); setStepVisibility($('bookingButton'),false); clearTimeSelection(); await refreshCalendar(); showBookingStep(1);
+  currentMonth=target; selectedDate=''; selectedTime=''; setStepVisibility($('bookingSummary'),false); setStepVisibility($('bookingButton'),false); clearTimeSelection(); await refreshCalendar(); showBookingStep(2);
 }
 async function nextMonth(){
-  currentMonth=new Date(currentMonth.getFullYear(),currentMonth.getMonth()+1,1); selectedDate=''; selectedTime=''; setStepVisibility($('bookingSummary'),false); setStepVisibility($('bookingButton'),false); clearTimeSelection(); await refreshCalendar(); showBookingStep(1);
+  currentMonth=new Date(currentMonth.getFullYear(),currentMonth.getMonth()+1,1); selectedDate=''; selectedTime=''; setStepVisibility($('bookingSummary'),false); setStepVisibility($('bookingButton'),false); clearTimeSelection(); await refreshCalendar(); showBookingStep(2);
 }
 async function refreshCalendar(){
   const key = monthKey(currentMonth);
@@ -197,7 +198,7 @@ function renderCalendar(){
   for(let day=1;day<=days;day++){
     const date=isoDate(year,month,day); const meta=calendarData.get(date)||{status:'closed',slots:0,message:'Fecha no disponible.'}; const localDate=new Date(year,month,day); const button=document.createElement('button');button.type='button';button.className=`calendar-day ${meta.status}`;if(date===selectedDate)button.classList.add('selected');if(localDate.getTime()===today.getTime())button.classList.add('today');
     const weekday=localDate.toLocaleDateString('es-CO',{weekday:'short'}).replace('.',''); const statusLabel=meta.status==='available'?'Disponible':meta.status==='blocked'?'Bloqueado':meta.status==='rest'?'Descanso':meta.status==='full'?'Agotado':meta.status==='past'?'Pasado':'No disponible';
-    button.innerHTML=`<strong>${day}</strong><span class="calendar-weekday">${weekday}</span><small>${statusLabel}</small>`;
+    button.dataset.date=date;button.innerHTML=`<strong>${day}</strong><span class="calendar-weekday">${weekday}</span><small>${statusLabel}</small>`;
     if(meta.status==='past'){button.disabled=true;button.title='Esta fecha ya pasó.';} else if(meta.status==='available'){button.addEventListener('click',()=>selectDate(date));button.title=`${meta.slots} inicio${meta.slots===1?'':'s'} disponible${meta.slots===1?'':'s'}.`;} else {button.addEventListener('click',()=>showDayMessage(meta));button.title=meta.message||'Fecha no disponible.';}
     grid.appendChild(button);
   }
@@ -206,35 +207,18 @@ function renderCalendar(){
 }
 function showDayMessage(meta){selectedDate='';selectedTime='';setStepVisibility($('bookingSummary'),false);setStepVisibility($('bookingButton'),false);renderCalendar();clearTimeSelection();$('calendarFeedback').textContent=meta.message;shake($('calendarFeedback'));}
 async function selectDate(date){
-  selectedDate = date;
-  selectedTime = '';
-  setStepVisibility($('bookingSummary'), false); setStepVisibility($('bookingButton'), false);
-  renderCalendar();
-  $('calendarFeedback').textContent = `Elegiste ${formatDate(date)}. Ahora elige una hora de inicio.`;
-  $('timeHint').textContent = 'Horarios de inicio posibles para el día elegido';
-  $('timeSlots').innerHTML = '<span class="time-help">Cargando horarios…</span>';
-  $('dayTimeline').innerHTML = '<p class="time-help">Cargando el estado de todo el día…</p>';
-  try {
-    const previewService='Pedicure semipermanente';
-    const data = await apiFetch(`/appointments/slots?date=${encodeURIComponent(date)}&service=${encodeURIComponent(previewService)}`);
-    renderSlots(data.slots || []);
-    renderDayTimeline(data.timeline || [], data.slots || []);
-    if (!data.slots?.length) { $('calendarFeedback').textContent = data.message || 'Ese día no tiene inicios disponibles.'; return; }
-    bookingStep=2; showBookingStep(2);
-  } catch (error) {
-    $('timeSlots').innerHTML = `<span class="time-help">${escapeHtml(error.message)}</span>`;
-    $('dayTimeline').innerHTML = `<p class="time-help">${escapeHtml(error.message)}</p>`;
-    shake(document.querySelector('.booking-card'));
-  }
+  selectedDate=date; selectedTime=''; setStepVisibility($('bookingSummary'),false); setStepVisibility($('bookingButton'),false); renderCalendar();
+  $('calendarFeedback').textContent=`Elegiste ${formatDate(date)}. Pulsa Continuar para ver las horas disponibles.`; setMessage($('bookingMessage'),'');
 }
+
 function renderSlots(slots){
   const wrap=$('timeSlots'); wrap.innerHTML='';
   if(!slots.length){wrap.innerHTML='<span class="time-help">No quedan inicios disponibles para ese día.</span>';return;}
-  slots.forEach(time=>{const button=document.createElement('button');button.type='button';button.className='time-slot';button.dataset.time=time;button.textContent=safeFormatTime12(time);button.title=`Comienza a las ${safeFormatTime12(time)}. La hora se comprobará de nuevo al elegir el servicio.`;if(time===selectedTime)button.classList.add('selected');button.addEventListener('click',()=>selectTime(time));wrap.appendChild(button);});
+  slots.forEach(time=>{const button=document.createElement('button');button.type='button';button.className='time-slot';button.dataset.time=time;button.textContent=safeFormatTime12(time);button.title=`Comienza a las ${safeFormatTime12(time)}. El inicio está disponible; Suldery confirmará la cita según la duración.`;if(time===selectedTime)button.classList.add('selected');button.addEventListener('click',()=>selectTime(time));wrap.appendChild(button);});
 }
 function timelineStatusLabel(status, reason){if(status==='available')return'Disponible';if(status==='occupied')return'Ocupado';if(status==='lunch')return'Almuerzo';if(status==='blocked')return'Bloqueado';if(status==='past')return'Hora pasada';return reason||'No disponible';}
 function renderDayTimeline(timeline, availableSlots){const box=$('dayTimeline');box.innerHTML='';if(!timeline.length){box.innerHTML='<p class="time-help">No hay jornada configurada para este día.</p>';return;}const available=new Set(availableSlots);timeline.forEach(item=>{const row=document.createElement('div');row.className=`day-timeline-row ${item.status}`;if(available.has(item.time))row.classList.add('is-selectable');row.innerHTML=`<strong>${safeFormatTime12(item.time)}</strong><span>${escapeHtml(timelineStatusLabel(item.status,item.reason))}</span>`;if(item.reason)row.title=item.reason;if(available.has(item.time))row.addEventListener('click',()=>selectTime(item.time));box.appendChild(row);});}
-function selectTime(time){selectedTime=time;document.querySelectorAll('.time-slot').forEach(button=>button.classList.toggle('selected',button.dataset.time===selectedTime));$('calendarFeedback').textContent=`${formatDate(selectedDate)} a las ${safeFormatTime12(time)}. Ahora elige el servicio.`;setMessage($('bookingMessage'),'');showBookingStep(3);}
+function selectTime(time){selectedTime=time;document.querySelectorAll('.time-slot').forEach(button=>button.classList.toggle('selected',button.dataset.time===selectedTime));$('timeHint').textContent=`${safeFormatTime12(time)} seleccionada. Pulsa Continuar para revisar.`;setMessage($('bookingMessage'),'');}
 function updateSummary(){bookingStep=4;showBookingStep(4);$('summaryDate').textContent=formatDate(selectedDate);$('summaryTime').textContent=safeFormatTime12(selectedTime);$('summaryService').textContent=selectedService;$('summaryDuration').textContent=durationLabel(serviceDuration(selectedService));setStepVisibility($('bookingSummary'),true);setStepVisibility($('bookingButton'),true);$('bookingSummary').scrollIntoView({behavior:'smooth',block:'nearest'});}
 function clearTimeSelection(){$('timeSlots').innerHTML='<span class="time-help">Primero selecciona un día.</span>';$('dayTimeline').innerHTML='<p class="time-help">Aquí aparecerá el estado del horario cuando elijas un día.</p>';$('timeHint').textContent='Selecciona primero un día';setMessage($('bookingMessage'),'');}
 
@@ -246,7 +230,7 @@ async function crearCita(){
   if (!selectedTime) { setMessage(message, 'Ahora selecciona una hora disponible.'); return; }
 
   button.disabled = true;
-  setMessage(message, 'Enviando tu solicitud a Suldery… 💕');
+  setMessage(message, 'Enviando tu solicitud a Suldery… ');
 
   try {
     const data = await apiFetch('/appointments', {
@@ -255,20 +239,20 @@ async function crearCita(){
     });
 
     const bookedDate = selectedDate;
-    const successMessage = data.message || `💕 Tu cita para ${formatDate(bookedDate)} a las ${safeFormatTime12(selectedTime)} quedó enviada y está pendiente de confirmación por parte de Suldery.`;
+    const successMessage = data.message || ` Tu cita para ${formatDate(bookedDate)} a las ${safeFormatTime12(selectedTime)} quedó enviada y está pendiente de confirmación por parte de Suldery.`;
 
     // La creación de la cita ya fue confirmada por el servidor. Las actualizaciones
     // de la agenda se hacen aparte para que un fallo secundario de carga nunca
     // convierta una cita guardada en un falso mensaje de “espacio ocupado”.
     setMessage(message, successMessage, true);
     $('calendarFeedback').textContent = data.already_exists
-      ? '💕 Esta solicitud ya estaba registrada. Suldery la está revisando.'
-      : '💕 Tu solicitud quedó enviada y está pendiente de confirmación. Te avisaremos cuando haya una respuesta.';
+      ? ' Esta solicitud ya estaba registrada. Suldery la está revisando.'
+      : ' Tu solicitud quedó enviada y está pendiente de confirmación. Te avisaremos cuando haya una respuesta.';
     $('calendarFeedback').classList.add('success');
     selectedTime = '';
     setStepVisibility($('bookingSummary'), false);
     setStepVisibility($('bookingButton'), false);
-    $('timeSlots').innerHTML = '<span class="time-help success-help">💕 Solicitud enviada. Esta cita queda pendiente de confirmación de Suldery.</span>';
+    $('timeSlots').innerHTML = '<span class="time-help success-help"> Solicitud enviada. Esta cita queda pendiente de confirmación de Suldery.</span>';
 
     try {
       await loadAppointments();
@@ -302,6 +286,8 @@ async function loadReviews() {
     const [data, mine] = await Promise.all([apiFetch('/reviews'), apiFetch('/reviews/mine')]);
     clientReviews = Array.isArray(data.reviews) ? data.reviews : [];
     myClientReview = mine?.review || null;
+    window.myClientReviews = Array.isArray(mine?.reviews) ? mine.reviews : (mine?.review ? [mine.review] : []);
+    window.reviewEligibleAppointments = Array.isArray(mine?.eligible_appointments) ? mine.eligible_appointments : [];
     clientReviewIndex = 0;
     const average = Number(data.average || 0);
     $('reviewScore').textContent = clientReviews.length ? average.toFixed(1) : '—';
@@ -315,7 +301,7 @@ async function loadReviews() {
     try {
       const data = await apiFetch('/reviews');
       clientReviews = Array.isArray(data.reviews) ? data.reviews : [];
-      myClientReview = clientReviews.find(review => Number(review.user_id) === Number(currentUser?.id)) || null;
+      myClientReview = clientReviews.find(review => Number(review.user_id) === Number(currentUser?.id)) || null; window.myClientReviews=myClientReview?[myClientReview]:[]; window.reviewEligibleAppointments=[];
     } catch {}
     $('reviewScore').textContent = '—';
     $('reviewStarsSummary').textContent = '☆☆☆☆☆';
@@ -328,21 +314,11 @@ async function loadReviews() {
 
 
 function updateOwnReviewAvailability(){
-  const submit=$('submitReviewButton'), select=$('reviewAppointmentSelect'), stars=$('reviewStarPicker'), comment=$('reviewComment');
-  const box=document.querySelector('.client-review-submit');
-  if(!box)return;
-  let notice=box.querySelector('.review-one-time-notice');
-  if(myClientReview){
-    if(!notice){notice=document.createElement('div');notice.className='review-one-time-notice';box.insertBefore(notice,box.querySelector('.review-submit-grid')||submit);}
-    notice.innerHTML='<strong>✓ Ya publicaste tu reseña.</strong><p>Tu cuenta puede publicar una sola reseña. Gracias por compartir tu experiencia con Suldery. 💕</p>';
-    const submitGrid=box.querySelector('.review-submit-grid'); const photoField=box.querySelector('.review-photo-field');
-    if(submitGrid)submitGrid.classList.add('hidden-step'); if(photoField)photoField.classList.add('hidden-step');
-    if(select)select.disabled=true;if(stars)stars.classList.add('disabled');if(comment)comment.disabled=true;if(submit){submit.disabled=true;submit.textContent='Reseña ya publicada ✓';}
-  }else{
-    notice?.remove(); const submitGrid=box.querySelector('.review-submit-grid'); const photoField=box.querySelector('.review-photo-field');
-    if(submitGrid)submitGrid.classList.remove('hidden-step'); if(photoField)photoField.classList.remove('hidden-step');
-    if(select)select.disabled=false;if(stars)stars.classList.remove('disabled');if(comment)comment.disabled=false;if(submit){submit.disabled=false;submit.textContent='Publicar reseña ✦';}
-  }
+  const submit=$('submitReviewButton'),select=$('reviewAppointmentSelect'),stars=$('reviewStarPicker'),comment=$('reviewComment'); const box=document.querySelector('.client-review-submit'); if(!box)return;
+  const reviews=Array.isArray(window.myClientReviews)?window.myClientReviews:[]; const eligible=Array.isArray(window.reviewEligibleAppointments)?window.reviewEligibleAppointments:[];
+  const copy=box.querySelector('.client-review-copy p:last-child'); if(copy)copy.textContent=reviews.length?'Ya publicaste una primera reseña. Para publicar otra, selecciona una cita confirmada que ya hayas realizado.':'Tu primera reseña puede ser general, sin cita. Después, cada nueva reseña deberá estar vinculada a una cita confirmada y ya realizada.';
+  if(select){select.disabled=false;select.innerHTML=`<option value="">${reviews.length?'Selecciona una cita realizada…':'Reseña general (sin cita)'}</option>`;eligible.forEach(appt=>{const o=document.createElement('option');o.value=appt.id;o.textContent=`${formatDate(String(appt.appointment_date).slice(0,10))} · ${safeFormatTime12(String(appt.appointment_time).slice(0,5))} · ${appt.service}`;select.appendChild(o);});}
+  if(stars)stars.classList.remove('disabled');if(comment)comment.disabled=false;if(submit){submit.disabled=false;submit.textContent=reviews.length?'Publicar nueva reseña':'Publicar reseña';}
 }
 
 function renderCurrentReview() {
@@ -351,7 +327,7 @@ function renderCurrentReview() {
   if (!card || !dots) return;
   dots.innerHTML = '';
   if (!clientReviews.length) {
-    card.innerHTML = '<p class="empty-state">Todavía no hay reseñas. Sé la primera en contar tu experiencia. 💕</p>';
+    card.innerHTML = '<p class="empty-state">Todavía no hay reseñas. Sé la primera en contar tu experiencia. </p>';
     return;
   }
   const review = clientReviews[clientReviewIndex];
@@ -380,28 +356,7 @@ function moveReview(direction) {
   renderCurrentReview();
 }
 
-function populateReviewableAppointments() {
-  const select = $('reviewAppointmentSelect');
-  if (!select) return;
-  const now = Date.now();
-  const reviewedAppointments = new Set(clientReviews.map(review => Number(review.appointment_id)).filter(Boolean));
-  // The backend will enforce the final eligibility check; this merely keeps the UI helpful.
-  const eligible = (window.__sulderyAppointments || []).filter(appt => {
-    if (appt.status !== 'accepted') return false;
-    if (reviewedAppointments.has(Number(appt.id))) return false;
-    const date = String(appt.appointment_date || '').slice(0,10);
-    const time = String(appt.appointment_time || '').slice(0,5);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) return false;
-    return new Date(`${date}T${time}:00-05:00`).getTime() < now;
-  });
-  select.innerHTML = '<option value="">Reseña general (sin cita)</option>';
-  eligible.forEach(appt => {
-    const option = document.createElement('option');
-    option.value = appt.id;
-    option.textContent = `${formatDate(appt.appointment_date)} · ${safeFormatTime12(appt.appointment_time)} · ${appt.service}`;
-    select.appendChild(option);
-  });
-}
+function populateReviewableAppointments() { updateOwnReviewAvailability(); }
 
 function chooseReviewStars(event) {
   const button = event.target.closest('[data-review-stars]');
@@ -415,7 +370,7 @@ async function submitClientReview() {
   const comment=String($('reviewComment')?.value||'').trim();
   const message=$('reviewSubmitMessage');
   const button=$('submitReviewButton');
-  if(myClientReview)return setMessage(message,'Tu cuenta ya publicó una reseña. Solo se permite una reseña por cuenta. 💕');
+  if((Array.isArray(window.myClientReviews)?window.myClientReviews:[]).length>0&&!appointmentId)return setMessage(message,'Para publicar otra reseña, selecciona una cita confirmada que ya hayas realizado.');
   if(!selectedReviewStars)return setMessage(message,'Elige de 1 a 5 estrellas.');
   if(comment.length<3)return setMessage(message,'Escribe un comentario para compartir tu experiencia.');
   button.disabled=true; setMessage(message,'Guardando tu reseña…');
@@ -435,6 +390,21 @@ async function submitClientReview() {
   finally{button.disabled=false;updateOwnReviewAvailability();}
 }
 
+async function optimizeClientImage(file,maxDimension=1600,maxBytes=1.8*1024*1024){
+  if(!file||!file.type.startsWith('image/'))return file;
+  if(file.size<=maxBytes)return file;
+  const url=URL.createObjectURL(file);
+  try{
+    const image=new Image(); image.decoding='async'; image.src=url;
+    await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=reject;});
+    const scale=Math.min(1,maxDimension/Math.max(image.naturalWidth||image.width,image.naturalHeight||image.height));
+    const width=Math.max(1,Math.round((image.naturalWidth||image.width)*scale)); const height=Math.max(1,Math.round((image.naturalHeight||image.height)*scale));
+    const canvas=document.createElement('canvas'); canvas.width=width; canvas.height=height; const ctx=canvas.getContext('2d'); if(!ctx)return file; ctx.drawImage(image,0,0,width,height);
+    const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.82)); if(!blob||blob.size>=file.size)return file;
+    const base=file.name.replace(/\.[^.]+$/,'')||'suldery-foto'; return new File([blob],`${base}.jpg`,{type:'image/jpeg',lastModified:Date.now()});
+  }finally{URL.revokeObjectURL(url);}
+}
+
 function handleReviewPhoto(event){
   const file=event.target.files?.[0]||null;if(!file)return;
   reviewPhotoFile=file;
@@ -447,41 +417,17 @@ function removeReviewPhoto(){reviewPhotoFile=null;['reviewCameraPicker','reviewG
 function renderClientDailyWelcome(){
   const dateEl=$('clientTodayLabel'),motivationEl=$('clientMotivation');if(!dateEl||!motivationEl)return;
   const now=new Date();dateEl.textContent=new Intl.DateTimeFormat('es-CO',{timeZone:'America/Bogota',weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(now);
-  const messages=['Hoy también es un buen día para regalarte un momento para ti. ✨','Tus manos cuentan tu estilo. Déjalas brillar hoy. 💕','Un pequeño detalle puede cambiar todo tu día. 🌸','Date permiso de consentirte: te lo mereces. ✨','Hoy puede ser el día de tu próximo diseño favorito. 💅','La belleza también está en hacer una pausa para ti. ♡'];
+  const messages=['Hoy también es un buen día para regalarte un momento para ti. ','Tus manos cuentan tu estilo. Déjalas brillar hoy. ','Un pequeño detalle puede cambiar todo tu día. ','Date permiso de consentirte: te lo mereces. ','Hoy puede ser el día de tu próximo diseño favorito. ','La belleza también está en hacer una pausa para ti. '];
   let index=0;try{const arr=new Uint32Array(1);crypto.getRandomValues(arr);index=arr[0]%messages.length;}catch{index=Math.floor(Math.random()*messages.length);}motivationEl.textContent=messages[index];
 }
 
 function initInstallTutorial(){
-  const modal=$('installTutorialModal');
-  let open=$('openInstallTutorialButton');
-  const close=$('closeInstallTutorialButton'),choice=$('installDeviceChoice'),steps=$('installTutorialSteps'),back=$('installTutorialBack'),install=$('tutorialInstallNowButton');
-  if(!open&&modal){open=document.createElement('button');open.id='openInstallTutorialButton';open.hidden=true;document.body.appendChild(open);}
-  if(!modal||!open||!choice||!steps)return;
-  const visualStep=(n,icon,title,text,highlight='')=>`<article class="tutorial-step-visual"><div class="tutorial-phone"><div class="tutorial-phone-top"><span></span><span></span><span></span></div><div class="tutorial-screen"><div class="tutorial-ui-bar"><strong>Suldery Nails</strong><span>${icon}</span></div><div class="tutorial-ui-body"><div class="tutorial-ui-title">${highlight||title}</div><div class="tutorial-ui-chip">${icon}</div><div class="tutorial-ui-lines"><i></i><i></i><i></i></div></div></div></div><div class="tutorial-copy"><span>PASO ${n}</span><h3>${title}</h3><p>${text}</p></div></article>`;
-  const render=(device)=>{
-    const ios=device==='ios';
-    const data=ios?[
-      ['1','🌐','Abre Safari','Abre Suldery Nails directamente en Safari.','Safari'],
-      ['2','↗','Pulsa Compartir','En la barra de Safari toca el botón Compartir para abrir las opciones.','Compartir'],
-      ['3','＋','Añadir a pantalla de inicio','Busca “Añadir a pantalla de inicio”. Si no aparece, desplázate hacia abajo en el menú.','Añadir a pantalla de inicio'],
-      ['4','✓','Confirma Añadir','Confirma la instalación. Luego busca el icono de Suldery Nails en tu pantalla de inicio.','Suldery Nails'],
-      ['5','💕','Abre la app instalada','Entra desde el icono nuevo. Así Safari la abrirá en modo aplicación.','Suldery Nails']
-    ]:[
-      ['1','🌐','Abre Chrome','Entra a Suldery Nails desde Google Chrome.','Chrome'],
-      ['2','⋮','Abre el menú de Chrome','Toca los tres puntos para ver las acciones del navegador.','⋮'],
-      ['3','＋','Instalar aplicación','Elige “Instalar aplicación” o “Añadir a pantalla principal”, según tu teléfono.','Instalar aplicación'],
-      ['4','✓','Confirma la instalación','Acepta la instalación y espera a que aparezca el icono.','Instalar'],
-      ['5','💕','Abre Suldery Nails','Usa el nuevo icono para entrar como si fuera una app.','Suldery Nails']
-    ];
-    steps.innerHTML=`<div class="tutorial-device-title"><div><span class="tutorial-badge">${ios?'🍎':'🤖'}</span><strong>${ios?'iPhone / iOS':'Android'}</strong></div><small>Guía visual · 5 pasos</small></div><div class="tutorial-steps-visual">${data.map(d=>visualStep(...d)).join('')}</div><div class="tutorial-powerpoint-link"><span>📊</span><div><strong>Guía visual en PowerPoint</strong><small>Abre el material con las imágenes paso a paso.</small></div><a class="small-button ghost" href="assets/Suldery-Nails-Tutorial-Instalacion-v5.3.pptx" target="_blank" rel="noopener">Abrir PPTX</a></div>`;
-    choice.classList.add('hidden-step');steps.classList.remove('hidden-step');back.hidden=false;if(install)install.hidden=ios;
-  };
-  open.addEventListener('click',()=>modal.classList.remove('hidden-modal'));
-  close?.addEventListener('click',()=>modal.classList.add('hidden-modal'));
-  modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.add('hidden-modal');});
-  choice.querySelectorAll('[data-install-device]').forEach(btn=>btn.addEventListener('click',()=>render(btn.dataset.installDevice)));
-  back?.addEventListener('click',()=>{choice.classList.remove('hidden-step');steps.classList.add('hidden-step');back.hidden=true;if(install)install.hidden=true;});
-  install?.addEventListener('click',async()=>{if(window.isIOSDevice&&window.isIOSDevice()){alert('En iPhone sigue la guía de Safari mostrada arriba.');return;}if(window.installSulderyApp){const installed=await window.installSulderyApp();if(!installed)alert('Tu navegador no ofrece la instalación automática en este momento. Sigue la guía visual.');}else{alert('Sigue la guía visual para instalar Suldery Nails.');}});
+  const modal=$('installTutorialModal'),open=$('openInstallTutorialButton')||(()=>{const b=document.createElement('button');b.id='openInstallTutorialButton';b.hidden=true;document.body.appendChild(b);return b;})(),close=$('closeInstallTutorialButton'),choice=$('installDeviceChoice'),steps=$('installTutorialSteps'),back=$('installTutorialBack');
+  if(!modal||!choice||!steps)return;
+  const browser=(type)=>`<div class="tutorial-browser-bar"><span class="browser-dot"></span><span class="browser-domain">sulderynails.com</span><span class="browser-action">${type==='ios'?'Aa':'⋮'}</span></div>`;
+  const screen=(type,mode)=>{if(mode==='browser')return browser(type)+'<div class="tutorial-app-preview"><span class="tutorial-mini-logo">S</span><strong>Suldery Nails</strong><small>Tu próxima cita comienza aquí</small></div>';if(mode==='share')return browser(type)+'<div class="tutorial-share-sheet"><strong>Compartir</strong><span>Copiar</span><span>Agregar a favoritos</span><span class="focus">Añadir a pantalla de inicio</span></div>';if(mode==='menu')return browser(type)+'<div class="tutorial-browser-menu"><strong>Menú</strong><span>Compartir</span><span>Descargar</span><span class="focus">Instalar aplicación</span><span>Añadir a pantalla principal</span></div>';if(mode==='confirm')return browser(type)+'<div class="tutorial-install-dialog"><strong>Instalar Suldery Nails</strong><small>Se añadirá a tu pantalla de inicio.</small><div><span>Cancelar</span><b>Añadir</b></div></div>';return '<div class="tutorial-home"><div class="tutorial-home-icons"><span class="tutorial-home-icon">S</span><span></span><span></span></div><strong>Suldery Nails</strong><small>Abre desde este icono</small></div>';};
+  const render=device=>{const ios=device==='ios';const data=ios?[['1','Abre Safari','En iPhone, abre Safari y entra a Suldery Nails.','browser'],['2','Pulsa Compartir','Toca Compartir para abrir las acciones de Safari.','share'],['3','Añadir a pantalla de inicio','Busca “Añadir a pantalla de inicio” y selecciónalo.','share'],['4','Confirma Añadir','Revisa el nombre Suldery Nails y confirma “Añadir”.','confirm'],['5','Abre desde el icono','Busca Suldery Nails en tu pantalla de inicio y entra desde allí.','home']]:[['1','Abre Chrome','Entra a Suldery Nails desde Google Chrome.','browser'],['2','Abre el menú','Toca los tres puntos de Chrome.','menu'],['3','Instalar aplicación','Selecciona “Instalar aplicación” o “Añadir a pantalla principal”.','menu'],['4','Confirma la instalación','Acepta la instalación cuando aparezca el aviso.','confirm'],['5','Abre Suldery Nails','Busca el nuevo icono y abre la app desde allí.','home']];steps.innerHTML=`<div class="tutorial-device-title"><div><span class="tutorial-badge">${ios?'I':'A'}</span><strong>${ios?'iPhone / iOS':'Android'}</strong></div><small>Guía visual · 5 pasos</small></div><div class="tutorial-steps-visual">${data.map(d=>`<article class="tutorial-step-visual"><div class="tutorial-phone realistic-${ios?'ios':'android'}"><div class="tutorial-phone-notch"></div><div class="tutorial-screen">${screen(ios?'ios':'android',d[3])}</div></div><div class="tutorial-copy"><span>PASO ${d[0]}</span><h3>${d[1]}</h3><p>${d[2]}</p></div></article>`).join('')}</div><div class="tutorial-support-note"><strong>Si no aparece la opción</strong><p>${ios?'Usa Safari, recarga Suldery Nails y vuelve a abrir Compartir. La opción puede estar más abajo.':'Actualiza Chrome, recarga Suldery Nails y vuelve a abrir el menú. Algunos teléfonos muestran “Añadir a pantalla principal”.'}</p><a class=\"tutorial-pdf-link\" href=\"assets/Suldery-Nails-Tutorial-Instalacion-v5.4.pdf\" target=\"_blank\" rel=\"noopener\">Abrir guía PDF</a></div>`;choice.classList.add('hidden-step');steps.classList.remove('hidden-step');back.hidden=false;};
+  open.addEventListener('click',()=>modal.classList.remove('hidden-modal'));close?.addEventListener('click',()=>modal.classList.add('hidden-modal'));modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.add('hidden-modal');});choice.querySelectorAll('[data-install-device]').forEach(b=>b.addEventListener('click',()=>render(b.dataset.installDevice)));back?.addEventListener('click',()=>{choice.classList.remove('hidden-step');steps.classList.add('hidden-step');back.hidden=true;});
 }
 
 function initClientPhotoMessaging(){

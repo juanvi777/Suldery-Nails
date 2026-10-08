@@ -658,9 +658,11 @@ function buildDayTimeline(date, scheduleDay, appointments, duration, blockedInte
     } else if (appointment) {
       status = 'occupied';
       reason = `${appointment.client_name || 'Una clienta'} ya ocupa parte de este horario.`;
-    } else if (slotFitsSchedule(minute, end, scheduleDay, blockedIntervals)) {
+    } else if (slotStartsInSchedule(minute, scheduleDay)) {
       status = 'available';
-      reason = 'Este horario está disponible para el servicio elegido.';
+      reason = end > lastEnd
+        ? 'Inicio disponible. El servicio puede terminar después del cierre y Suldery confirmará si puede atenderlo.'
+        : 'Este horario está disponible para el servicio elegido.';
     }
 
     timeline.push({
@@ -671,6 +673,15 @@ function buildDayTimeline(date, scheduleDay, appointments, duration, blockedInte
     });
   }
   return timeline;
+}
+
+function slotStartsInSchedule(startMinute, scheduleDay) {
+  if (!scheduleDay?.is_open || !Array.isArray(scheduleDay.intervals)) return false;
+  return scheduleDay.intervals.some(interval => {
+    const start = toMinutes(interval.start_time);
+    const end = toMinutes(interval.end_time);
+    return startMinute >= start && startMinute < end;
+  });
 }
 
 function slotsForDate(date, scheduleDay, appointments, duration = 60, blockedIntervals = []) {
@@ -685,10 +696,15 @@ function slotsForDate(date, scheduleDay, appointments, duration = 60, blockedInt
   for (const interval of scheduleDay.intervals) {
     const start = toMinutes(interval.start_time);
     const end = toMinutes(interval.end_time);
-    for (let minute = start; minute + duration <= end; minute += SLOT_STEP) {
+    for (let minute = start; minute < end; minute += SLOT_STEP) {
       if (minute < earliest) continue;
+      // La clienta reserva un INICIO disponible. Si el servicio termina después
+      // de la hora de cierre, la solicitud queda pendiente para que Suldery
+      // decida si puede atenderla. No se permite cruzar almuerzo, bloqueos ni otra cita.
       const slotEnd = minute + duration;
-      if (!slotFitsSchedule(minute, slotEnd, scheduleDay, blockedIntervals)) continue;
+      if (slotOverlapsLunch(minute, slotEnd)) continue;
+      if (slotOverlapsIntervals(minute, slotEnd, blockedIntervals)) continue;
+      if (!slotStartsInSchedule(minute, scheduleDay)) continue;
       if (slotIsFree(minute, duration, appointments)) slots.push(toTime(minute).slice(0, 5));
     }
   }
@@ -698,7 +714,7 @@ function slotsForDate(date, scheduleDay, appointments, duration = 60, blockedInt
 function dayMessage(date, scheduleDay, slots) {
   if (dateWeekday(date) === 7 && !scheduleDay?.is_open) return 'Bebé, hoy estoy descansando. Nos vemos otro día. ♡';
   if (!scheduleDay?.is_open) return 'Bebé, hoy no estoy atendiendo. Elige otro día. ♡';
-  if (!slots.length) return 'Bebé, no hay un turno que complete todo el servicio en ese día.';
+  if (!slots.length) return 'No hay inicios disponibles para ese día.';
   return '';
 }
 
@@ -1465,8 +1481,12 @@ app.post('/api/appointments', authRequired, async (req, res) => {
 
     const start = toMinutes(time);
     const end = start + duration;
-    if (start % SLOT_STEP !== 0 || !slotFitsSchedule(start, end, scheduleDay)) {
-      return res.status(409).json({ message: 'Ese horario está fuera de la jornada disponible o coincide con el almuerzo (12:00–13:00).' });
+    if (start % SLOT_STEP !== 0 || !slotStartsInSchedule(start, scheduleDay) || slotOverlapsLunch(start, end)) {
+      return res.status(409).json({ message: 'Ese inicio no está disponible para reservar o cruza el horario de almuerzo (12:00–13:00).' });
+    }
+    const blockedIntervals = await getBlockedIntervals(date);
+    if (slotOverlapsIntervals(start, end, blockedIntervals)) {
+      return res.status(409).json({ message: 'Ese horario tiene un bloqueo. Elige otro inicio disponible.' });
     }
     if (isToday(date)) {
       const currentMinutes = colombiaCurrentMinutes();
@@ -1602,17 +1622,25 @@ app.post('/api/reviews', authRequired, upload.single('photo'), async (req, res) 
     connection = await pool.getConnection();
     await connection.beginTransaction();
     const [lockedUsers] = await connection.query(
-      'SELECT id,name,status,review_submitted FROM users WHERE id=? FOR UPDATE',
+      'SELECT id,name,status,role FROM users WHERE id=? FOR UPDATE',
       [req.auth.id]
     );
     const user = lockedUsers[0];
     if (!user || user.status !== 'accepted' || user.role !== 'client') {
       await connection.rollback();
-      return res.status(403).json({ message: 'Tu cuenta todavía no está habilitada para publicar reseñas.' });
+      return res.status(403).json({ message: 'Tu cuenta debe estar aceptada para publicar reseñas.' });
     }
-    if (Number(user.review_submitted) === 1) {
+
+    const [userReviewRows] = await connection.query(
+      'SELECT id,appointment_id FROM reviews WHERE user_id=? ORDER BY created_at ASC, id ASC',
+      [req.auth.id]
+    );
+    const reviewCount = userReviewRows.length;
+    // Regla: la primera reseña es libre. Desde la segunda, debe existir una cita
+    // confirmada y ya realizada que todavía no haya sido usada para otra reseña.
+    if (reviewCount > 0 && !appointmentId) {
       await connection.rollback();
-      return res.status(409).json({ message: 'Tu cuenta ya publicó una reseña. Solo se permite una reseña por cuenta. 💕' });
+      return res.status(409).json({ message: 'Ya publicaste tu primera reseña. Para publicar otra, selecciona una cita confirmada que ya hayas realizado.' });
     }
 
     let appointment = null;
@@ -1647,9 +1675,8 @@ app.post('/api/reviews', authRequired, upload.single('photo'), async (req, res) 
       `INSERT INTO reviews(appointment_id,user_id,client_name,stars,comment,image_data,image_mime) VALUES(?,?,?,?,?,?,?)`,
       [appointmentId || null, req.auth.id, user.name || appointment?.client_name || 'Clienta', stars, comment, req.file?.buffer || null, req.file?.mimetype || null]
     );
-    await connection.query('UPDATE users SET review_submitted=1 WHERE id=?', [req.auth.id]);
     await connection.commit();
-    res.status(201).json({ message: 'Gracias por tu reseña. 💕', stars, comment, has_photo: Boolean(req.file) });
+    res.status(201).json({ message: reviewCount === 0 ? 'Gracias por compartir tu primera reseña.' : 'Gracias por compartir otra experiencia después de tu cita.', stars, comment, has_photo: Boolean(req.file) });
   } catch (error) {
     if (connection) {
       try { await connection.rollback(); } catch {}
@@ -1668,10 +1695,21 @@ app.get('/api/reviews/mine', authRequired, async (req, res) => {
     const [rows] = await pool.query(
       `SELECT id,appointment_id,stars,comment,created_at,
               CASE WHEN image_data IS NULL THEN NULL ELSE CONCAT('/api/reviews/', id, '/image') END AS image_url
-       FROM reviews WHERE user_id=? ORDER BY created_at ASC, id ASC LIMIT 1`,
+       FROM reviews WHERE user_id=? ORDER BY created_at ASC, id ASC`,
       [req.auth.id]
     );
-    res.json({ has_review: Boolean(rows[0]), review: rows[0] || null });
+    const now = colombiaNowParts();
+    const colombiaNow = `${String(now.year).padStart(4,'0')}-${String(now.month).padStart(2,'0')}-${String(now.day).padStart(2,'0')} ${String(now.hour).padStart(2,'0')}:${String(now.minute).padStart(2,'0')}:00`;
+    const [eligibleAppointments] = await pool.query(
+      `SELECT a.id,a.service,a.appointment_date,a.appointment_time
+       FROM appointments a
+       WHERE a.user_id=? AND a.status='accepted'
+         AND TIMESTAMP(a.appointment_date,a.appointment_time) <= ?
+         AND NOT EXISTS (SELECT 1 FROM reviews r WHERE r.appointment_id=a.id)
+       ORDER BY a.appointment_date DESC,a.appointment_time DESC`,
+      [req.auth.id, colombiaNow]
+    );
+    res.json({ has_review: Boolean(rows.length), count: rows.length, reviews: rows, review: rows[rows.length-1] || null, eligible_appointments: eligibleAppointments });
   } catch (error) {
     console.error('No se pudo consultar la reseña de la clienta:', error.message);
     res.status(500).json({ message: 'No se pudo comprobar tu reseña.' });
