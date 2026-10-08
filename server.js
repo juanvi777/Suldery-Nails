@@ -563,19 +563,41 @@ function slotFitsSchedule(start, end, scheduleDay, blockedIntervals = []) {
 
 function slotIsFree(start, duration, appointments) {
   const end = start + duration;
-  // A slot is available only if the COMPLETE service interval is free.
-  // A 30-minute gap is never enough for a 60-minute service.
-  // Example: existing appointment at 14:30 and a 60-minute service:
-  // 14:00 is NOT available because it would run 14:00–15:00 and overlap.
-  // The next valid start is the first start whose full duration ends before
-  // the next appointment begins. At the end of the normal schedule we still
-  // allow a start whose service extends past closing; Suldery can accept/reject it.
+  // REGLA CENTRAL DE AGENDA:
+  // el servicio completo debe caber antes de cualquier cita existente.
+  // No basta con que el inicio esté libre.
+  // Ejemplo: cita a las 16:00 + servicio de 2 h:
+  // 15:30 -> 15:30–17:30 => NO DISPONIBLE
+  // 15:00 -> 15:00–17:00 => NO DISPONIBLE
+  // 14:00 -> 14:00–16:00 => DISPONIBLE
   return !appointments.some(appt => {
     const aStart = toMinutes(appt.appointment_time);
-    const aDuration = Number(appt.duration_minutes) || 60;
+    const aDuration = Math.max(1, Number(appt.duration_minutes) || 60);
     const aEnd = aStart + aDuration;
     return start < aEnd && end > aStart;
   });
+}
+
+function slotFitsWorkingInterval(start, end, scheduleDay) {
+  if (!scheduleDay?.is_open || !Array.isArray(scheduleDay.intervals)) return false;
+  const intervals = scheduleDay.intervals
+    .map(interval => ({
+      start: toMinutes(interval.start_time),
+      end: toMinutes(interval.end_time)
+    }))
+    .filter(interval => interval.end > interval.start)
+    .sort((a, b) => a.start - b.start);
+
+  const containingIndex = intervals.findIndex(interval => start >= interval.start && start < interval.end);
+  if (containingIndex < 0) return false;
+
+  const interval = intervals[containingIndex];
+  if (end <= interval.end) return true;
+
+  // La última franja permite iniciar una cita aunque termine después del cierre;
+  // Suldery decide después si puede aceptarla. En cualquier franja anterior NO
+  // permitimos cruzar el descanso/almuerzo hacia la siguiente franja.
+  return containingIndex === intervals.length - 1;
 }
 
 async function getBlockedIntervals(date) {
@@ -665,6 +687,9 @@ function buildDayTimeline(date, scheduleDay, appointments, duration, blockedInte
     } else if (appointment) {
       status = 'occupied';
       reason = `${appointment.client_name || 'Una clienta'} ya ocupa parte de este horario.`;
+    } else if (!slotFitsWorkingInterval(minute, end, scheduleDay)) {
+      status = 'unavailable';
+      reason = 'No da el tiempo antes del siguiente descanso o tramo cerrado para realizar el servicio completo.';
     } else if (slotStartsInSchedule(minute, scheduleDay)) {
       status = 'available';
       reason = end > lastEnd
@@ -711,9 +736,12 @@ function slotsForDate(date, scheduleDay, appointments, duration = 60, blockedInt
       // toda la duración está libre. Al final del horario normal sí se permite el
       // inicio aunque termine después del cierre, porque Suldery decide aceptar/rechazar.
       const slotEnd = minute + duration;
+      // El servicio debe caber en una sola franja de atención. Esto hace que
+      // también funcionen almuerzos/descansos configurados a cualquier hora,
+      // por ejemplo 10:30–11:30, y no solo el almuerzo predeterminado 12:00–13:00.
+      if (!slotFitsWorkingInterval(minute, slotEnd, scheduleDay)) continue;
       if (slotOverlapsLunch(minute, slotEnd)) continue;
       if (slotOverlapsIntervals(minute, slotEnd, blockedIntervals)) continue;
-      if (!slotStartsInSchedule(minute, scheduleDay)) continue;
       if (slotIsFree(minute, duration, appointments)) slots.push(toTime(minute).slice(0, 5));
     }
   }
@@ -1490,8 +1518,8 @@ app.post('/api/appointments', authRequired, async (req, res) => {
 
     const start = toMinutes(time);
     const end = start + duration;
-    if (start % SLOT_STEP !== 0 || !slotStartsInSchedule(start, scheduleDay) || slotOverlapsLunch(start, end)) {
-      return res.status(409).json({ message: 'Ese inicio no está disponible para reservar o cruza el horario de almuerzo (12:00–13:00).' });
+    if (start % SLOT_STEP !== 0 || !slotFitsWorkingInterval(start, end, scheduleDay) || slotOverlapsLunch(start, end)) {
+      return res.status(409).json({ message: 'No da el tiempo para realizar el servicio a esa hora. Selecciona otra hora o otro día.' });
     }
     const blockedIntervals = await getBlockedIntervals(date);
     if (slotOverlapsIntervals(start, end, blockedIntervals)) {
@@ -2777,8 +2805,8 @@ app.post('/api/owner/appointments', authRequired, ownerRequired, async (req, res
 
     const start = toMinutes(time);
     const end = start + duration;
-    if (start % SLOT_STEP !== 0 || !slotFitsSchedule(start, end, scheduleDay)) {
-      return res.status(409).json({ message: 'Ese horario está fuera de tu jornada o coincide con el almuerzo (12:00–13:00).' });
+    if (start % SLOT_STEP !== 0 || !slotFitsWorkingInterval(start, end, scheduleDay)) {
+      return res.status(409).json({ message: 'No da el tiempo para realizar el servicio a esa hora. Selecciona otra hora o otro día.' });
     }
     if (isToday(date)) {
       const currentMinutes = colombiaCurrentMinutes();
