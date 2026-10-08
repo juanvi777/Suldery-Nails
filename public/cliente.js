@@ -429,7 +429,7 @@ function initInstallTutorial(){
     const label=ios?'iPhone / iOS':'Android';
     const src=`assets/${pdf}`;
     if(steps){steps.innerHTML='';steps.classList.add('hidden-step');steps.setAttribute('aria-hidden','true');}
-    documentBox.innerHTML=`<div class="tutorial-pdf-head"><div><span class="tutorial-pdf-kicker">GUÍA DE INSTALACIÓN</span><h3>${label}</h3><p>Guía visual oficial en PDF. Se muestra directamente aquí para que puedas seguir los pasos sin salir de Suldery Nails.</p></div><a class="small-button ghost tutorial-pdf-open" href="${src}" target="_blank" rel="noopener">Abrir PDF</a></div><iframe class="tutorial-pdf-frame" title="Guía de instalación ${label}" src="${src}"></iframe>`;
+    documentBox.innerHTML=`<div class="tutorial-pdf-head"><div><span class="tutorial-pdf-kicker">GUÍA DE INSTALACIÓN</span><h3>${label}</h3><p>La guía PDF se muestra directamente en este cuadro. Puedes leerla aquí sin salir de Suldery Nails.</p></div><a class="small-button ghost tutorial-pdf-open" href="${src}" target="_blank" rel="noopener">Abrir PDF completo</a></div><div class="tutorial-pdf-frame"><object data="${src}#toolbar=1&navpanes=0&view=FitH" type="application/pdf" aria-label="Guía de instalación ${label}"><iframe class="tutorial-pdf-embed-fallback" title="Guía de instalación ${label}" src="${src}#toolbar=1&navpanes=0&view=FitH"></iframe><div class="tutorial-pdf-fallback"><strong>El visor PDF de este navegador no está disponible.</strong><a href="${src}" target="_blank" rel="noopener">Abrir la guía PDF</a></div></object></div>`;
     documentBox.classList.remove('hidden-step');
     choice.classList.add('hidden-step');
     back.hidden=false;

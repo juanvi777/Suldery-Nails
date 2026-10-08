@@ -563,13 +563,17 @@ function slotFitsSchedule(start, end, scheduleDay, blockedIntervals = []) {
 
 function slotIsFree(start, duration, appointments) {
   const end = start + duration;
+  // A slot is available only if the COMPLETE service interval is free.
+  // A 30-minute gap is never enough for a 60-minute service.
+  // Example: existing appointment at 14:30 and a 60-minute service:
+  // 14:00 is NOT available because it would run 14:00–15:00 and overlap.
+  // The next valid start is the first start whose full duration ends before
+  // the next appointment begins. At the end of the normal schedule we still
+  // allow a start whose service extends past closing; Suldery can accept/reject it.
   return !appointments.some(appt => {
     const aStart = toMinutes(appt.appointment_time);
     const aDuration = Number(appt.duration_minutes) || 60;
     const aEnd = aStart + aDuration;
-    // The whole requested service must fit before the next appointment starts.
-    // Example: existing appointment 16:00–18:00 + new service 2h => 14:00 is the
-    // latest previous start; 15:00 must NOT be offered because it would overlap.
     return start < aEnd && end > aStart;
   });
 }
@@ -701,11 +705,11 @@ function slotsForDate(date, scheduleDay, appointments, duration = 60, blockedInt
     const end = toMinutes(interval.end_time);
     for (let minute = start; minute < end; minute += SLOT_STEP) {
       if (minute < earliest) continue;
-      // La clienta reserva un INICIO disponible. El servicio completo debe quedar libre
-      // hasta la siguiente cita: si existe una cita a las 16:00 y el servicio dura
-      // 2 horas, 15:00 NO se ofrece; 14:00 sí puede ofrecerse. El cierre normal
-      // puede superarse porque Suldery decide aceptar/rechazar esa solicitud.
-      // No se permite cruzar almuerzo, bloqueos ni otra cita.
+      // Regla de seguridad de agenda: el servicio completo debe caber en el hueco
+      // libre antes de la siguiente cita. Si solo quedan 30 minutos y el servicio
+      // dura 60, ese inicio NO se muestra. El siguiente inicio solo aparece cuando
+      // toda la duración está libre. Al final del horario normal sí se permite el
+      // inicio aunque termine después del cierre, porque Suldery decide aceptar/rechazar.
       const slotEnd = minute + duration;
       if (slotOverlapsLunch(minute, slotEnd)) continue;
       if (slotOverlapsIntervals(minute, slotEnd, blockedIntervals)) continue;

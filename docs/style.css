@@ -884,3 +884,13 @@ body.owner-page .owner-tool-grid{display:none!important}
 /* v5.6 final — títulos legibles en cualquier vista oscura */
 body.dark-mode h1, body.dark-mode h2, body.dark-mode h3, body.dark-mode h4 { color:#fff3f7; }
 body.dark-mode .tutorial-pdf-head h3 { color:#fff3f7; }
+
+
+/* v5.7 — PDF tutorial viewer + strict appointment-gap logic */
+.tutorial-pdf-frame{position:relative;display:block;width:100%;height:min(74vh,760px);min-height:520px;border:1px solid var(--line);border-radius:18px;background:#fff;overflow:hidden}
+.tutorial-pdf-frame object{display:block;width:100%;height:100%;border:0;background:#fff}
+.tutorial-pdf-embed-fallback{display:block;width:100%;height:100%;border:0}
+.tutorial-pdf-fallback{display:none;position:absolute;inset:0;align-items:center;justify-content:center;flex-direction:column;gap:10px;padding:24px;text-align:center;background:#fff;color:#2d2630}
+.tutorial-pdf-fallback a{font-weight:800;color:var(--rose-dark);text-decoration:none}
+@media(max-width:640px){.tutorial-pdf-frame{height:70vh;min-height:460px}.tutorial-pdf-head h3{font-size:1.15rem}}
+.dark-mode .tutorial-pdf-frame{background:#fff;border-color:rgba(255,105,167,.22)}
