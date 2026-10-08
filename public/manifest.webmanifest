@@ -11,6 +11,24 @@
   "theme_color": "#c62868",
   "icons": [
     {
+      "src": "assets/suldery-nails-icon-120.png",
+      "sizes": "120x120",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/suldery-nails-icon-152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/suldery-nails-icon-167.png",
+      "sizes": "167x167",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
       "src": "assets/suldery-nails-icon-180.png",
       "sizes": "180x180",
       "type": "image/png",
@@ -61,5 +79,9 @@
     "standalone",
     "minimal-ui"
   ],
-  "prefer_related_applications": false
+  "prefer_related_applications": false,
+  "categories": [
+    "beauty",
+    "lifestyle"
+  ]
 }

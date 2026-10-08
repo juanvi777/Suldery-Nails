@@ -44,24 +44,39 @@ function updateServiceDurationHint(){
 }
 function setStepVisibility(element,visible){ if(element) element.classList.toggle('hidden-step',!visible); }
 
+function initClientMenu(){
+  const button=$('clientMenuButton'),drawer=$('clientMenuDrawer'),close=$('clientMenuClose');
+  if(!button||!drawer)return;
+  const closeMenu=()=>{drawer.hidden=true;button.setAttribute('aria-expanded','false');};
+  const openMenu=()=>{drawer.hidden=false;button.setAttribute('aria-expanded','true');};
+  button.addEventListener('click',()=>drawer.hidden?openMenu():closeMenu());
+  close?.addEventListener('click',closeMenu);
+  drawer.addEventListener('click',async event=>{
+    const item=event.target.closest('[data-client-tool]'); if(!item)return;
+    const tool=item.dataset.clientTool;
+    closeMenu();
+    if(tool==='booking'){openBooking();return;}
+    if(tool==='catalog'){location.href=pageUrl('catalogo.html');return;}
+    if(tool==='tutorial'){$('openInstallTutorialButton')?.click();return;}
+    if(tool==='photo'){$('openClientPhotoButton')?.click();return;}
+    if(tool==='exclusive'){$('exclusivePhotosSection')?.scrollIntoView({behavior:'smooth',block:'start'});return;}
+    if(tool==='reviews'){$('reviewsSection')?.scrollIntoView({behavior:'smooth',block:'start'});$('reviewsViewer')?.classList.remove('hidden-review-viewer');$('reviewsToggleButton')?.setAttribute('aria-expanded','true');return;}
+    if(tool==='notifications'){
+      try{await enableSulderyPush();alert('Listo 💕. Este dispositivo quedó registrado para recibir tus avisos importantes.');}
+      catch(error){alert(error.message);}
+    }
+  });
+}
+
 async function initCliente(){
   currentUser=await requireRole('client'); if(!currentUser)return;
   void syncExistingSulderyPushSubscription();
   $('welcomeName').textContent=`Hola, ${currentUser.name}`;
+  initClientMenu();
   $('openBookingButton').addEventListener('click',openBooking);
   $('closeBookingButton').addEventListener('click',closeBooking);
   $('previousMonth').addEventListener('click',previousMonth); $('nextMonth').addEventListener('click',nextMonth);
   $('bookingButton').addEventListener('click',crearCita);
-  $('enableNotificationsButton')?.addEventListener('click', async () => { try { await enableSulderyPush(); $('enableNotificationsButton').textContent='🔔 Avisos activos'; alert('Listo 💕. Este dispositivo quedó registrado para recibir tus avisos importantes.'); } catch (error) { alert(error.message); } });
-  if ($('enableNotificationsButton')) {
-    const checkButton = document.createElement('button');
-    checkButton.type = 'button';
-    checkButton.className = 'small-button ghost';
-    checkButton.id = 'checkNotificationsButton';
-    checkButton.textContent = 'Comprobar avisos';
-    checkButton.addEventListener('click', async () => { try { const result = await checkSulderyPush(); alert(result.message); } catch (error) { alert(error.message); } });
-    $('enableNotificationsButton').insertAdjacentElement('afterend', checkButton);
-  }
   $('service').addEventListener('change',onServiceChange);
   $('reviewsToggleButton')?.addEventListener('click', toggleReviewsViewer);
   $('reviewPreviousButton')?.addEventListener('click', () => moveReview(-1));
@@ -106,7 +121,7 @@ function initBookingStepFlow(){
 }
 function showBookingStep(step){
   bookingStep=Math.max(1,Math.min(4,step));
-  const map={1:$('serviceStep'),2:document.querySelector('.calendar-card'),3:$('timeStep'),4:$('bookingSummary')};
+  const map={1:document.querySelector('.calendar-card'),2:$('timeStep'),3:$('serviceStep'),4:$('bookingSummary')};
   Object.entries(map).forEach(([n,el])=>{ if(el) el.classList.toggle('hidden-step',Number(n)!==bookingStep); });
   setStepVisibility($('bookingButton'), bookingStep===4);
   const progress=$('bookingProgressLabel'), fill=$('bookingProgressFill'), back=$('bookingStepBack');
@@ -116,44 +131,58 @@ function showBookingStep(step){
   const card=document.querySelector('.booking-card');
   if(card && bookingStep>1) card.scrollIntoView({behavior:'smooth',block:'start'});
 }
-
-function openBooking(){ $('agenda').classList.remove('hidden-booking'); bookingStep=1; showBookingStep(1); setTimeout(()=>$('agenda').scrollIntoView({behavior:'smooth',block:'start'}),20); $('calendarFeedback').textContent='Primero elige el día disponible.'; }
+function openBooking(){
+  $('agenda').classList.remove('hidden-booking');
+  bookingStep=1;
+  selectedDate=''; selectedTime=''; selectedService='';
+  $('service').value=''; updateServiceDurationHint();
+  showBookingStep(1);
+  setStepVisibility($('bookingSummary'),false); setStepVisibility($('bookingButton'),false);
+  setTimeout(()=>{$('agenda').scrollIntoView({behavior:'smooth',block:'start'});},20);
+  $('calendarFeedback').textContent='Selecciona un día disponible.';
+  void refreshCalendar();
+}
 function closeBooking(){ $('agenda').classList.add('hidden-booking'); resetBooking(); window.scrollTo({top:0,behavior:'smooth'}); }
 function resetBooking(){
   selectedDate=''; selectedTime=''; selectedService=''; $('service').value=''; updateServiceDurationHint();
   bookingStep=1; showBookingStep(1); setStepVisibility($('bookingSummary'),false); setStepVisibility($('bookingButton'),false);
-  $('calendarFeedback').textContent='Selecciona un día disponible para continuar.'; $('timeSlots').innerHTML='<span class="time-help">Primero selecciona una fecha.</span>'; $('timeHint').textContent='Selecciona primero un día'; setMessage($('bookingMessage'),''); renderCalendar();
+  $('calendarFeedback').textContent='Selecciona un día disponible para continuar.'; $('timeSlots').innerHTML='<span class="time-help">Primero selecciona un día.</span>'; $('timeHint').textContent='Selecciona primero un día'; setMessage($('bookingMessage'),''); renderCalendar();
 }
 async function onServiceChange(){
   selectedService = $('service').value;
   updateServiceDurationHint();
-  selectedTime = '';
-  selectedDate = '';
   setStepVisibility($('bookingSummary'), false);
   setStepVisibility($('bookingButton'), false);
-  clearTimeSelection();
-  if (!selectedService) {
-    $('calendarFeedback').textContent = 'Primero elige un servicio. Así te mostraremos solo los días y horas que realmente pueden funcionar.';
-    renderCalendar();
-    return;
-  }
-  await refreshCalendar();
-  if (selectedService) { bookingStep = 2; showBookingStep(2); }
+  if (!selectedService) return;
+  if (!selectedDate || !selectedTime) return setMessage($('bookingMessage'),'Vuelve al paso anterior y elige primero el día y la hora.');
+  try {
+    const data = await apiFetch(`/appointments/slots?date=${encodeURIComponent(selectedDate)}&service=${encodeURIComponent(selectedService)}`);
+    const slots=Array.isArray(data.slots)?data.slots:[];
+    if (!slots.includes(selectedTime)) {
+      setMessage($('bookingMessage'),`La hora ${safeFormatTime12(selectedTime)} ya no sirve para ${selectedService}. Elige otra hora.`);
+      $('calendarFeedback').textContent='La duración de este servicio no cabe en la hora seleccionada.';
+      selectedTime='';
+      showBookingStep(2);
+      return;
+    }
+    setMessage($('bookingMessage'),'');
+    updateSummary();
+  } catch(error){ setMessage($('bookingMessage'),error.message); showBookingStep(2); }
 }
-async function previousMonth(){const now=new Date();const minMonth=new Date(now.getFullYear(),now.getMonth(),1);const target=new Date(currentMonth.getFullYear(),currentMonth.getMonth()-1,1);if(target<minMonth)return;currentMonth=target;selectedDate='';selectedTime='';setStepVisibility($('bookingSummary'),false);setStepVisibility($('bookingButton'),false);clearTimeSelection();await refreshCalendar();}
-async function nextMonth(){currentMonth=new Date(currentMonth.getFullYear(),currentMonth.getMonth()+1,1);selectedDate='';selectedTime='';setStepVisibility($('bookingSummary'),false);setStepVisibility($('bookingButton'),false);clearTimeSelection();await refreshCalendar();}
+async function previousMonth(){
+  const now=new Date(); const minMonth=new Date(now.getFullYear(),now.getMonth(),1); const target=new Date(currentMonth.getFullYear(),currentMonth.getMonth()-1,1); if(target<minMonth)return;
+  currentMonth=target; selectedDate=''; selectedTime=''; setStepVisibility($('bookingSummary'),false); setStepVisibility($('bookingButton'),false); clearTimeSelection(); await refreshCalendar(); showBookingStep(1);
+}
+async function nextMonth(){
+  currentMonth=new Date(currentMonth.getFullYear(),currentMonth.getMonth()+1,1); selectedDate=''; selectedTime=''; setStepVisibility($('bookingSummary'),false); setStepVisibility($('bookingButton'),false); clearTimeSelection(); await refreshCalendar(); showBookingStep(1);
+}
 async function refreshCalendar(){
   const key = monthKey(currentMonth);
   $('calendarMonthLabel').textContent = new Date(currentMonth).toLocaleDateString('es-CO', { month:'long', year:'numeric' });
-
-  if (!selectedService) {
-    calendarData = new Map();
-    renderCalendar();
-    return;
-  }
-
   try {
-    const data = await apiFetch(`/calendar?month=${encodeURIComponent(key)}&service=${encodeURIComponent(selectedService)}`);
+    // Antes de elegir servicio usamos el de menor duración para detectar días con al menos un inicio posible.
+    const previewService = selectedService || 'Pedicure semipermanente';
+    const data = await apiFetch(`/calendar?month=${encodeURIComponent(key)}&service=${encodeURIComponent(previewService)}`);
     calendarData = new Map(data.days.map(day => [day.date, day]));
     renderCalendar();
   } catch (error) {
@@ -163,118 +192,52 @@ async function refreshCalendar(){
 }
 function renderCalendar(){
   const year=currentMonth.getFullYear(), month=currentMonth.getMonth(); const first=(new Date(year,month,1).getDay()+6)%7; const days=new Date(year,month+1,0).getDate(); const grid=$('calendarDays'); grid.innerHTML='';
-  for(let i=0;i<first;i++){const empty=document.createElement('span');empty.className='calendar-empty';grid.appendChild(empty);} const today=new Date();today.setHours(0,0,0,0);
+  for(let i=0;i<first;i++){const empty=document.createElement('span');empty.className='calendar-empty';grid.appendChild(empty);}
+  const today=new Date();today.setHours(0,0,0,0);
   for(let day=1;day<=days;day++){
-    const date=isoDate(year,month,day);
-    const meta = !selectedService
-      ? {status:'past',slots:0,message:'Primero elige un servicio.'}
-      : (calendarData.get(date)||{status:'closed',slots:0,message:'Fecha no disponible.'}); const localDate=new Date(year,month,day); const button=document.createElement('button');button.type='button';button.className=`calendar-day ${meta.status}`;if(date===selectedDate)button.classList.add('selected');if(localDate.getTime()===today.getTime())button.classList.add('today');
+    const date=isoDate(year,month,day); const meta=calendarData.get(date)||{status:'closed',slots:0,message:'Fecha no disponible.'}; const localDate=new Date(year,month,day); const button=document.createElement('button');button.type='button';button.className=`calendar-day ${meta.status}`;if(date===selectedDate)button.classList.add('selected');if(localDate.getTime()===today.getTime())button.classList.add('today');
     const weekday=localDate.toLocaleDateString('es-CO',{weekday:'short'}).replace('.',''); const statusLabel=meta.status==='available'?'Disponible':meta.status==='blocked'?'Bloqueado':meta.status==='rest'?'Descanso':meta.status==='full'?'Agotado':meta.status==='past'?'Pasado':'No disponible';
     button.innerHTML=`<strong>${day}</strong><span class="calendar-weekday">${weekday}</span><small>${statusLabel}</small>`;
-    if(meta.status==='past'){button.disabled=true;button.title='Esta fecha ya pasó.';} else if(meta.status==='available'){button.addEventListener('click',()=>selectDate(date));button.title=`${meta.slots} horario${meta.slots===1?'':'s'} disponible${meta.slots===1?'':'s'}`;} else {button.addEventListener('click',()=>showDayMessage(meta));button.title=meta.message;}
+    if(meta.status==='past'){button.disabled=true;button.title='Esta fecha ya pasó.';} else if(meta.status==='available'){button.addEventListener('click',()=>selectDate(date));button.title=`${meta.slots} inicio${meta.slots===1?'':'s'} disponible${meta.slots===1?'':'s'}.`;} else {button.addEventListener('click',()=>showDayMessage(meta));button.title=meta.message||'Fecha no disponible.';}
     grid.appendChild(button);
   }
-  $('previousMonth').disabled = !selectedService || currentMonth <= new Date(today.getFullYear(),today.getMonth(),1);
-  $('nextMonth').disabled = !selectedService;
-  if (!selectedService) $('calendarFeedback').textContent = '💕 Primero elige un servicio. Después podrás elegir el día y te mostraremos exactamente qué horas quedan libres.';
+  $('previousMonth').disabled = currentMonth <= new Date(today.getFullYear(),today.getMonth(),1);
+  $('nextMonth').disabled = false;
 }
 function showDayMessage(meta){selectedDate='';selectedTime='';setStepVisibility($('bookingSummary'),false);setStepVisibility($('bookingButton'),false);renderCalendar();clearTimeSelection();$('calendarFeedback').textContent=meta.message;shake($('calendarFeedback'));}
 async function selectDate(date){
-  if (!selectedService) {
-    $('calendarFeedback').textContent = 'Primero elige el servicio para saber qué horarios realmente te sirven.';
-    return;
-  }
-
   selectedDate = date;
   selectedTime = '';
-  setStepVisibility($('bookingSummary'), false);
-  setStepVisibility($('bookingButton'), false);
+  setStepVisibility($('bookingSummary'), false); setStepVisibility($('bookingButton'), false);
   renderCalendar();
-  $('calendarFeedback').textContent = `Elegiste ${formatDate(date)}. Ahora revisemos el horario completo para ${durationLabel(serviceDuration(selectedService))}.`;
-  $('timeHint').textContent = `Turnos de ${durationLabel(serviceDuration(selectedService))}`;
+  $('calendarFeedback').textContent = `Elegiste ${formatDate(date)}. Ahora elige una hora de inicio.`;
+  $('timeHint').textContent = 'Horarios de inicio posibles para el día elegido';
   $('timeSlots').innerHTML = '<span class="time-help">Cargando horarios…</span>';
   $('dayTimeline').innerHTML = '<p class="time-help">Cargando el estado de todo el día…</p>';
-
   try {
-    const data = await apiFetch(`/appointments/slots?date=${encodeURIComponent(date)}&service=${encodeURIComponent(selectedService)}`);
+    const previewService='Pedicure semipermanente';
+    const data = await apiFetch(`/appointments/slots?date=${encodeURIComponent(date)}&service=${encodeURIComponent(previewService)}`);
     renderSlots(data.slots || []);
     renderDayTimeline(data.timeline || [], data.slots || []);
-    if (!data.slots?.length) {
-      $('calendarFeedback').textContent = data.message || 'Ese día no tiene un espacio que complete todo el servicio.';
-    }
+    if (!data.slots?.length) { $('calendarFeedback').textContent = data.message || 'Ese día no tiene inicios disponibles.'; return; }
+    bookingStep=2; showBookingStep(2);
   } catch (error) {
     $('timeSlots').innerHTML = `<span class="time-help">${escapeHtml(error.message)}</span>`;
     $('dayTimeline').innerHTML = `<p class="time-help">${escapeHtml(error.message)}</p>`;
     shake(document.querySelector('.booking-card'));
   }
 }
-
 function renderSlots(slots){
-  const wrap = $('timeSlots');
-  wrap.innerHTML = '';
-  if (!slots.length) {
-    wrap.innerHTML = '<span class="time-help">No queda una hora que permita completar el servicio sin cruzar una cita, una pausa o el almuerzo.</span>';
-    return;
-  }
-  slots.forEach(time => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'time-slot';
-    button.dataset.time = time;
-    button.textContent = safeFormatTime12(time);
-    button.title = `Comienza a las ${safeFormatTime12(time)}`;
-    if (time === selectedTime) button.classList.add('selected');
-    button.addEventListener('click', () => selectTime(time));
-    wrap.appendChild(button);
-  });
+  const wrap=$('timeSlots'); wrap.innerHTML='';
+  if(!slots.length){wrap.innerHTML='<span class="time-help">No quedan inicios disponibles para ese día.</span>';return;}
+  slots.forEach(time=>{const button=document.createElement('button');button.type='button';button.className='time-slot';button.dataset.time=time;button.textContent=safeFormatTime12(time);button.title=`Comienza a las ${safeFormatTime12(time)}. La hora se comprobará de nuevo al elegir el servicio.`;if(time===selectedTime)button.classList.add('selected');button.addEventListener('click',()=>selectTime(time));wrap.appendChild(button);});
 }
+function timelineStatusLabel(status, reason){if(status==='available')return'Disponible';if(status==='occupied')return'Ocupado';if(status==='lunch')return'Almuerzo';if(status==='blocked')return'Bloqueado';if(status==='past')return'Hora pasada';return reason||'No disponible';}
+function renderDayTimeline(timeline, availableSlots){const box=$('dayTimeline');box.innerHTML='';if(!timeline.length){box.innerHTML='<p class="time-help">No hay jornada configurada para este día.</p>';return;}const available=new Set(availableSlots);timeline.forEach(item=>{const row=document.createElement('div');row.className=`day-timeline-row ${item.status}`;if(available.has(item.time))row.classList.add('is-selectable');row.innerHTML=`<strong>${safeFormatTime12(item.time)}</strong><span>${escapeHtml(timelineStatusLabel(item.status,item.reason))}</span>`;if(item.reason)row.title=item.reason;if(available.has(item.time))row.addEventListener('click',()=>selectTime(item.time));box.appendChild(row);});}
+function selectTime(time){selectedTime=time;document.querySelectorAll('.time-slot').forEach(button=>button.classList.toggle('selected',button.dataset.time===selectedTime));$('calendarFeedback').textContent=`${formatDate(selectedDate)} a las ${safeFormatTime12(time)}. Ahora elige el servicio.`;setMessage($('bookingMessage'),'');showBookingStep(3);}
+function updateSummary(){bookingStep=4;showBookingStep(4);$('summaryDate').textContent=formatDate(selectedDate);$('summaryTime').textContent=safeFormatTime12(selectedTime);$('summaryService').textContent=selectedService;$('summaryDuration').textContent=durationLabel(serviceDuration(selectedService));setStepVisibility($('bookingSummary'),true);setStepVisibility($('bookingButton'),true);$('bookingSummary').scrollIntoView({behavior:'smooth',block:'nearest'});}
+function clearTimeSelection(){$('timeSlots').innerHTML='<span class="time-help">Primero selecciona un día.</span>';$('dayTimeline').innerHTML='<p class="time-help">Aquí aparecerá el estado del horario cuando elijas un día.</p>';$('timeHint').textContent='Selecciona primero un día';setMessage($('bookingMessage'),'');}
 
-function timelineStatusLabel(status, reason) {
-  if (status === 'available') return 'Disponible';
-  if (status === 'occupied') return 'Ocupado';
-  if (status === 'lunch') return 'Almuerzo';
-  if (status === 'blocked') return 'Bloqueado';
-  if (status === 'past') return 'Hora pasada';
-  return reason || 'No disponible';
-}
-
-function renderDayTimeline(timeline, availableSlots) {
-  const box = $('dayTimeline');
-  box.innerHTML = '';
-  if (!timeline.length) {
-    box.innerHTML = '<p class="time-help">No hay jornada configurada para este día.</p>';
-    return;
-  }
-
-  const available = new Set(availableSlots);
-  timeline.forEach(item => {
-    const row = document.createElement('div');
-    row.className = `day-timeline-row ${item.status}`;
-    if (available.has(item.time)) row.classList.add('is-selectable');
-    row.innerHTML = `
-      <strong>${safeFormatTime12(item.time)}</strong>
-      <span>${escapeHtml(timelineStatusLabel(item.status, item.reason))}</span>
-    `;
-    if (item.status === 'occupied' && item.client_name) {
-      row.title = `${item.client_name} ya tiene una cita a esta hora.`;
-    } else if (item.reason) {
-      row.title = item.reason;
-    }
-    if (available.has(item.time)) {
-      row.addEventListener('click', () => selectTime(item.time));
-    }
-    box.appendChild(row);
-  });
-}
-
-function selectTime(time){selectedTime=time;document.querySelectorAll('.time-slot').forEach(button=>button.classList.toggle('selected',button.dataset.time===time));$('calendarFeedback').textContent=`${formatDate(selectedDate)} a las ${safeFormatTime12(time)}. Verifica los datos antes de confirmar.`;updateSummary();}
-function updateSummary(){ bookingStep=4; showBookingStep(4); $('summaryDate').textContent=formatDate(selectedDate); $('summaryTime').textContent=safeFormatTime12(selectedTime); $('summaryService').textContent=selectedService; $('summaryDuration').textContent=durationLabel(serviceDuration(selectedService)); setStepVisibility($('bookingSummary'),true);setStepVisibility($('bookingButton'),true);$('bookingSummary').scrollIntoView({behavior:'smooth',block:'nearest'}); }
-function clearTimeSelection(){
-  $('timeSlots').innerHTML='<span class="time-help">Primero elige un servicio y después un día.</span>';
-  $('dayTimeline').innerHTML='<p class="time-help">Aquí aparecerá el estado del horario cuando elijas un día.</p>';
-  $('timeHint').textContent='Selecciona primero un servicio y un día';
-  setMessage($('bookingMessage'),'');
-}
 async function crearCita(){
   const message = $('bookingMessage');
   const button = $('bookingButton');
@@ -392,7 +355,7 @@ function renderCurrentReview() {
     return;
   }
   const review = clientReviews[clientReviewIndex];
-  card.innerHTML = `<div class="review-card-stars">${reviewStars(review.stars)}</div><blockquote>“${escapeHtml(review.comment || '')}”</blockquote>${review.image_url ? `<img class="review-card-photo" src="${escapeAttribute(review.image_url)}" loading="lazy" alt="Uñas de ${escapeAttribute(review.client_name || 'clienta')}">` : ''}<strong>${escapeHtml(review.client_name || 'Clienta')}</strong><small>${review.created_at ? escapeHtml(formatDate(String(review.created_at).slice(0,10))) : ''}</small>`;
+  card.innerHTML = `<div class="review-card-stars">${reviewStars(review.stars)}</div><blockquote>“${escapeHtml(review.comment || '')}”</blockquote>${review.image_url ? `<img class="review-card-photo" src="${escapeAttribute(apiAssetUrl(review.image_url))}" loading="lazy" alt="Uñas de ${escapeAttribute(review.client_name || 'clienta')}">` : ''}<strong>${escapeHtml(review.client_name || 'Clienta')}</strong><small>${review.created_at ? escapeHtml(formatDate(String(review.created_at).slice(0,10))) : ''}</small>`;
   clientReviews.forEach((_, i) => {
     const dot = document.createElement('button');
     dot.type = 'button'; dot.className = `carousel-dot${i === clientReviewIndex ? ' active' : ''}`;
@@ -448,69 +411,28 @@ function chooseReviewStars(event) {
 }
 
 async function submitClientReview() {
-  const appointmentId = Number($('reviewAppointmentSelect')?.value || 0);
-  const comment = String($('reviewComment')?.value || '').trim();
-  const message = $('reviewSubmitMessage');
-  const button = $('submitReviewButton');
-  if (myClientReview) return setMessage(message, 'Tu cuenta ya publicó una reseña. Solo se permite una reseña por cuenta. 💕');
-  if (!selectedReviewStars) return setMessage(message, 'Elige de 1 a 5 estrellas.');
-  if (comment.length < 3) return setMessage(message, 'Escribe un comentario para compartir tu experiencia.');
-  button.disabled = true;
-  setMessage(message, 'Guardando tu reseña…');
-  try {
-    const data = await apiFetch('/reviews', {method:'POST', body:JSON.stringify({appointment_id:appointmentId,stars:selectedReviewStars,comment})});
-    setMessage(message, data.message, true);
-    $('reviewComment').value = '';
-    $('reviewAppointmentSelect').value = '';
-    selectedReviewStars = 0;
-    document.querySelectorAll('#reviewStarPicker button').forEach(item => item.classList.remove('active'));
-    await loadReviews();
-  } catch (error) { setMessage(message, error.message); }
-  finally { button.disabled = false; }
-}async function submitClientReview() {
-  const appointmentId = Number($('reviewAppointmentSelect')?.value || 0);
-  const comment = String($('reviewComment')?.value || '').trim();
-  const message = $('reviewSubmitMessage');
-  const button = $('submitReviewButton');
-  if (!appointmentId) return setMessage(message, 'Selecciona primero una cita terminada.');
-  if (!selectedReviewStars) return setMessage(message, 'Elige de 1 a 5 estrellas.');
-  if (comment.length < 3) return setMessage(message, 'Escribe un comentario para compartir tu experiencia.');
-  button.disabled = true;
-  setMessage(message, 'Guardando tu reseña…');
-  try {
-    const form = new FormData();
-    if (appointmentId) form.append('appointment_id', String(appointmentId));
-    form.append('stars', String(selectedReviewStars));
-    form.append('comment', comment);
-    if (reviewPhotoFile) {
-      const optimized = await optimizeClientImage(reviewPhotoFile);
-      form.append('photo', optimized, optimized.name);
-    }
-    const data = await apiFetch('/reviews', {method:'POST', body:form});
-    setMessage(message, data.message, true);
-    $('reviewComment').value = '';
-    $('reviewAppointmentSelect').value = '';
-    selectedReviewStars = 0;
-    removeReviewPhoto();
-    document.querySelectorAll('#reviewStarPicker button').forEach(item => item.classList.remove('active'));
-    await loadReviews();
-    button.textContent='Reseña publicada ✓';
-  } catch (error) { setMessage(message, error.message); }
-  finally { if (!button.textContent.includes('publicada')) button.disabled = false; }
-}
-
-async function optimizeClientImage(file){
-  if(!file || !file.type.startsWith('image/') || file.size<=1.8*1024*1024)return file;
-  const url=URL.createObjectURL(file);
+  const appointmentId=String($('reviewAppointmentSelect')?.value||'').trim();
+  const comment=String($('reviewComment')?.value||'').trim();
+  const message=$('reviewSubmitMessage');
+  const button=$('submitReviewButton');
+  if(myClientReview)return setMessage(message,'Tu cuenta ya publicó una reseña. Solo se permite una reseña por cuenta. 💕');
+  if(!selectedReviewStars)return setMessage(message,'Elige de 1 a 5 estrellas.');
+  if(comment.length<3)return setMessage(message,'Escribe un comentario para compartir tu experiencia.');
+  button.disabled=true; setMessage(message,'Guardando tu reseña…');
   try{
-    const img=new Image();img.src=url;await new Promise((r,j)=>{img.onload=r;img.onerror=j;});
-    const scale=Math.min(1,1600/Math.max(img.naturalWidth,img.naturalHeight));
-    const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
-    const ctx=canvas.getContext('2d');if(!ctx)return file;ctx.drawImage(img,0,0,canvas.width,canvas.height);
-    const blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',.84));
-    if(!blob||blob.size>=file.size)return file;
-    const base=file.name.replace(/\.[^.]+$/,'')||'suldery';return new File([blob],`${base}.jpg`,{type:'image/jpeg',lastModified:Date.now()});
-  }finally{URL.revokeObjectURL(url);}
+    const form=new FormData();
+    if(appointmentId)form.append('appointment_id',appointmentId);
+    form.append('stars',String(selectedReviewStars));
+    form.append('comment',comment);
+    if(reviewPhotoFile){const optimized=await optimizeClientImage(reviewPhotoFile);form.append('photo',optimized,optimized.name);}
+    const data=await apiFetch('/reviews',{method:'POST',body:form});
+    setMessage(message,data.message,true);
+    $('reviewComment').value='';$('reviewAppointmentSelect').value='';selectedReviewStars=0;reviewPhotoFile=null;
+    document.querySelectorAll('#reviewStarPicker button').forEach(item=>item.classList.remove('active'));
+    removeReviewPhoto();
+    await loadReviews();
+  }catch(error){setMessage(message,error.message);}
+  finally{button.disabled=false;updateOwnReviewAvailability();}
 }
 
 function handleReviewPhoto(event){
@@ -530,25 +452,49 @@ function renderClientDailyWelcome(){
 }
 
 function initInstallTutorial(){
-  const modal=$('installTutorialModal'),open=$('openInstallTutorialButton'),close=$('closeInstallTutorialButton'),choice=$('installDeviceChoice'),steps=$('installTutorialSteps'),back=$('installTutorialBack'),install=$('tutorialInstallNowButton');
+  const modal=$('installTutorialModal');
+  let open=$('openInstallTutorialButton');
+  const close=$('closeInstallTutorialButton'),choice=$('installDeviceChoice'),steps=$('installTutorialSteps'),back=$('installTutorialBack'),install=$('tutorialInstallNowButton');
+  if(!open&&modal){open=document.createElement('button');open.id='openInstallTutorialButton';open.hidden=true;document.body.appendChild(open);}
   if(!modal||!open||!choice||!steps)return;
-  const closeModal=()=>modal.classList.add('hidden-modal');open.addEventListener('click',()=>{modal.classList.remove('hidden-modal');choice.classList.remove('hidden-step');steps.classList.add('hidden-step');back.hidden=true;install.hidden=true;});close?.addEventListener('click',closeModal);modal.addEventListener('click',e=>{if(e.target===modal)closeModal();});
-  choice.querySelectorAll('[data-install-device]').forEach(btn=>btn.addEventListener('click',()=>{
-    const device=btn.dataset.installDevice;choice.classList.add('hidden-step');steps.classList.remove('hidden-step');back.hidden=false;install.hidden=device==='ios';
-    const list=device==='ios'?['Abre Suldery Nails en Safari (no Chrome).','Pulsa el botón Compartir del navegador.','Selecciona “Añadir a pantalla de inicio”.','Confirma con “Añadir” y busca el icono de Suldery Nails en tu pantalla.','Abre la app desde ese icono para usarla como una aplicación.']:['Abre Suldery Nails en Chrome.','Pulsa ⋮ en la esquina superior derecha.','Elige “Instalar aplicación” o “Añadir a pantalla principal”, según tu teléfono.','Confirma la instalación.','Abre Suldery Nails desde el nuevo icono.'];
-    steps.innerHTML=`<div class="tutorial-device-title"><strong>${device==='ios'?'🍎 iPhone / iOS':'🤖 Android'}</strong><small>Paso a paso</small></div>${list.map((item,i)=>`<article class="tutorial-step"><b>${i+1}</b><p>${escapeHtml(item)}</p></article>`).join('')}`;
-  }));
-  back?.addEventListener('click',()=>{choice.classList.remove('hidden-step');steps.classList.add('hidden-step');back.hidden=true;install.hidden=true;});
-  install?.addEventListener('click',async()=>{if(window.isIOSDevice && window.isIOSDevice()){ alert('En iPhone sigue los pasos de Safari mostrados arriba.'); return; } if(window.installSulderyApp){ const installed=await window.installSulderyApp(); if(!installed) alert('Tu navegador no ofrece el botón de instalación automática en este momento. Sigue los pasos mostrados arriba.'); } else { alert('Sigue los pasos mostrados arriba para instalar Suldery Nails.'); }});
+  const visualStep=(n,icon,title,text,highlight='')=>`<article class="tutorial-step-visual"><div class="tutorial-phone"><div class="tutorial-phone-top"><span></span><span></span><span></span></div><div class="tutorial-screen"><div class="tutorial-ui-bar"><strong>Suldery Nails</strong><span>${icon}</span></div><div class="tutorial-ui-body"><div class="tutorial-ui-title">${highlight||title}</div><div class="tutorial-ui-chip">${icon}</div><div class="tutorial-ui-lines"><i></i><i></i><i></i></div></div></div></div><div class="tutorial-copy"><span>PASO ${n}</span><h3>${title}</h3><p>${text}</p></div></article>`;
+  const render=(device)=>{
+    const ios=device==='ios';
+    const data=ios?[
+      ['1','🌐','Abre Safari','Abre Suldery Nails directamente en Safari.','Safari'],
+      ['2','↗','Pulsa Compartir','En la barra de Safari toca el botón Compartir para abrir las opciones.','Compartir'],
+      ['3','＋','Añadir a pantalla de inicio','Busca “Añadir a pantalla de inicio”. Si no aparece, desplázate hacia abajo en el menú.','Añadir a pantalla de inicio'],
+      ['4','✓','Confirma Añadir','Confirma la instalación. Luego busca el icono de Suldery Nails en tu pantalla de inicio.','Suldery Nails'],
+      ['5','💕','Abre la app instalada','Entra desde el icono nuevo. Así Safari la abrirá en modo aplicación.','Suldery Nails']
+    ]:[
+      ['1','🌐','Abre Chrome','Entra a Suldery Nails desde Google Chrome.','Chrome'],
+      ['2','⋮','Abre el menú de Chrome','Toca los tres puntos para ver las acciones del navegador.','⋮'],
+      ['3','＋','Instalar aplicación','Elige “Instalar aplicación” o “Añadir a pantalla principal”, según tu teléfono.','Instalar aplicación'],
+      ['4','✓','Confirma la instalación','Acepta la instalación y espera a que aparezca el icono.','Instalar'],
+      ['5','💕','Abre Suldery Nails','Usa el nuevo icono para entrar como si fuera una app.','Suldery Nails']
+    ];
+    steps.innerHTML=`<div class="tutorial-device-title"><div><span class="tutorial-badge">${ios?'🍎':'🤖'}</span><strong>${ios?'iPhone / iOS':'Android'}</strong></div><small>Guía visual · 5 pasos</small></div><div class="tutorial-steps-visual">${data.map(d=>visualStep(...d)).join('')}</div><div class="tutorial-powerpoint-link"><span>📊</span><div><strong>Guía visual en PowerPoint</strong><small>Abre el material con las imágenes paso a paso.</small></div><a class="small-button ghost" href="assets/Suldery-Nails-Tutorial-Instalacion-v5.3.pptx" target="_blank" rel="noopener">Abrir PPTX</a></div>`;
+    choice.classList.add('hidden-step');steps.classList.remove('hidden-step');back.hidden=false;if(install)install.hidden=ios;
+  };
+  open.addEventListener('click',()=>modal.classList.remove('hidden-modal'));
+  close?.addEventListener('click',()=>modal.classList.add('hidden-modal'));
+  modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.add('hidden-modal');});
+  choice.querySelectorAll('[data-install-device]').forEach(btn=>btn.addEventListener('click',()=>render(btn.dataset.installDevice)));
+  back?.addEventListener('click',()=>{choice.classList.remove('hidden-step');steps.classList.add('hidden-step');back.hidden=true;if(install)install.hidden=true;});
+  install?.addEventListener('click',async()=>{if(window.isIOSDevice&&window.isIOSDevice()){alert('En iPhone sigue la guía de Safari mostrada arriba.');return;}if(window.installSulderyApp){const installed=await window.installSulderyApp();if(!installed)alert('Tu navegador no ofrece la instalación automática en este momento. Sigue la guía visual.');}else{alert('Sigue la guía visual para instalar Suldery Nails.');}});
 }
 
 function initClientPhotoMessaging(){
-  const modal=$('clientPhotoModal'),open=$('openClientPhotoButton'),close=$('closeClientPhotoButton'),send=$('sendClientPhotoButton');
+  const modal=$('clientPhotoModal');
+  let open=$('openClientPhotoButton');
+  const close=$('closeClientPhotoButton'),send=$('sendClientPhotoButton');
+  if(!open&&modal){open=document.createElement('button');open.id='openClientPhotoButton';open.hidden=true;document.body.appendChild(open);}
   if(!modal||!open||!send)return;
-  open.addEventListener('click',()=>{modal.classList.remove('hidden-modal');});close?.addEventListener('click',()=>modal.classList.add('hidden-modal'));modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.add('hidden-modal');});
+  open.addEventListener('click',()=>modal.classList.remove('hidden-modal'));close?.addEventListener('click',()=>modal.classList.add('hidden-modal'));modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.add('hidden-modal');});
   ['clientPhotoCameraPicker','clientPhotoGalleryPicker'].forEach(id=>$(id)?.addEventListener('change',handleClientMessagePhoto));
   send.addEventListener('click',sendClientPhotoToSuldery);
 }
+
 function handleClientMessagePhoto(event){
   const file=event.target.files?.[0]||null;if(!file)return;clientMessagePhotoFile=file;const preview=$('clientPhotoPreview');if(preview){preview.hidden=false;preview.innerHTML='';const img=document.createElement('img');img.src=URL.createObjectURL(file);img.onload=()=>URL.revokeObjectURL(img.src);img.alt='Vista previa';preview.appendChild(img);}}
 async function sendClientPhotoToSuldery(){
@@ -597,7 +543,7 @@ async function buildCarousel(gallery, photos, large = false) {
   counter.className = 'carousel-counter';
 
   function preload(index) {
-    const url = photos[index]?.image_url;
+    const url = apiAssetUrl(photos[index]?.image_url);
     if (!url) return;
     const img = new Image();
     img.decoding = 'async';
@@ -612,7 +558,7 @@ async function buildCarousel(gallery, photos, large = false) {
     image.classList.add('is-loading');
     image.onload = () => { image.classList.remove('is-loading'); loading.classList.add('hidden'); };
     image.onerror = () => { image.classList.remove('is-loading'); loading.textContent = 'No se pudo cargar esta foto.'; loading.classList.remove('hidden'); };
-    image.src = photo.image_url;
+    image.src = apiAssetUrl(photo.image_url);
     image.alt = photo.title || 'Diseño de Suldery Nails';
     dots.querySelectorAll('.carousel-dot').forEach((dot, i) => dot.classList.toggle('active', i === state.index));
     counter.textContent = `${state.index + 1} / ${photos.length}`;
@@ -661,7 +607,7 @@ function renderClientPhotoGrid(gallery, photos) {
   photos.forEach(photo=>{
     const card=document.createElement('figure');
     card.className='client-photo-tile';
-    card.innerHTML=`<img src="${escapeAttribute(photo.image_url)}" loading="lazy" decoding="async" alt="${escapeAttribute(photo.title || 'Diseño de Suldery Nails')}"><figcaption>${escapeHtml(photo.title || '')}</figcaption>`;
+    card.innerHTML=`<img src="${escapeAttribute(apiAssetUrl(photo.image_url))}" loading="lazy" decoding="async" alt="${escapeAttribute(photo.title || 'Diseño de Suldery Nails')}"><figcaption>${escapeHtml(photo.title || '')}</figcaption>`;
     gallery.appendChild(card);
   });
 }

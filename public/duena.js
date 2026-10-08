@@ -370,7 +370,7 @@ function renderOwnerReviews() {
     const item = document.createElement('article');
     item.className = 'admin-item review-owner-item';
     const date = review.created_at ? String(review.created_at).slice(0,10) : '';
-    item.innerHTML = `<div class="admin-item-main"><strong>${escapeHtml(review.client_name || 'Clienta')}</strong><p class="review-stars">${reviewStars(review.stars)} <span>${Number(review.stars)}/5</span></p><p>${escapeHtml(review.comment || '')}</p>${review.image_url ? `<img class="review-card-photo owner-review-photo" src="${escapeAttribute(review.image_url)}" loading="lazy" alt="Foto de uñas de ${escapeAttribute(review.client_name || 'clienta')}">` : ''}<small>${escapeHtml(review.email || '')}${review.phone ? ` · ${escapeHtml(review.phone)}` : ''}${date ? ` · ${escapeHtml(formatDate(date))}` : ''}</small></div><button type="button" class="small-button cancel" data-owner-review-delete="${review.id}">Eliminar</button>`;
+    item.innerHTML = `<div class="admin-item-main"><strong>${escapeHtml(review.client_name || 'Clienta')}</strong><p class="review-stars">${reviewStars(review.stars)} <span>${Number(review.stars)}/5</span></p><p>${escapeHtml(review.comment || '')}</p>${review.image_url ? `<img class="review-card-photo owner-review-photo" src="${escapeAttribute(apiAssetUrl(review.image_url))}" loading="lazy" alt="Foto de uñas de ${escapeAttribute(review.client_name || 'clienta')}">` : ''}<small>${escapeHtml(review.email || '')}${review.phone ? ` · ${escapeHtml(review.phone)}` : ''}${date ? ` · ${escapeHtml(formatDate(date))}` : ''}</small></div><button type="button" class="small-button cancel" data-owner-review-delete="${review.id}">Eliminar</button>`;
     list.appendChild(item);
   });
   list.querySelectorAll('[data-owner-review-delete]').forEach(button => button.addEventListener('click', async () => {
@@ -1013,7 +1013,7 @@ function renderOwnerPhotoGroup(container, photos, visibility) {
     figure.className = 'portfolio-photo owner-photo owner-photo-tile';
     figure.innerHTML = `
       <div class="owner-photo-number">${index + 1}</div>
-      <img src="${escapeAttribute(photo.image_url)}" alt="${escapeAttribute(photo.title || 'Diseño de Suldery Nails')}" loading="lazy" decoding="async">
+      <img src="${escapeAttribute(apiAssetUrl(photo.image_url))}" alt="${escapeAttribute(photo.title || 'Diseño de Suldery Nails')}" loading="lazy" decoding="async">
       <figcaption>${escapeHtml(photo.title || 'Diseño Suldery Nails')}</figcaption>
       <div class="photo-tile-actions">
         <button type="button" class="photo-icon-button photo-delete-button" data-photo-action="delete" data-id="${photo.id}" aria-label="Eliminar foto">🗑️</button>
@@ -1127,7 +1127,7 @@ function renderCatalogOwnerGrid() {
   ownerCatalogCache.forEach((photo,index) => {
     const card=document.createElement('article');
     card.className='catalog-owner-card';
-    card.innerHTML=`<div class="catalog-owner-index">${index+1}</div><img src="${escapeAttribute(photo.image_url)}" alt="${escapeAttribute(photo.title || 'Diseño Suldery Nails')}" loading="lazy" decoding="async"><div class="catalog-owner-card-body"><strong>${escapeHtml(photo.title || 'Diseño Suldery Nails')}</strong><div class="catalog-owner-card-actions"><button type="button" class="small-button ghost" data-catalog-action="replace" data-id="${photo.id}">Cambiar</button><button type="button" class="small-button cancel" data-catalog-action="delete" data-id="${photo.id}">Eliminar</button></div></div>`;
+    card.innerHTML=`<div class="catalog-owner-index">${index+1}</div><img src="${escapeAttribute(apiAssetUrl(photo.image_url))}" alt="${escapeAttribute(photo.title || 'Diseño Suldery Nails')}" loading="lazy" decoding="async"><div class="catalog-owner-card-body"><strong>${escapeHtml(photo.title || 'Diseño Suldery Nails')}</strong><div class="catalog-owner-card-actions"><button type="button" class="small-button ghost" data-catalog-action="replace" data-id="${photo.id}">Cambiar</button><button type="button" class="small-button cancel" data-catalog-action="delete" data-id="${photo.id}">Eliminar</button></div></div>`;
     grid.appendChild(card);
   });
   grid.querySelectorAll('[data-catalog-action]').forEach(button=>{
@@ -1547,7 +1547,7 @@ async function loadClientPhotoMessages() {
     messages.forEach(item=>{
       const card=document.createElement('article');
       card.className=`client-photo-message-card ${item.status==='unread'?'unread':''}`;
-      card.innerHTML=`<div class="client-photo-message-image-wrap"><img src="${escapeAttribute(item.image_url)}" loading="lazy" decoding="async" alt="Foto enviada por ${escapeAttribute(item.client_name || 'Clienta')}"></div><div class="client-photo-message-body"><div class="client-photo-message-meta"><strong>${escapeHtml(item.client_name || 'Clienta')}</strong><span>${escapeHtml(item.status==='unread'?'Sin leer':'Leída')}</span></div><p>${escapeHtml(item.message || 'La clienta envió una foto sin mensaje.')}</p><small>${escapeHtml(item.email || '')}${item.phone ? ` · ${escapeHtml(item.phone)}`:''}</small><small>${item.created_at ? escapeHtml(String(item.created_at).slice(0,16)) : ''}</small><div class="owner-tool-actions">${item.status==='unread'?`<button type="button" class="small-button ghost" data-mark-message="${item.id}">Marcar como leída</button>`:''}</div></div>`;
+      card.innerHTML=`<div class="client-photo-message-image-wrap"><img src="${escapeAttribute(apiAssetUrl(item.image_url))}" loading="lazy" decoding="async" alt="Foto enviada por ${escapeAttribute(item.client_name || 'Clienta')}"></div><div class="client-photo-message-body"><div class="client-photo-message-meta"><strong>${escapeHtml(item.client_name || 'Clienta')}</strong><span>${escapeHtml(item.status==='unread'?'Sin leer':'Leída')}</span></div><p>${escapeHtml(item.message || 'La clienta envió una foto sin mensaje.')}</p><small>${escapeHtml(item.email || '')}${item.phone ? ` · ${escapeHtml(item.phone)}`:''}</small><small>${item.created_at ? escapeHtml(String(item.created_at).slice(0,16)) : ''}</small><div class="owner-tool-actions">${item.status==='unread'?`<button type="button" class="small-button ghost" data-mark-message="${item.id}">Marcar como leída</button>`:''}</div></div>`;
       list.appendChild(card);
     });
     list.querySelectorAll('[data-mark-message]').forEach(btn=>btn.addEventListener('click',async()=>{try{await apiFetch(`/owner/client-photo-messages/${btn.dataset.markMessage}/read`,{method:'PATCH'});await loadClientPhotoMessages();}catch(error){alert(error.message);}}));

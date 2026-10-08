@@ -25,7 +25,7 @@ function renderCatalog(){
   empty?.classList.add('hidden');
   catalogPhotos.forEach(photo=>{
     const card=document.createElement('article');card.className='catalog-client-card';
-    card.innerHTML=`<button type="button" class="catalog-client-image-button" aria-label="Ver ${escapeHtml(photo.title || 'diseño')}"><img src="${escapeAttr(photo.image_url)}" alt="${escapeAttr(photo.title || 'Diseño de Suldery Nails')}" loading="lazy" decoding="async"></button><div class="catalog-client-card-caption"><strong>${escapeHtml(photo.title || 'Diseño Suldery Nails')}</strong></div>`;
+    card.innerHTML=`<button type="button" class="catalog-client-image-button" aria-label="Ver ${escapeHtml(photo.title || 'diseño')}"><img src="${escapeAttr(apiAssetUrl(photo.image_url))}" alt="${escapeAttr(photo.title || 'Diseño de Suldery Nails')}" loading="lazy" decoding="async"></button><div class="catalog-client-card-caption"><strong>${escapeHtml(photo.title || 'Diseño Suldery Nails')}</strong></div>`;
     const image=card.querySelector('img');image.addEventListener('error',()=>{card.classList.add('image-error');});
     grid.appendChild(card);
   });

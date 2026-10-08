@@ -29,7 +29,7 @@ async function loadLoginGallery() {
     stage.appendChild(image);
 
     const render = () => {
-      image.src = data.photos[index].image_url;
+      image.src = apiAssetUrl(data.photos[index].image_url);
       image.alt = data.photos[index].title || 'Diseño de Suldery Nails';
       dots.forEach((dot, i) => dot.classList.toggle('active', i === index));
     };

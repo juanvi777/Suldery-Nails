@@ -7,6 +7,19 @@ const API_BASE = isLocal
     : '/api';
 const SITE_BASE = location.pathname.includes('/Suldery-Nails/') ? '/Suldery-Nails/' : '/';
 
+const API_ORIGIN = isGithubPages
+  ? API_BASE.replace(/\/api\/?$/, '')
+  : location.origin;
+
+function apiAssetUrl(path) {
+  const value = String(path || '').trim();
+  if (!value) return '';
+  if (/^https?:\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) return value;
+  if (value.startsWith('/api/') || value.startsWith('/uploads/')) return `${API_ORIGIN}${value}`;
+  return value;
+}
+window.apiAssetUrl = apiAssetUrl;
+
 function pageUrl(file = 'index.html') {
   return `${SITE_BASE}${String(file).replace(/^\/+/, '')}`;
 }
@@ -298,7 +311,7 @@ async function getSulderyServiceWorker() {
     throw new Error('Este dispositivo no permite instalar el sistema de avisos.');
   }
   if (!sulderyServiceWorkerRegistration) {
-    const swUrl = new URL('sw.js?v=20261007-v52.2', location.href);
+    const swUrl = new URL('sw.js?v=20261008-v53.0', location.href);
     sulderyServiceWorkerRegistration = await navigator.serviceWorker.register(swUrl, { scope: './' });
   }
   return await navigator.serviceWorker.ready;
@@ -450,7 +463,7 @@ window.syncExistingSulderyPushSubscription = syncExistingSulderyPushSubscription
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    const swUrl = new URL('sw.js?v=20261007-v52.2', location.href);
+    const swUrl = new URL('sw.js?v=20261008-v53.0', location.href);
     navigator.serviceWorker.register(swUrl, { scope: './' }).catch(() => {});
   });
 }

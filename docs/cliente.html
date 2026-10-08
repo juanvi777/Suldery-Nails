@@ -11,19 +11,39 @@
   <meta name="apple-mobile-web-app-title" content="Suldery Nails">
   <link rel="icon" type="image/png" sizes="48x48" href="assets/favicon-48.png">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="apple-touch-icon" href="assets/suldery-nails-icon-180.png">
+  <link rel="apple-touch-icon" sizes="120x120" href="assets/suldery-nails-icon-120.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="assets/suldery-nails-icon-152.png">
+  <link rel="apple-touch-icon" sizes="167x167" href="assets/suldery-nails-icon-167.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/suldery-nails-icon-180.png">
   <title>Suldery Nails | Mi agenda</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261007-v52.2">
+  <link rel="stylesheet" href="style.css?v=20261008-v53.0">
 </head>
 <body class="dashboard-page">
   <main class="dashboard-shell">
     <header class="dashboard-header glass-card">
       <a class="logo" href="cliente.html"><img src="assets/suldery-nails-logo.jpeg" alt="Suldery Nails"><span>Suldery <em>Nails</em></span></a>
-      <div class="user-menu"><button id="openInstallTutorialButton" class="small-button ghost" type="button">📱 Tutorial de instalación</button><button id="openClientPhotoButton" class="small-button ghost" type="button">📷 Enviar foto</button><a class="small-button ghost catalog-link" href="catalogo.html">Catálogo</a><button id="installAppButton" class="install-app-button" type="button" hidden>＋ Instalar app</button><button id="enableNotificationsButton" class="small-button ghost" type="button">🔔 Avisos</button><button class="theme-toggle" type="button" data-theme-toggle aria-label="Activar modo oscuro"><span class="theme-icon">☾</span><span class="theme-label">Modo oscuro</span></button><span id="welcomeName"></span><button class="secondary-button" type="button" data-action="logout">Cerrar sesión</button></div>
+      <div class="user-menu client-user-menu"><span id="welcomeName"></span><button id="clientMenuButton" class="owner-menu-toggle client-menu-toggle" type="button" aria-expanded="false" aria-controls="clientMenuDrawer">☰ <span>Menú</span></button></div>
     </header>
+
+    <aside id="clientMenuDrawer" class="owner-menu-drawer client-menu-drawer" hidden>
+      <div class="owner-menu-head"><div><p class="eyebrow">SULDERY NAILS</p><h2>Menú de clienta</h2></div><button id="clientMenuClose" class="small-button ghost" type="button">Cerrar</button></div>
+      <div class="owner-menu-grid client-menu-grid">
+        <button type="button" data-client-tool="booking"><span>♡</span><strong>Agendar cita</strong></button>
+        <button type="button" data-client-tool="catalog"><span>▤</span><strong>Ver catálogo</strong></button>
+        <button type="button" data-client-tool="tutorial"><span>📱</span><strong>Tutorial de instalación</strong></button>
+        <button type="button" data-client-tool="photo"><span>📷</span><strong>Enviar foto a Suldery</strong></button>
+        <button type="button" data-client-tool="exclusive"><span>✦</span><strong>Fotos exclusivas</strong></button>
+        <button type="button" data-client-tool="reviews"><span>★</span><strong>Ver / publicar reseña</strong></button>
+        <button type="button" data-client-tool="notifications"><span>🔔</span><strong>Avisos</strong></button>
+        <button type="button" id="installAppButton" class="install-app-menu-button" hidden><span>＋</span><strong>Instalar Suldery Nails</strong></button>
+        <button type="button" data-theme-toggle class="theme-toggle client-menu-theme"><span class="theme-icon">☾</span><span class="theme-label">Modo oscuro</span></button>
+        <button type="button" data-action="logout" class="client-menu-logout"><span>↪</span><strong>Cerrar sesión</strong></button>
+      </div>
+      <p class="client-menu-note">El tutorial funciona con Android y iPhone. En iPhone, usa Safari para instalar la app.</p>
+    </aside>
 
     <section class="hero-dashboard">
       <div>
@@ -40,35 +60,20 @@
     <section id="agenda" class="booking-layout hidden-booking">
       <section class="booking-card glass-card">
         <div class="card-heading">
-          <div><p class="eyebrow">NUEVA CITA</p><h2>Primero elige tu servicio</h2></div>
+          <div><p class="eyebrow">NUEVA CITA</p><h2>Primero elige el día</h2></div>
           <button id="closeBookingButton" class="link-button" type="button">Cerrar</button>
-        </div>
-
-        <div class="service-selection booking-step" id="serviceStep">
-          <div class="time-header"><div><p class="eyebrow">PASO 1</p><span class="field-label">¿Qué te vas a realizar?</span></div><span class="time-hint">La duración determina qué horas son posibles.</span></div>
-          <label class="service-field">Servicio
-            <select id="service">
-              <option value="" selected>Elige un servicio…</option>
-              <option value="Manicure semipermanente">Manicure semipermanente · 1 h 30 min</option>
-              <option value="Pedicure semipermanente">Pedicure semipermanente · 1 hora</option>
-              <option value="Dipping">Dipping · 2 horas</option>
-              <option value="Press on">Press on · 2 horas</option>
-            </select>
-            <small id="serviceDurationHint" class="service-duration-hint">Primero elige un servicio.</small>
-            <small class="service-duration-hint">Primero eliges el servicio. Después elegimos el día y, al final, solo una hora que permita completar todo el servicio.</small>
-          </label>
         </div>
 
         <div class="calendar-card">
           <div class="calendar-watermark"></div>
           <div class="calendar-brand">
             <div class="calendar-brand-logo" aria-hidden="true"><img src="assets/suldery-nails-logo.jpeg" alt="Logo de Suldery Nails"></div>
-            <div class="calendar-brand-copy"><span class="calendar-kicker">SULDERY NAILS</span><strong>Reserva tu momento</strong><small>Solo aparecen días que tienen al menos un turno posible para el servicio elegido.</small></div>
+            <div class="calendar-brand-copy"><span class="calendar-kicker">SULDERY NAILS</span><strong>Reserva tu momento</strong><small>Elige un día disponible. Después veremos las horas y el servicio que mejor encaja.</small></div>
             <div class="calendar-theme-mark" aria-hidden="true"><span>☼</span><span>◐</span></div>
           </div>
           <div class="calendar-topbar">
             <button id="previousMonth" class="month-button" type="button" aria-label="Mes anterior">‹</button>
-            <div class="calendar-title"><span>PASO 2 · CALENDARIO</span><h3 id="calendarMonthLabel"></h3></div>
+            <div class="calendar-title"><span>PASO 1 · ELIGE EL DÍA</span><h3 id="calendarMonthLabel"></h3></div>
             <button id="nextMonth" class="month-button" type="button" aria-label="Mes siguiente">›</button>
           </div>
           <div class="calendar-legend"><span><i class="legend-dot available"></i> Disponible</span><span><i class="legend-dot full"></i> No disponible</span><span><i class="legend-dot today-dot"></i> Hoy</span></div>
@@ -78,11 +83,11 @@
         </div>
 
         <div class="time-selection booking-step" id="timeStep">
-          <div class="time-header"><div><p class="eyebrow">PASO 3</p><span class="field-label">Elige una hora</span></div><span id="timeHint" class="time-hint">Selecciona primero un servicio y un día</span></div>
+          <div class="time-header"><div><p class="eyebrow">PASO 2</p><span class="field-label">Elige una hora</span></div><span id="timeHint" class="time-hint">Selecciona primero un día</span></div>
           <div class="time-selection-layout">
             <div>
               <p class="time-selection-label">Horas que sí puedes reservar</p>
-              <div id="timeSlots" class="time-slots"><span class="time-help">Primero elige un servicio y después un día.</span></div>
+              <div id="timeSlots" class="time-slots"><span class="time-help">Primero selecciona un día disponible.</span></div>
             </div>
             <aside class="day-timeline-panel">
               <div class="day-timeline-heading"><div><p class="eyebrow">ASÍ ESTÁ TU DÍA</p><strong>Qué pasa con cada hora</strong></div><span>30 min</span></div>
@@ -90,6 +95,21 @@
               <div id="dayTimeline" class="day-timeline"><p class="time-help">Aquí aparecerá el estado del horario cuando elijas un día.</p></div>
             </aside>
           </div>
+        </div>
+
+        <div class="service-selection booking-step" id="serviceStep">
+          <div class="time-header"><div><p class="eyebrow">PASO 3</p><span class="field-label">¿Qué te vas a realizar?</span></div><span class="time-hint">La hora se valida de nuevo con la duración real del servicio.</span></div>
+          <label class="service-field">Servicio
+            <select id="service">
+              <option value="" selected>Elige un servicio…</option>
+              <option value="Manicure semipermanente">Manicure semipermanente · 1 h 30 min</option>
+              <option value="Pedicure semipermanente">Pedicure semipermanente · 1 hora</option>
+              <option value="Dipping">Dipping · 2 horas</option>
+              <option value="Press on">Press on · 2 horas</option>
+            </select>
+            <small id="serviceDurationHint" class="service-duration-hint">Primero elige un servicio.</small>
+            <small class="service-duration-hint">Después de elegirlo comprobamos que la hora seleccionada permita terminar todo el servicio sin cruzar otra cita.</small>
+          </label>
         </div>
 
         <div id="bookingSummary" class="booking-summary hidden-step">
@@ -124,7 +144,7 @@
       </div>
 
       <div class="client-review-submit">
-        <div><p class="eyebrow">TU EXPERIENCIA</p><h3>¿Ya estuviste con Suldery?</h3><p>Cuéntanos cómo te fue después de una cita terminada.</p></div>
+        <div><p class="eyebrow">TU OPINIÓN</p><h3>Comparte tu experiencia</h3><p>Puedes publicar una sola reseña por cuenta. Relacionarla con una cita es opcional; si eliges una, debe ser una cita confirmada y ya realizada.</p></div>
         <div class="review-submit-grid">
           <label>Cita relacionada <small>(opcional)</small><select id="reviewAppointmentSelect"><option value="">Reseña general (sin cita)</option></select></label>
           <div class="star-picker" id="reviewStarPicker" aria-label="Elige de 1 a 5 estrellas"></div>
@@ -136,8 +156,8 @@
       </div>
     </section>
 
-    <section class="portfolio-section">
-      <div class="portfolio-heading"><div><p class="eyebrow">INSPÍRATE</p><h2>Diseños hechos con amor</h2></div><p>Un carrusel suave para que conozcas trabajos recientes.</p></div>
+    <section class="portfolio-section" id="exclusivePhotosSection">
+      <div class="portfolio-heading"><div><p class="eyebrow">SOLO PARA TI</p><h2>Fotos exclusivas para ti</h2></div><p>Diseños que Suldery ha elegido para que los veas desde tu cuenta.</p></div>
       <div id="clientGallery" class="carousel-frame"></div>
     </section>
   </main>
@@ -165,7 +185,7 @@
       </div>
     </div>
 
-  <script src="auth.js?v=20261007-v52.2"></script>
-  <script src="cliente.js?v=20261007-v52.2"></script>
+  <script src="auth.js?v=20261008-v53.0"></script>
+  <script src="cliente.js?v=20261008-v53.0"></script>
 </body>
 </html>
