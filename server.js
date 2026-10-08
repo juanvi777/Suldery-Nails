@@ -115,8 +115,8 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 6 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    if (!/^image\/(jpeg|png|webp|gif|avif)$/.test(file.mimetype)) {
-      return cb(new Error('Solo se permiten imágenes JPG, PNG, WEBP, GIF o AVIF.'));
+    if (!/^image\/(jpeg|png|webp|gif|avif|heic|heif)$/.test(file.mimetype)) {
+      return cb(new Error('Solo se permiten imágenes JPG, PNG, WEBP, GIF, AVIF o HEIC/HEIF.'));
     }
     cb(null, true);
   }
@@ -1771,7 +1771,7 @@ app.post('/api/client/photo-messages', authRequired, upload.single('photo'), asy
       'INSERT INTO client_photo_messages(user_id,message,image_data,image_mime) VALUES(?,?,?,?)',
       [req.auth.id, message || null, req.file.buffer, req.file.mimetype]
     );
-    res.status(201).json({ message: 'La foto fue enviada a Suldery. 💕' });
+    res.status(201).json({ message: 'La foto fue enviada correctamente a Suldery.' });
   } catch (error) {
     console.error('No se pudo recibir una foto de clienta:', error.message);
     res.status(500).json({ message: 'No se pudo enviar la foto. Inténtalo nuevamente.' });

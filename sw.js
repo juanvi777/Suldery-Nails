@@ -1,7 +1,7 @@
-const CACHE_NAME = 'suldery-shell-v54-free-push';
+const CACHE_NAME = 'suldery-shell-v55-free-push';
 const ASSET_PATHS = [
-  'style.css?v=20261008-v54.0','auth.js?v=20261008-v54.0','login.js?v=20261008-v54.0','registro.js?v=20261008-v54.0','cliente.js?v=20261008-v54.0','duena.js?v=20261008-v54.0',
-  'catalogo.html','catalogo.js?v=20261008-v54.0','assets/suldery-nails-logo.jpeg','assets/suldery-nails-icon-192.png','assets/suldery-nails-icon-512.png','manifest.webmanifest','assets/favicon-48.png','assets/favicon-96.png','assets/suldery-nails-icon-120.png','assets/suldery-nails-icon-152.png','assets/suldery-nails-icon-167.png','assets/suldery-nails-icon-180.png','assets/Suldery-Nails-Tutorial-Instalacion-v5.4.pdf'
+  'style.css?v=20261008-v55.0','auth.js?v=20261008-v55.0','login.js?v=20261008-v55.0','registro.js?v=20261008-v55.0','cliente.js?v=20261008-v55.0','duena.js?v=20261008-v55.0',
+  'catalogo.html','catalogo.js?v=20261008-v55.0','assets/suldery-nails-logo.jpeg','assets/suldery-nails-icon-192.png','assets/suldery-nails-icon-512.png','manifest.webmanifest','assets/favicon-48.png','assets/favicon-96.png','assets/suldery-nails-icon-120.png','assets/suldery-nails-icon-152.png','assets/suldery-nails-icon-167.png','assets/suldery-nails-icon-180.png','assets/Suldery-Nails-Tutorial-Android.pdf','assets/Suldery-Nails-Tutorial-iPhone-iOS.pdf','assets/Suldery-Nails-Tutorial-Android.pptx','assets/Suldery-Nails-Tutorial-iPhone-iOS.pptx'
 ];
 const scopedUrl = path => new URL(path, self.registration.scope).href;
 const APP_ASSETS = ASSET_PATHS.map(scopedUrl);

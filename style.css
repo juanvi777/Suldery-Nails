@@ -865,3 +865,11 @@ body.owner-page .owner-tool-grid{display:none!important}
 @media(max-width:640px){.catalog-client-grid{gap:12px!important}.catalog-client-card{flex-basis:86vw}.catalog-lightbox-arrow.prev{left:2px}.catalog-lightbox-arrow.next{right:2px}.booking-next-button{max-width:none}.tutorial-step-visual{grid-template-columns:105px 1fr}.tutorial-phone{width:96px}.tutorial-browser-bar{height:26px}}
 .catalog-owner-image-button{display:block;width:100%;padding:0;border:0;background:none;cursor:zoom-in}.catalog-owner-image-button img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}.dark-mode .catalog-owner-card{background:rgba(255,255,255,.045);border-color:rgba(255,105,167,.15)}
 .tutorial-pdf-link{display:inline-flex;margin-top:9px;padding:8px 12px;border-radius:10px;background:rgba(198,40,104,.1);color:var(--rose-dark);font-size:.68rem;font-weight:900;text-decoration:none}.dark-mode .tutorial-pdf-link{color:#ffd7e8;background:rgba(255,105,167,.1)}
+
+/* v5.5 hotfix — menú cliente en modo oscuro */
+.dark-mode .client-menu-drawer{background:rgba(15,10,14,.98);border-color:rgba(255,105,167,.18);color:#fff3f7;box-shadow:0 24px 80px rgba(0,0,0,.45)}
+.dark-mode .client-menu-drawer .owner-menu-head h2,.dark-mode .client-menu-drawer .owner-menu-head .eyebrow{color:#fff3f7}
+.dark-mode .client-menu-drawer .client-menu-note{color:#d8c1cc}
+.dark-mode .client-menu-drawer .small-button.ghost{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.15);color:#fff3f7}
+.install-tutorial-document{margin-top:16px}.install-tutorial-document.hidden-step{display:none!important}.tutorial-document-actions{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:10px}.tutorial-document-actions a{text-decoration:none}.tutorial-pdf-frame{display:block;width:100%;height:min(68vh,620px);border:1px solid var(--line);border-radius:16px;background:#fff}.tutorial-document-note{margin:9px 0 0!important;font-size:.68rem!important;line-height:1.45;color:var(--muted)}
+.dark-mode .tutorial-pdf-frame{border-color:rgba(255,105,167,.18);background:#fff}
