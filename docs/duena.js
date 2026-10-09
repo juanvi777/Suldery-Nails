@@ -1505,28 +1505,57 @@ document.addEventListener('DOMContentLoaded',initDuena);
 
 // ===== Suldery Nails v5.2: mejoras de experiencia =====
 async function optimizeImageForUpload(file, maxDimension = 1600, maxBytes = 1.8 * 1024 * 1024) {
-  if (!file || !file.type.startsWith('image/')) return file;
-  if (file.size <= maxBytes) return file;
+  if (!file) throw new Error('Selecciona una imagen antes de guardar.');
+  if (!String(file.type || '').startsWith('image/')) {
+    throw new Error('El archivo seleccionado no parece ser una imagen. Abre la foto y guárdala como JPG o PNG.');
+  }
+
+  // Solo enviamos directamente formatos que el servidor acepta y que no necesitan reducirse.
+  const supportedTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif', 'image/heic', 'image/heif']);
+  const mustConvert = !supportedTypes.has(String(file.type).toLowerCase());
+  if (!mustConvert && file.size <= maxBytes) return file;
+
   const sourceUrl = URL.createObjectURL(file);
   try {
     const image = new Image();
     image.decoding = 'async';
     image.src = sourceUrl;
-    await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; });
-    const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth || image.width, image.naturalHeight || image.height));
-    const width = Math.max(1, Math.round((image.naturalWidth || image.width) * scale));
-    const height = Math.max(1, Math.round((image.naturalHeight || image.height) * scale));
-    const canvas = document.createElement('canvas');
-    canvas.width = width; canvas.height = height;
-    const ctx = canvas.getContext('2d', { alpha: true });
-    if (!ctx) return file;
-    ctx.drawImage(image, 0, 0, width, height);
-    const type = file.type === 'image/png' && file.size < 2.8 * 1024 * 1024 ? 'image/png' : 'image/jpeg';
-    const blob = await new Promise(resolve => canvas.toBlob(resolve, type, 0.84));
-    if (!blob || blob.size >= file.size) return file;
-    const extension = type === 'image/png' ? '.png' : '.jpg';
-    const base = file.name.replace(/\.[^.]+$/, '') || 'suldery-nails';
-    return new File([blob], `${base}${extension}`, { type, lastModified: Date.now() });
+    await new Promise((resolve, reject) => {
+      image.onload = resolve;
+      image.onerror = () => reject(new Error('El navegador no puede leer esta foto. Ábrela y guárdala como JPG o PNG, y vuelve a intentarlo.'));
+    });
+
+    let width = image.naturalWidth || image.width;
+    let height = image.naturalHeight || image.height;
+    if (!width || !height) throw new Error('No se pudieron leer las dimensiones de la foto. Prueba con un archivo JPG o PNG.');
+    const scale = Math.min(1, maxDimension / Math.max(width, height));
+    width = Math.max(1, Math.round(width * scale));
+    height = Math.max(1, Math.round(height * scale));
+
+    // Convertimos formatos no admitidos (por ejemplo image/jpg, BMP o TIFF) a JPEG.
+    // Si el archivo sigue siendo grande, reducimos calidad y dimensiones gradualmente.
+    let blob = null;
+    for (let attempt = 0; attempt < 7; attempt++) {
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('No se pudo preparar la foto en este navegador. Inténtalo con otra imagen.');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(image, 0, 0, width, height);
+      const quality = Math.max(0.5, 0.86 - attempt * 0.06);
+      blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
+      if (!blob) throw new Error('No se pudo convertir la foto. Prueba con una imagen JPG o PNG.');
+      if (blob.size <= maxBytes) break;
+      width = Math.max(1, Math.round(width * 0.82));
+      height = Math.max(1, Math.round(height * 0.82));
+    }
+
+    if (!blob) throw new Error('No se pudo preparar la foto para subirla.');
+    if (blob.size > 6 * 1024 * 1024) throw new Error('La foto sigue siendo demasiado pesada. Elige otra imagen más pequeña.');
+    const base = String(file.name || 'suldery-nails').replace(/\.[^.]+$/, '') || 'suldery-nails';
+    return new File([blob], `${base}.jpg`, { type: 'image/jpeg', lastModified: Date.now() });
   } finally {
     URL.revokeObjectURL(sourceUrl);
   }
