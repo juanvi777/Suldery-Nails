@@ -1056,38 +1056,39 @@ function seleccionarFoto(event, visibility) {
 async function guardarFotoSeleccionada(visibility) {
   const rawFile = pendingPhotoFiles[visibility];
   if (!rawFile) return;
-  const messageEl = $d(visibility === 'login' ? 'photoManagerMessage' : 'clientPhotoManagerMessage');
-  const button = $d(visibility === 'login' ? 'saveLoginPhotoButton' : 'saveClientPhotoButton');
-  const status = $d(visibility === 'login' ? 'loginPhotoSelection' : 'clientPhotoSelection');
+
+  const isLogin = visibility === 'login';
+  const messageEl = $d(isLogin ? 'photoManagerMessage' : 'clientPhotoManagerMessage');
+  const button = $d(isLogin ? 'saveLoginPhotoButton' : 'saveClientPhotoButton');
+  const status = $d(isLogin ? 'loginPhotoSelection' : 'clientPhotoSelection');
+  const picker = $d(isLogin ? 'photoPickerLogin' : 'photoPickerClientOnly');
+
   try {
-    button.disabled = true;
+    if (button) button.disabled = true;
     setMessage(messageEl, 'Optimizando y guardando la foto…');
+
     const file = await optimizeImageForUpload(rawFile);
     const form = new FormData();
     form.append('photo', file, file.name);
     form.append('title', 'Diseño Suldery Nails');
     form.append('visibility', visibility);
-    const data = await apiFetch('/owner/portfolio', { method: 'POST', body: form });
+
+    // The API/database is authoritative. Never append to a possibly stale local gallery.
+    await apiFetch('/owner/portfolio', { method: 'POST', body: form });
     pendingPhotoFiles[visibility] = null;
+    if (picker) picker.value = '';
     if (status) status.textContent = 'Foto guardada. Puedes elegir otra.';
-    setMessage(messageEl, 'La foto quedó guardada correctamente. ✨', true);
-    const target = visibility === 'login' ? $d('ownerLoginGallery') : $d('ownerClientOnlyGallery');
-    if (target && data.photo) {
-      // Añadir la nueva tarjeta sin descargar de nuevo toda la galería.
-      const current = ownerPhotosCache.filter(photo => photo.visibility === visibility || photo.visibility === 'both');
-      current.push(data.photo);
-      renderOwnerPhotoGroup(target, current, visibility);
-      if (visibility === 'login' && $d('loginPhotoCount')) $d('loginPhotoCount').textContent = current.length;
-      if (visibility === 'client' && $d('clientPhotoCountOnly')) $d('clientPhotoCountOnly').textContent = current.length;
-    } else {
+
+    try {
       await loadOwnerGallery();
+      setMessage(messageEl, 'La foto quedó guardada y la galería se actualizó correctamente. ✨', true);
+    } catch (refreshError) {
+      setMessage(messageEl, 'La foto sí quedó guardada, pero no se pudo actualizar la lista. Recarga el panel antes de volver a subirla.', true);
     }
-    if (visibility === 'login') $d('photoPickerLogin').value = '';
-    if (visibility === 'client') $d('photoPickerClientOnly').value = '';
   } catch (error) {
-    setMessage(messageEl, error.message);
+    setMessage(messageEl, error.message || 'No se pudo guardar la foto. Inténtalo de nuevo.');
   } finally {
-    if (!pendingPhotoFiles[visibility] && button) button.disabled = true;
+    if (button) button.disabled = !pendingPhotoFiles[visibility];
   }
 }
 
@@ -1109,8 +1110,10 @@ async function loadOwnerCatalog() {
     ownerCatalogCache = Array.isArray(data.photos) ? data.photos : [];
     if (ownerCatalogIndex >= ownerCatalogCache.length) ownerCatalogIndex = Math.max(0, ownerCatalogCache.length - 1);
     renderCatalogOwnerGrid();
+    return true;
   } catch (error) {
-    setMessage($d('catalogManagerMessage'), error.message);
+    setMessage($d('catalogManagerMessage'), error.message || 'No se pudo actualizar el catálogo.');
+    return false;
   }
 }
 
@@ -1159,12 +1162,14 @@ async function eliminarCatalogoFoto(id){
   const photo=ownerCatalogCache.find(item=>Number(item.id)===Number(id));
   if(!photo)return;
   if(!confirm(`¿Eliminar “${photo.title || 'este diseño'}” del catálogo?`))return;
-  try{
-    await apiFetch(`/owner/catalog/${id}`,{method:'DELETE'});
-    ownerCatalogCache=ownerCatalogCache.filter(item=>Number(item.id)!==Number(id));
-    renderCatalogOwnerGrid();
-    setMessage($d('catalogManagerMessage'),'Diseño eliminado del catálogo.',true);
-  }catch(error){setMessage($d('catalogManagerMessage'),error.message);}
+  try {
+    await apiFetch(`/owner/catalog/${id}`, { method: 'DELETE' });
+    const refreshed = await loadOwnerCatalog();
+    if (refreshed) setMessage($d('catalogManagerMessage'), 'Diseño eliminado del catálogo y lista sincronizada.', true);
+    else setMessage($d('catalogManagerMessage'), 'El diseño se eliminó, pero no se pudo actualizar la lista. Pulsa Actualizar.', true);
+  } catch (error) {
+    setMessage($d('catalogManagerMessage'), error.message || 'No se pudo eliminar el diseño.');
+  }
 }
 
 function moveCatalogViewer(direction) {
@@ -1185,11 +1190,11 @@ async function subirCatalogoFoto(event) {
     const form = new FormData();
     form.append('photo', file, file.name);
     form.append('title', ($d('catalogPhotoTitle')?.value || '').trim() || 'Diseño Suldery Nails');
-    const data = await apiFetch('/owner/catalog', { method:'POST', body:form });
+    await apiFetch('/owner/catalog', { method: 'POST', body: form });
     if ($d('catalogPhotoTitle')) $d('catalogPhotoTitle').value = '';
-    if (data.photo) ownerCatalogCache.push(data.photo);
-    renderCatalogOwnerGrid();
-    setMessage($d('catalogManagerMessage'), 'Foto agregada al catálogo.', true);
+    const refreshed = await loadOwnerCatalog();
+    if (refreshed) setMessage($d('catalogManagerMessage'), 'Foto agregada al catálogo y lista sincronizada.', true);
+    else setMessage($d('catalogManagerMessage'), 'La foto se guardó, pero no se pudo actualizar la lista. Pulsa Actualizar.', true);
   } catch (error) {
     setMessage($d('catalogManagerMessage'), error.message);
   } finally {
