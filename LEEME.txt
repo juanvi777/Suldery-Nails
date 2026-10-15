@@ -1,30 +1,34 @@
-SULDERY NAILS — ACTUALIZACIÓN COMPLETA
-=====================================
+SULDERY NAILS — REDISEÑO FINAL
+=============================
 
-QUÉ INCLUYE
-- Inicio de sesión: nombre SULDERY NAILS centrado y más luminoso, mejor contraste y lectura.
-- Pantalla de carga elegante con logo en marco oro rosado y el mensaje “Princesa, muy pronto nos vemos ♡”; no usa pantalla negra.
-- Marcos oro rosado para carruseles/fotos.
-- El formulario de reseña empieza oculto y aparece al pulsar “Dejar una reseña”.
-- Retira la sección duplicada “Diseños elegidos para ti” de la página de clienta.
-- Añade a la agenda de la dueña un botón “Cambiar día/hora” en cada cita confirmada futura.
-- Añade un endpoint protegido para guardar fecha/hora y evitar cruces con otras citas pendientes/confirmadas.
-- Las tarjetas de resumen existentes ya calculan clientas activas y citas confirmadas futuras.
+Este paquete instala cambios sobre el proyecto existente; no es un ZIP de la aplicación completa.
 
-INSTALACIÓN
-1. Haz una copia del proyecto o descomprime este ZIP fuera de la carpeta del proyecto.
-2. Ejecuta APLICAR-ACTUALIZACION.ps1 desde PowerShell.
-3. Cuando lo solicite, pega la ruta de la carpeta raíz que contiene server.js (por ejemplo C:\proyectos\EMPRE.IA solo si ahí estuviera Suldery; usa la ruta real de Suldery Nails).
-4. Prueba la web localmente con una cuenta de dueña y una clienta.
-5. Publica tanto server.js como la carpeta public. Si solo publicas el frontend, la reprogramación no funcionará porque requiere el endpoint nuevo.
+INCLUYE
+- Inicio de sesión: título SULDERY NAILS centrado, luminoso, legible y con fondo vino/rosa.
+- Mascota vectorial propia: brazo animado en saludo y guiño periódico de un ojo.
+- Pantalla de carga: logo de Suldery dentro de marco oro rosado y el mensaje “Princesa, muy pronto nos vemos ♡”. Fondo decorado, no negro.
+- Marcos SVG ornamentales horizontales y verticales de oro rosado.
+- Sección de historia larga en tres capítulos, que aparece conforme la clienta baja la página. Utiliza fotos reales de uñas visibles para clientas; no inventa fotos personales de la dueña.
+- Elimina de cliente.html la sección duplicada “Diseños elegidos para ti”; el catálogo real y su acceso desde el menú se conservan.
+- Las reseñas publicadas quedan a la vista; el formulario se oculta detrás del botón “♡ Dejar reseña”.
+- Reprogramación de día/hora desde la lista de citas confirmadas de la dueña. El servidor valida fecha futura, horario laboral, días bloqueados y conflictos de otras citas.
+- Conserva los contadores existentes del panel de la dueña: clientas aceptadas y citas confirmadas futuras.
 
-IMPORTANTE SOBRE LOS CONTADORES
-- “Clientas activas” cuenta usuarios con rol client y estado accepted.
-- “Citas agendadas” cuenta citas con estado accepted cuya fecha es hoy o posterior.
-- No cuenta solicitudes pendientes como citas confirmadas. Es el comportamiento actual del proyecto.
+CÓMO INSTALAR
+1. Extrae el ZIP.
+2. Abre PowerShell en la carpeta extraída.
+3. Ejecuta:
+   Set-ExecutionPolicy -Scope Process Bypass
+   .\APLICAR-REDISENO.ps1
+4. Pega la ruta real de la carpeta raíz de Suldery Nails, la que contiene server.js.
+5. El instalador crea una copia de seguridad y luego aplica los cambios a public/ y, si existe, docs/.
+6. Comprueba en local el inicio de sesión, modo claro/oscuro, galería, reseñas y reprogramación de una cita de prueba.
+7. Publica los cambios del servidor y del frontend para habilitar la nueva ruta de reprogramación en Railway.
 
-NOTAS
-- El instalador crea una copia de seguridad con fecha/hora antes de cambiar archivos.
-- La reprogramación comprueba conflictos de horario, pero no reemplaza una revisión integral de las reglas comerciales de disponibilidad. Verifica el horario laboral antes de confirmar el cambio.
-- No modifica la base de datos ni necesita migración.
-- No subas archivos .env, contraseñas o tokens a GitHub.
+IMPORTANTE
+- No uses el ZIP anterior; este reemplaza el paquete visual previo.
+- No ejecutes git push --force.
+- La reprogramación exige que el nuevo horario quepa en los horarios de atención establecidos y no se cruce con otras citas pendientes/confirmadas.
+- Después de mover una cita, la dueña debe avisar a la clienta del nuevo horario; este paquete no inventa una notificación de reprogramación.
+- No modifica contraseñas, credenciales ni registros directamente.
+- No subas .env ni secretos a GitHub.

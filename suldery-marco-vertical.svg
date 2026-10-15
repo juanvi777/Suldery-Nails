@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 820">
+  <defs><linearGradient id="vm" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff0d8"/><stop offset=".23" stop-color="#bd817d"/><stop offset=".42" stop-color="#f9e4cf"/><stop offset=".63" stop-color="#95545d"/><stop offset=".82" stop-color="#e8b89f"/><stop offset="1" stop-color="#fff0d8"/></linearGradient></defs>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="29" y="28" width="462" height="764" rx="76" stroke="#fff2dc" stroke-width="15"/>
+    <rect x="29" y="28" width="462" height="764" rx="76" stroke="url(#vm)" stroke-width="9"/>
+    <rect x="52" y="52" width="416" height="716" rx="58" stroke="#fff0d8" stroke-width="5"/>
+    <rect x="61" y="61" width="398" height="698" rx="51" stroke="url(#vm)" stroke-width="4"/>
+    <path d="M34 147C5 132 12 96 35 95C59 95 66 123 47 133C32 142 22 127 32 115M34 147C60 154 65 182 44 195C24 207 9 185 22 171M34 147C48 166 48 183 35 193" stroke="url(#vm)" stroke-width="5"/>
+    <path d="M486 147C515 132 508 96 485 95C461 95 454 123 473 133C488 142 498 127 488 115M486 147C460 154 455 182 476 195C496 207 511 185 498 171M486 147C472 166 472 183 485 193" stroke="url(#vm)" stroke-width="5"/>
+    <path d="M34 673C5 688 12 724 35 725C59 725 66 697 47 687C32 678 22 693 32 705M34 673C60 666 65 638 44 625C24 613 9 635 22 649M34 673C48 654 48 637 35 627" stroke="url(#vm)" stroke-width="5"/>
+    <path d="M486 673C515 688 508 724 485 725C461 725 454 697 473 687C488 678 498 693 488 705M486 673C460 666 455 638 476 625C496 613 511 635 498 649M486 673C472 654 472 637 485 627" stroke="url(#vm)" stroke-width="5"/>
+    <path d="M260 13C239 -3 221 10 229 26C237 39 253 30 260 21C267 30 283 39 291 26C299 10 281 -3 260 13Z" fill="#d58b88" stroke="#fff0d8" stroke-width="4"/>
+    <path d="M260 807C239 791 221 804 229 820C237 833 253 824 260 815C267 824 283 833 291 820C299 804 281 791 260 807Z" fill="#d58b88" stroke="#fff0d8" stroke-width="4"/>
+    <path d="M32 70C58 45 82 57 78 77C74 93 54 91 53 77C53 67 66 66 69 74M488 70C462 45 438 57 442 77C446 93 466 91 467 77C467 67 454 66 451 74" stroke="url(#vm)" stroke-width="4"/>
+    <path d="M32 750C58 775 82 763 78 743C74 727 54 729 53 743C53 753 66 754 69 746M488 750C462 775 438 763 442 743C446 727 466 729 467 743C467 753 454 754 451 746" stroke="url(#vm)" stroke-width="4"/>
+  </g>
+</svg>
