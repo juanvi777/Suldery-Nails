@@ -1,0 +1,65 @@
+/* SULDERY NAILS — ajuste limpio, luminoso y agradecido */
+.brand-panel h1 {
+  color:#fffaf4 !important;
+  text-shadow:0 1px 0 #e7c88f, 0 0 8px rgba(255,232,196,.72), 0 0 22px rgba(255,216,170,.58), 0 0 44px rgba(255,210,166,.24), 0 12px 28px rgba(25,8,18,.2) !important;
+  animation: sulderyTitleGlow 3.8s ease-in-out infinite alternate;
+}
+.brand-copy {max-width:45ch; line-height:1.78 !important;}
+.carousel-frame,.login-gallery {min-height:318px !important; box-sizing:border-box;}
+.carousel-frame img,.login-gallery img {object-fit:cover !important; padding:0 !important; margin:0 !important;}
+@keyframes sulderyTitleGlow {from {filter:drop-shadow(0 0 1px rgba(255,235,203,.22));} to {filter:drop-shadow(0 0 7px rgba(255,229,186,.55));}}
+
+/* Clienta: selector de tema siempre visible, fuera del menú desplegable */
+.client-user-menu {gap:clamp(6px,1vw,12px) !important;}
+.client-theme-toggle {flex:0 0 auto; min-height:40px; padding:8px 12px !important; border-color:rgba(194,151,99,.55) !important; background:rgba(255,251,247,.94) !important; color:#68414c !important; box-shadow:0 5px 18px rgba(79,39,52,.08); white-space:nowrap;}
+.client-theme-toggle .theme-icon {width:22px;height:22px;background:linear-gradient(135deg,#f7e5bd,#d5b078);color:#633746;}
+.client-theme-toggle .theme-label {font-size:.7rem;}
+.client-theme-toggle:focus-visible {outline:3px solid rgba(199,123,134,.4);outline-offset:3px;}
+.client-menu-grid .client-menu-theme {display:none !important;}
+
+/* Mensaje de gratitud con fotos auténticas a ambos lados, reveladas al desplazarse */
+.client-thanks-showcase {
+  display:grid; grid-template-columns:minmax(125px,.8fr) minmax(280px,1.35fr) minmax(125px,.8fr);
+  align-items:center; gap:clamp(14px,3vw,34px); margin:8px 0 40px; padding:clamp(22px,3.2vw,42px) clamp(12px,2vw,24px);
+  border:1px solid rgba(201,164,106,.42); border-radius:26px;
+  background:radial-gradient(ellipse at 50% 15%,rgba(248,224,218,.55),transparent 56%),linear-gradient(135deg,rgba(255,252,248,.94),rgba(255,247,248,.76));
+  box-shadow:0 18px 45px rgba(93,43,58,.075); overflow:hidden; position:relative; isolation:isolate;
+}
+.client-thanks-showcase:before {content:"✦";position:absolute;left:50%;top:0;transform:translateX(-50%);font-size:clamp(90px,15vw,180px);line-height:1;color:rgba(201,164,106,.075);z-index:-1;pointer-events:none;}
+.client-thanks-message {max-width:620px;margin:auto;text-align:center;padding:clamp(5px,1.8vw,20px);opacity:0;transform:translateY(18px);transition:opacity .75s ease,transform .75s ease;}
+.client-thanks-message.is-visible {opacity:1;transform:translateY(0);}
+.client-thanks-message .eyebrow {color:#a97a65;letter-spacing:.18em;font-size:.67rem;font-weight:900;}
+.client-thanks-sparkle {display:grid;place-items:center;margin:8px auto 12px;width:38px;height:38px;border-radius:50%;color:#9b6b42;background:linear-gradient(135deg,#f7e6c2,#fffaf0);box-shadow:0 0 0 5px rgba(201,164,106,.11),0 5px 18px rgba(138,93,66,.12);}
+.client-thanks-message h2 {margin:8px 0 14px;color:#613747;font:700 clamp(1.55rem,2.9vw,2.65rem)/1.12 "Playfair Display",serif;letter-spacing:-.025em;text-wrap:balance;}
+.client-thanks-message p:not(.eyebrow) {max-width:52ch;margin:9px auto;color:#79616a;font-size:clamp(.82rem,1.1vw,.96rem);line-height:1.8;}
+.client-thanks-message strong {display:block;margin-top:20px;color:#9b6b55;font:700 1.02rem "Playfair Display",serif;}
+.client-thanks-side {display:grid;align-content:center;justify-items:center;gap:clamp(12px,2vw,24px);min-width:0;}
+.client-thanks-photo {width:min(100%,220px);aspect-ratio:4/5;margin:0;padding:4px;border-radius:18px;background:linear-gradient(140deg,#fbebc9 0%,#be8e54 24%,#fff2d5 46%,#a87847 70%,#f4ddae 100%);box-shadow:0 14px 35px rgba(83,45,53,.17),inset 0 0 0 1px rgba(255,255,255,.75);opacity:0;transform:translateY(18px) scale(.97);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.8,.2,1);transition-delay:var(--reveal-delay,0ms);}
+.client-thanks-photo:nth-child(odd){transform:translateY(18px) rotate(-2.5deg) scale(.97);}
+.client-thanks-photo:nth-child(even){transform:translateY(18px) rotate(2deg) scale(.97);}
+.client-thanks-photo.is-visible {opacity:1;transform:translateY(0) rotate(0) scale(1);}
+.client-thanks-photo img {display:block;width:100%;height:100%;object-fit:cover;border-radius:14px;background:#f8ecea;}
+.dark-mode .client-theme-toggle {background:rgba(38,27,37,.96) !important;border-color:rgba(214,176,120,.6) !important;color:#f5e8e9 !important;}
+.dark-mode .client-thanks-showcase {background:radial-gradient(ellipse at 50% 10%,rgba(120,67,82,.2),transparent 58%),linear-gradient(135deg,#221821,#2b2029);border-color:rgba(201,164,106,.36);box-shadow:0 18px 45px rgba(0,0,0,.18);}
+.dark-mode .client-thanks-message h2 {color:#f5dfe1;}
+.dark-mode .client-thanks-message p:not(.eyebrow) {color:#e1cbd1;}
+.dark-mode .client-thanks-message strong {color:#e8c4a7;}
+.dark-mode .client-thanks-photo {box-shadow:0 15px 35px rgba(0,0,0,.35),inset 0 0 0 1px rgba(255,255,255,.18);}
+@media(max-width:800px) {
+  .client-thanks-showcase {grid-template-columns:minmax(70px,.48fr) minmax(0,2fr) minmax(70px,.48fr);gap:9px;padding:22px 10px;border-radius:20px;}
+  .client-thanks-side {gap:10px;} .client-thanks-photo {width:100%;padding:3px;border-radius:13px;} .client-thanks-photo img {border-radius:10px;}
+  .client-thanks-message {padding:4px;} .client-thanks-message h2 {font-size:clamp(1.35rem,4.5vw,2rem);} .client-thanks-message p:not(.eyebrow) {font-size:.76rem;line-height:1.65;}
+}
+@media(max-width:520px) {
+  .client-user-menu {gap:6px !important;} .client-user-menu>span {display:none;}
+  .client-theme-toggle {min-width:42px;min-height:42px;padding:8px !important;justify-content:center;border-radius:14px;}
+  .client-theme-toggle .theme-label {display:none;} .client-theme-toggle .theme-icon {margin:0;}
+  .client-thanks-showcase {grid-template-columns:minmax(48px,.55fr) minmax(0,2.5fr) minmax(48px,.55fr);gap:6px;padding:18px 7px;margin-bottom:28px;}
+  .client-thanks-side {gap:8px;} .client-thanks-photo {padding:2px;border-radius:10px;} .client-thanks-photo img {border-radius:8px;}
+  .client-thanks-message .eyebrow {font-size:.54rem;letter-spacing:.09em;} .client-thanks-sparkle {width:28px;height:28px;margin:4px auto 9px;}
+  .client-thanks-message h2 {font-size:clamp(1.08rem,4.4vw,1.4rem);line-height:1.15;margin:6px 0 10px;}
+  .client-thanks-message p:not(.eyebrow) {font-size:.68rem;line-height:1.5;margin:6px auto;} .client-thanks-message strong {font-size:.77rem;margin-top:10px;}
+}
+@media(prefers-reduced-motion:reduce) {
+  .brand-panel h1 {animation:none;} .client-thanks-message,.client-thanks-photo {transition:none;opacity:1;transform:none;}
+}

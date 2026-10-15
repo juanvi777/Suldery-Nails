@@ -559,11 +559,61 @@ function renderClientPhotoGrid(gallery, photos) {
   });
 }
 
+function renderThanksSidePhotos(container, photos) {
+  if (!container) return;
+  container.innerHTML = '';
+  photos.slice(0, 3).forEach((photo, index) => {
+    const figure = document.createElement('figure');
+    figure.className = 'client-thanks-photo';
+    figure.setAttribute('data-client-reveal', '');
+    figure.style.setProperty('--reveal-delay', `${index * 110}ms`);
+    const image = document.createElement('img');
+    image.src = apiAssetUrl(photo.image_url);
+    image.alt = photo.title || 'Diseño de uñas de Suldery Nails';
+    image.loading = 'lazy';
+    image.decoding = 'async';
+    figure.appendChild(image);
+    container.appendChild(figure);
+  });
+}
+
+function initClientScrollReveal() {
+  const items = document.querySelectorAll('[data-client-reveal]:not([data-reveal-ready])');
+  if (!items.length) return;
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    items.forEach(item => { item.classList.add('is-visible'); item.setAttribute('data-reveal-ready', ''); });
+    return;
+  }
+  if (!('IntersectionObserver' in window)) {
+    items.forEach(item => { item.classList.add('is-visible'); item.setAttribute('data-reveal-ready', ''); });
+    return;
+  }
+  if (!window.sulderyRevealObserver) {
+    window.sulderyRevealObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          window.sulderyRevealObserver.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.14, rootMargin: '0px 0px -32px 0px' });
+  }
+  items.forEach(item => {
+    item.setAttribute('data-reveal-ready', '');
+    window.sulderyRevealObserver.observe(item);
+  });
+}
+
 async function loadGallery() {
   const data = await apiFetch('/portfolio?visibility=client');
   const photos = Array.isArray(data.photos) ? data.photos : [];
   renderClientPhotoGrid($('clientGallery'), photos);
+  const leftPhotos = photos.filter((_, index) => index % 2 === 0).slice(0, 3);
+  const rightPhotos = photos.filter((_, index) => index % 2 === 1).slice(0, 3);
+  renderThanksSidePhotos($('clientThanksLeft'), leftPhotos.length ? leftPhotos : photos.slice(0, 3));
+  renderThanksSidePhotos($('clientThanksRight'), rightPhotos.length ? rightPhotos : photos.slice(0, 3).slice().reverse());
   if ($('clientHeroGallery')) await buildCarousel($('clientHeroGallery'), photos.slice(0, Math.min(6, photos.length)), true);
+  initClientScrollReveal();
 }
 
 
@@ -572,6 +622,7 @@ function escapeHtml(text) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  initClientScrollReveal();
   const picker = document.getElementById('reviewStarPicker');
   if (picker && !picker.children.length) {
     picker.innerHTML = [1,2,3,4,5].map(n => `<button type="button" data-review-stars="${n}" aria-label="${n} estrellas">★</button>`).join('');

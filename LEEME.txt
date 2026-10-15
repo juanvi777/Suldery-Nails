@@ -21,3 +21,10 @@ IMPORTANTE:
 - No repara por sí solo un backend/API de reseñas caído; corrige el error de función que aparece en la captura.
 - El estilo oscuro contempla varias convenciones de tema. Si el código usa otra convención, habrá que adaptar el selector a la implementación real.
 - Lahia IA ya tiene lógica local en duena.js; este parche no convierte esa lógica en un modelo generativo autónomo ni conecta EMPRE.IA.
+
+## Ajuste visual — brillo y agradecimiento (15/10/2026)
+- Selector de modo claro/oscuro visible en la cabecera del área de clientas, fuera del menú.
+- Título principal “SULDERY NAILS” con resplandor suave y mensaje “Donde tus uñas relucen”.
+- Galería de diseños reales a ambos lados de un mensaje de agradecimiento de Suldery, con aparición progresiva al desplazarse.
+- Marco de galería ajustado a 318 px de altura mínima (2 px menos que 320 px).
+- CSS final enlazado de último en la raíz, `public` y `docs`, y caché PWA renovada.

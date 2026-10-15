@@ -19,16 +19,17 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261015-wow1">
+  <link rel="stylesheet" href="style.css?v=20261015-suldery-brilla">
   <link rel="stylesheet" href="suldery-wow.css?v=20261015-wow1">
   <link rel="stylesheet" href="suldery-luxe.css?v=20261015-luxe01">
   <link rel="stylesheet" href="suldery-correccion-visual.css?v=20261015-fix02">
+  <link rel="stylesheet" href="suldery-final-touch.css?v=20261015-2">
 </head>
 <body class="dashboard-page">
   <main class="dashboard-shell">
     <header class="dashboard-header glass-card">
       <a class="logo" href="cliente.html"><img src="assets/suldery-nails-logo.jpeg" alt="Suldery Nails"><span>Suldery <em>Nails</em></span></a>
-      <div class="user-menu client-user-menu"><span id="welcomeName"></span><button id="clientMenuButton" class="owner-menu-toggle client-menu-toggle" type="button" aria-expanded="false" aria-controls="clientMenuDrawer">☰ <span>Menú</span></button></div>
+      <div class="user-menu client-user-menu"><span id="welcomeName"></span><button type="button" data-theme-toggle class="theme-toggle client-theme-toggle" aria-label="Activar modo oscuro" title="Cambiar modo claro u oscuro"><span class="theme-icon" aria-hidden="true">☾</span><span class="theme-label">Modo oscuro</span></button><button id="clientMenuButton" class="owner-menu-toggle client-menu-toggle" type="button" aria-expanded="false" aria-controls="clientMenuDrawer">☰ <span>Menú</span></button></div>
     </header>
 
     <aside id="clientMenuDrawer" class="owner-menu-drawer client-menu-drawer" hidden>
@@ -40,7 +41,7 @@
         <button type="button" data-client-tool="reviews"><span>04</span><strong>Ver / publicar reseña</strong></button>
         <button type="button" data-client-tool="notifications"><span>05</span><strong>Avisos</strong></button>
         <button type="button" id="installAppButton" class="install-app-menu-button" hidden><span>06</span><strong>Instalar Suldery Nails</strong></button>
-        <button type="button" data-theme-toggle class="theme-toggle client-menu-theme"><span class="theme-icon">◐</span><span class="theme-label">Modo oscuro</span></button>
+        
         <button type="button" data-action="logout" class="client-menu-logout"><span>07</span><strong>Cerrar sesión</strong></button>
       </div>
       <p class="client-menu-note">El tutorial funciona con Android y iPhone. En iPhone, usa Safari para instalar la app.</p>
@@ -50,12 +51,26 @@
       <div>
         <div id="clientDailyWelcome" class="client-daily-welcome"><span id="clientTodayLabel">Hoy</span><strong id="clientMotivation">Un momento para ti también cuenta. ✨</strong></div>
         <div class="brand-pill soft"> SULDERY NAILS</div>
-        <h1>Tu próximo momento de<br><em>brillo</em> comienza aquí.</h1>
-        <p>Conoce nuestros diseños y, cuando estés lista, presiona el botón para comenzar tu reserva paso a paso.</p>
+        <h1>Donde tus uñas<br><em>relucen.</em></h1>
+        <p>Un momento para ti, diseños que reflejan tu esencia y una atención cuidada con mucho cariño.</p>
         <button id="openBookingButton" class="primary-button hero-cta" type="button">Agendar cita <span>→</span></button>
               </div>
       <div id="clientHeroGallery" class="floating-logo-card"><img src="assets/suldery-nails-logo.jpeg" alt="Suldery Nails"><span>Uñas hechas con amor ♡</span></div>
     </section>
+
+    <section class="client-thanks-showcase" id="clientThanksShowcase" aria-labelledby="clientThanksTitle">
+      <div class="client-thanks-side client-thanks-side-left" id="clientThanksLeft" aria-label="Diseños de uñas seleccionados"></div>
+      <div class="client-thanks-message" data-client-reveal>
+        <p class="eyebrow">UN MENSAJE DE SULDERY</p>
+        <span class="client-thanks-sparkle" aria-hidden="true">✦</span>
+        <h2 id="clientThanksTitle">Gracias por dejarme ser parte de tu brillo</h2>
+        <p>Cada vez que me eliges, me regalas la oportunidad de cuidar un pequeño detalle que puede hacerte sonreír todo el día.</p>
+        <p>Gracias por confiar en mis manos, por compartir tu estilo conmigo y por hacer crecer este sueño con cada visita. Este espacio también es tuyo. ♡</p>
+        <strong>Con todo mi cariño, Suldery</strong>
+      </div>
+      <div class="client-thanks-side client-thanks-side-right" id="clientThanksRight" aria-label="Más diseños de uñas"></div>
+    </section>
+
 
     <section id="agenda" class="booking-layout hidden-booking">
       <section class="booking-card glass-card">
@@ -177,8 +192,8 @@
     </div>
 
 
-  <script src="auth.js?v=20261008-v56.0"></script>
-  <script src="cliente.js?v=20261008-v56.0"></script>
+  <script src="auth.js?v=20261015-suldery-brilla"></script>
+  <script src="cliente.js?v=20261015-suldery-brilla"></script>
   <script src="suldery-wow.js?v=20261015-wow1" defer></script>
   <script src="suldery-luxe.js?v=20261015-luxe01"></script>
 </body>
