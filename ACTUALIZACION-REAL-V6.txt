@@ -1,0 +1,5 @@
+SULDERY NAILS — ACTUALIZACIÓN VISUAL V6
+
+Cambios: hoja CSS de corrección global cargada al final en las páginas públicas y docs existentes; mejora de contraste de textos y superficies en temas claro/oscuro; calendario de clienta y dueña con estados legibles y selección destacada; ajustes responsive para móvil; integración decorativa del SVG de la mascota en cabeceras sin reemplazar las fotos de catálogo.
+
+Se conservaron los archivos de aplicación y funciones originales. No se modificó la configuración de base de datos ni se incluyó .git. Tras instalar, probar inicio de sesión, calendario y citas en entorno local antes de desplegar.
