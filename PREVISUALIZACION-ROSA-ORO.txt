@@ -1,0 +1,15 @@
+SULDERY NAILS — PREVISUALIZACIÓN ROSA ORO
+
+Esta entrega añade una capa visual no destructiva: marcos rectangulares rosa oro para galerías y catálogo, fondo elegante de catálogo y pantalla de carga. No modifica ni reexporta las fotografías originales ni elimina el backend, autenticación, agenda, reseñas o catálogo.
+
+IMPORTANTE: se incluyen la mascota SVG y los marcos rosa oro en las carpetas raíz, public y docs. La pantalla de carga intenta mostrar la mascota y tiene el logo como respaldo.
+
+PRUEBA LOCAL (Windows):
+1. Haz una copia de tu carpeta actual antes de reemplazar nada.
+2. Descomprime el ZIP en una carpeta nueva, no encima del proyecto que está publicado.
+3. Abre PowerShell en la carpeta extraída.
+4. Ejecuta: npm install
+5. Ejecuta: npm start
+6. Abre la dirección local que indique la terminal.
+
+No subas estos cambios a GitHub/Railway hasta comprobar inicio de sesión, agenda, catálogo, reseñas y panel de dueña. No se incluyen secretos del archivo .env.

@@ -514,7 +514,7 @@ function renderScheduledAppointments() {
     const item = document.createElement('article');
     item.className = 'admin-item';
     const source = appt.user_id ? 'Clienta registrada' : 'Cita agendada manualmente';
-    item.innerHTML = `<div class="admin-item-main"><strong>${escapeHtml(appt.client_name)}</strong><p>${escapeHtml(appt.service)} Â· ${formatDate(appt.appointment_date)} Â· ${safeFormatTime12(appt.appointment_time)} Â· ${DURATION_LABELS[appt.service] || `${Number(appt.duration_minutes)||60} min`}</p><small>${escapeHtml(source)}${appt.client_email ? ` Â· ${appt.client_email}` : ''}${appt.client_phone ? ` Â· Tel: ${appt.client_phone}` : ''}</small></div><div class="admin-actions"><span class="status accepted">Confirmada</span><button type="button" class="small-button" data-owner-edit-appointment="${appt.id}" data-date="${String(appt.appointment_date).slice(0,10)}" data-time="${String(appt.appointment_time).slice(0,5)}">Cambiar dÃ­a/hora</button></div>`;
+    item.innerHTML = `<div class="admin-item-main"><strong>${escapeHtml(appt.client_name)}</strong><p>${escapeHtml(appt.service)} · ${formatDate(appt.appointment_date)} · ${safeFormatTime12(appt.appointment_time)} · ${DURATION_LABELS[appt.service] || `${Number(appt.duration_minutes)||60} min`}</p><small>${escapeHtml(source)}${appt.client_email ? ` · ${escapeHtml(appt.client_email)}` : ''}${appt.client_phone ? ` · Tel: ${escapeHtml(appt.client_phone)}` : ''}</small></div><span class="status accepted">Confirmada</span>`;
     list.appendChild(item);
   });
 }

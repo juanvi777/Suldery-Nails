@@ -1,0 +1,29 @@
+/* SULDERY NAILS — MARCOS ROSA ORO + EXPERIENCIA DE CARGA (capa visual no destructiva) */
+:root{--sn-rose-gold:#d9a18f;--sn-rose-light:#ffe1d5;--sn-copper:#9b5b50;--sn-wine:#3a101d;--sn-blush:#fff1f3}
+/* Marcos horizontales/rectangulares para galerías, catálogo y fotos de inicio. La imagen original no se edita. */
+.carousel-frame .carousel-stage,.login-gallery .carousel-stage,.photo-gallery-grid .photo-gallery-card,.catalog-client-grid .catalog-photo-card,.catalog-client-grid .catalog-card,.client-thanks-showcase img,.review-card-photo{
+  border:2px solid var(--sn-rose-gold)!important;border-radius:15px!important;box-shadow:0 0 0 3px rgba(255,224,211,.62),inset 0 0 0 1px rgba(255,246,235,.8),0 9px 25px rgba(76,18,35,.24)!important;overflow:hidden!important;background:linear-gradient(135deg,#fff0e7,#b97970 22%,#f9d9c8 48%,#a96860 68%,#ffe8d9)!important;padding:4px!important;position:relative
+}
+.carousel-image,.carousel-stage img,.photo-gallery-grid img,.catalog-client-grid img,.review-card-photo{display:block!important;width:100%!important;height:100%!important;object-fit:cover!important;object-position:center!important;border-radius:9px!important;padding:0!important;margin:0!important;background:#f5d5cf!important}
+.photo-gallery-grid .photo-gallery-card,.catalog-client-grid .catalog-photo-card,.catalog-client-grid .catalog-card{padding:5px!important}
+.photo-gallery-grid .photo-gallery-card img,.catalog-client-grid .catalog-photo-card img,.catalog-client-grid .catalog-card img{aspect-ratio:4/3;min-height:0;max-height:none}
+/* Catálogo: fondo de exposición elegante; no aplica filtros ni transforma píxeles de las fotografías. */
+.catalog-page{background:radial-gradient(ellipse at 12% 0%,rgba(255,225,218,.92),transparent 42%),radial-gradient(ellipse at 92% 30%,rgba(180,91,104,.15),transparent 40%),linear-gradient(145deg,#fff8f5 0%,#f7e4e3 45%,#fff9f6 100%)!important}
+.catalog-client-hero,.catalog-client-viewer{background:linear-gradient(145deg,rgba(255,250,247,.96),rgba(255,231,229,.9))!important;border:1px solid rgba(183,119,105,.42)!important;box-shadow:0 18px 50px rgba(91,36,49,.12)!important}
+.catalog-client-grid{gap:clamp(14px,2vw,24px)!important}
+.catalog-client-grid>*{transition:transform .25s ease,box-shadow .25s ease}
+.catalog-client-grid>*:hover{transform:translateY(-3px);box-shadow:0 15px 32px rgba(94,34,49,.19)!important}
+/* Capa de carga: solo se muestra en navegación/cambios de página y se retira al terminar la carga. */
+#sn-loading-screen{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:22px;background:radial-gradient(circle at 50% 35%,rgba(112,31,53,.35),transparent 40%),linear-gradient(145deg,#220912,#4b1428 54%,#19070f);color:#fff1e7;opacity:1;visibility:visible;transition:opacity .45s ease,visibility .45s ease}
+#sn-loading-screen.sn-loading-hidden{opacity:0;visibility:hidden;pointer-events:none}
+.sn-loading-card{width:min(420px,100%);text-align:center;padding:28px 22px 24px;border:1px solid rgba(255,216,196,.8);border-radius:28px;background:linear-gradient(145deg,rgba(105,43,58,.85),rgba(39,9,22,.95));box-shadow:0 0 0 5px rgba(227,170,151,.12),0 20px 60px rgba(0,0,0,.35),inset 0 0 28px rgba(255,195,176,.08)}
+.sn-loading-mascot{width:clamp(118px,35vw,180px);height:clamp(118px,35vw,180px);margin:0 auto 12px;display:grid;place-items:center;border-radius:50%;border:3px solid #e6b49e;background:radial-gradient(circle,#6b2639,#260b17);box-shadow:0 0 0 6px rgba(239,190,169,.14),0 0 28px rgba(255,160,180,.25);overflow:hidden}
+.sn-loading-mascot img{width:100%;height:100%;object-fit:contain;animation:sn-wave 1.3s ease-in-out infinite alternate;transform-origin:bottom center}
+.sn-loading-crown{font-size:22px;color:#ffe4b4;text-shadow:0 0 15px #f5b5a7}
+.sn-loading-title{font-family:'Playfair Display',Georgia,serif;font-size:clamp(28px,7vw,40px);line-height:1.08;margin:8px 0;color:#ffe7cf;text-shadow:0 0 18px rgba(255,188,158,.48)}
+.sn-loading-copy{margin:8px 0 18px;font-size:17px;color:#ffd7d8;font-family:'Playfair Display',Georgia,serif;font-style:italic}
+.sn-loading-track{height:9px;border-radius:99px;background:#2b101a;border:1px solid #c98781;overflow:hidden;margin:0 auto 10px;max-width:270px}
+.sn-loading-progress{height:100%;width:38%;border-radius:99px;background:linear-gradient(90deg,#a64a62,#ffd8c3,#f47da3);box-shadow:0 0 15px #f7a3ad;animation:sn-progress 1.4s ease-in-out infinite alternate}
+.sn-loading-caption{font-size:12px;letter-spacing:.04em;color:#f8d9d4}
+@keyframes sn-wave{from{transform:rotate(-3deg) translateY(1px)}to{transform:rotate(3deg) translateY(-3px)}}@keyframes sn-progress{from{width:24%}to{width:88%}}
+@media(prefers-reduced-motion:reduce){#sn-loading-screen,.sn-loading-mascot img,.sn-loading-progress{animation:none!important;transition:none!important}}

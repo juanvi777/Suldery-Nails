@@ -1,34 +1,30 @@
-SULDERY NAILS — REDISEÑO FINAL
-=============================
+SULDERY NAILS — CORRECCIÓN DE CONTRASTE, FOTOS, MENÚ Y RESEÑAS
 
-Este paquete instala cambios sobre el proyecto existente; no es un ZIP de la aplicación completa.
+Este parche corrige los defectos que se ven en las capturas:
+- Texto pálido casi invisible en los bloques de presentación.
+- Menús flotantes de clienta/dueña con contraste insuficiente.
+- Fotografías del carrusel con espacio vacío inferior: la imagen ocupa todo el marco.
+- Estilos para modo oscuro en paneles y menú (depende de la clase/atributo que active la app).
+- Error JavaScript "Can't find variable: escapeAttribute" en cliente.js: añade el helper si no existe.
+- Incluye copia de seguridad automática de los archivos que toca.
 
-INCLUYE
-- Inicio de sesión: título SULDERY NAILS centrado, luminoso, legible y con fondo vino/rosa.
-- Mascota vectorial propia: brazo animado en saludo y guiño periódico de un ojo.
-- Pantalla de carga: logo de Suldery dentro de marco oro rosado y el mensaje “Princesa, muy pronto nos vemos ♡”. Fondo decorado, no negro.
-- Marcos SVG ornamentales horizontales y verticales de oro rosado.
-- Sección de historia larga en tres capítulos, que aparece conforme la clienta baja la página. Utiliza fotos reales de uñas visibles para clientas; no inventa fotos personales de la dueña.
-- Elimina de cliente.html la sección duplicada “Diseños elegidos para ti”; el catálogo real y su acceso desde el menú se conservan.
-- Las reseñas publicadas quedan a la vista; el formulario se oculta detrás del botón “♡ Dejar reseña”.
-- Reprogramación de día/hora desde la lista de citas confirmadas de la dueña. El servidor valida fecha futura, horario laboral, días bloqueados y conflictos de otras citas.
-- Conserva los contadores existentes del panel de la dueña: clientas aceptadas y citas confirmadas futuras.
+INSTALACIÓN:
+1. Extrae el ZIP dentro de la carpeta raíz del proyecto, junto a public y package.json.
+2. Ejecuta PowerShell desde esa carpeta:
+   powershell -ExecutionPolicy Bypass -File .\scripts\Aplicar-Correccion-Visual.ps1
+3. Abre la app localmente y comprueba login, menú, fotos y reseñas.
+4. Si todo está bien, despliega con:
+   railway up
 
-CÓMO INSTALAR
-1. Extrae el ZIP.
-2. Abre PowerShell en la carpeta extraída.
-3. Ejecuta:
-   Set-ExecutionPolicy -Scope Process Bypass
-   .\APLICAR-REDISENO.ps1
-4. Pega la ruta real de la carpeta raíz de Suldery Nails, la que contiene server.js.
-5. El instalador crea una copia de seguridad y luego aplica los cambios a public/ y, si existe, docs/.
-6. Comprueba en local el inicio de sesión, modo claro/oscuro, galería, reseñas y reprogramación de una cita de prueba.
-7. Publica los cambios del servidor y del frontend para habilitar la nueva ruta de reprogramación en Railway.
+IMPORTANTE:
+- El parche no borra ni sustituye la lógica de citas, usuarios, catálogo o panel.
+- No repara por sí solo un backend/API de reseñas caído; corrige el error de función que aparece en la captura.
+- El estilo oscuro contempla varias convenciones de tema. Si el código usa otra convención, habrá que adaptar el selector a la implementación real.
+- Lahia IA ya tiene lógica local en duena.js; este parche no convierte esa lógica en un modelo generativo autónomo ni conecta EMPRE.IA.
 
-IMPORTANTE
-- No uses el ZIP anterior; este reemplaza el paquete visual previo.
-- No ejecutes git push --force.
-- La reprogramación exige que el nuevo horario quepa en los horarios de atención establecidos y no se cruce con otras citas pendientes/confirmadas.
-- Después de mover una cita, la dueña debe avisar a la clienta del nuevo horario; este paquete no inventa una notificación de reprogramación.
-- No modifica contraseñas, credenciales ni registros directamente.
-- No subas .env ni secretos a GitHub.
+## Ajuste visual — brillo y agradecimiento (15/10/2026)
+- Selector de modo claro/oscuro visible en la cabecera del área de clientas, fuera del menú.
+- Título principal “SULDERY NAILS” con resplandor suave y mensaje “Donde tus uñas relucen”.
+- Galería de diseños reales a ambos lados de un mensaje de agradecimiento de Suldery, con aparición progresiva al desplazarse.
+- Marco de galería ajustado a 318 px de altura mínima (2 px menos que 320 px).
+- CSS final enlazado de último en la raíz, `public` y `docs`, y caché PWA renovada.
