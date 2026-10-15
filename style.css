@@ -894,3 +894,50 @@ body.dark-mode .tutorial-pdf-head h3 { color:#fff3f7; }
 .tutorial-pdf-fallback a{font-weight:800;color:var(--rose-dark);text-decoration:none}
 @media(max-width:640px){.tutorial-pdf-frame{height:70vh;min-height:460px}.tutorial-pdf-head h3{font-size:1.15rem}}
 .dark-mode .tutorial-pdf-frame{background:#fff;border-color:rgba(255,105,167,.22)}
+
+
+/* SULDERY NAILS — REDISEÑO VISUAL REAL v2026.10 */
+:root{--sn-rose:#c77b86;--sn-rose-deep:#8d4358;--sn-gold:#c9a46a;--sn-gold-light:#f3dfb5;--sn-ink:#261820;--sn-cream:#fffaf7;--sn-shadow:0 24px 70px rgba(93,43,58,.15)}
+html{scroll-behavior:smooth}body{font-family:'DM Sans',sans-serif;color:var(--sn-ink)}
+body.auth-page{background:radial-gradient(ellipse at 15% 15%,rgba(232,188,192,.36),transparent 42%),radial-gradient(ellipse at 90% 90%,rgba(214,185,132,.22),transparent 42%),#fffaf8!important;min-height:100vh}
+.auth-shell{width:min(1500px,100%);margin:0 auto;gap:clamp(20px,4vw,64px);padding:clamp(16px,3vw,44px)!important;align-items:stretch}
+.brand-panel{position:relative;overflow:hidden;border-radius:32px!important;background:linear-gradient(145deg,#351b2a 0%,#6b3447 48%,#9d6570 100%)!important;color:#fff!important;box-shadow:var(--sn-shadow);isolation:isolate}
+.brand-panel:before{content:"";position:absolute;inset:14px;border:1px solid rgba(230,201,151,.7);border-radius:24px;pointer-events:none;z-index:-1}
+.brand-panel:after{content:"✦";position:absolute;right:8%;top:5%;font-size:clamp(90px,15vw,210px);line-height:1;color:rgba(244,220,179,.12);pointer-events:none;z-index:-1}
+.brand-panel-inner{padding:clamp(28px,5vw,68px)!important;position:relative;z-index:1}
+.brand-panel h1{font-family:'Playfair Display',serif!important;font-size:clamp(2.5rem,5vw,5.5rem)!important;line-height:1.02!important;letter-spacing:.075em!important;text-transform:uppercase;color:#fff7f1!important;text-shadow:0 2px 0 #d5ad75,0 0 18px rgba(255,226,194,.4),0 12px 35px rgba(0,0,0,.24)!important;margin:0 0 22px!important}
+.brand-panel h1 em{font-style:normal!important;color:#f1d8ad!important;text-shadow:0 0 18px rgba(255,224,176,.42)!important}
+.brand-copy{max-width:44ch;font-size:clamp(1rem,1.4vw,1.18rem)!important;line-height:1.8!important;color:#fff0eb!important}
+.experience-cloud{margin-top:clamp(22px,4vw,42px)!important;padding:22px 24px!important;border:1px solid rgba(231,199,146,.68)!important;border-radius:20px!important;background:linear-gradient(135deg,rgba(255,255,255,.13),rgba(255,255,255,.045))!important;box-shadow:inset 0 1px rgba(255,255,255,.14),0 12px 34px rgba(0,0,0,.12)!important;backdrop-filter:blur(12px)}
+.experience-cloud strong{color:#f7dfb5!important;font-size:1.04rem;letter-spacing:.025em}.experience-cloud p{color:#fff7f4!important;line-height:1.8!important;margin-top:8px!important}
+.brand-features{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px!important;margin:18px 0!important}
+.feature-chip{display:flex!important;align-items:center;gap:12px!important;padding:15px!important;border:1px solid rgba(241,216,173,.45)!important;border-radius:16px!important;background:rgba(255,255,255,.09)!important;color:#fff!important;box-shadow:0 10px 24px rgba(0,0,0,.08)!important}
+.feature-chip img{width:42px!important;height:42px!important;object-fit:contain;filter:drop-shadow(0 3px 8px rgba(0,0,0,.16))}.feature-chip b{color:#f5dcb2!important}.feature-chip small{display:block;color:#fff0eb!important;line-height:1.5;margin-top:4px}
+.login-gallery-wrap{margin-top:26px!important}.login-gallery-wrap .eyebrow{color:#f4d9ad!important;letter-spacing:.22em!important}
+.carousel-frame,.login-gallery{border:1px solid #d5b078!important;border-radius:20px!important;overflow:hidden!important;background:#3b202d!important;box-shadow:0 12px 35px rgba(0,0,0,.22)!important}
+.login-gallery img,.carousel-frame img{display:block;width:100%;height:100%;object-fit:cover!important;background:transparent!important;padding:0!important;border:0!important;outline:1px solid rgba(226,190,123,.7);outline-offset:-5px}
+.form-panel{display:flex!important;align-items:center!important;justify-content:center!important;background:transparent!important;padding:0!important}
+.form-card{width:min(100%,520px)!important;padding:clamp(26px,4vw,52px)!important;border:1px solid rgba(190,135,113,.25)!important;border-radius:30px!important;background:rgba(255,255,255,.86)!important;box-shadow:0 24px 80px rgba(92,45,57,.14),inset 0 1px #fff!important;backdrop-filter:blur(18px)}
+.logo-frame{width:110px!important;height:110px!important;margin:0 auto 24px!important;padding:5px!important;border-radius:50%!important;background:linear-gradient(135deg,#f5e2b9,#b9874f,#f7e9c9,#b9874f)!important;box-shadow:0 7px 25px rgba(164,111,70,.25)!important}
+.logo-frame img{width:100%;height:100%;object-fit:cover;border-radius:50%!important}
+.form-card>.eyebrow,.form-card .eyebrow{color:#a86b72!important;letter-spacing:.23em!important;font-weight:800!important}
+.form-card h2{font-family:'Playfair Display',serif!important;color:#4c2937!important;font-size:clamp(1.8rem,3vw,2.55rem)!important;line-height:1.15!important}
+.form-intro{color:#755e65!important;line-height:1.7!important}
+.form-card label{display:block;color:#513640!important;font-weight:700!important;margin:18px 0 8px!important}
+.form-card input{width:100%;min-height:50px;padding:13px 15px!important;border:1px solid #e4d1d0!important;border-radius:13px!important;background:#fffdfc!important;color:#35212a!important;box-shadow:inset 0 1px 2px rgba(70,32,45,.03)!important;transition:border-color .2s,box-shadow .2s}
+.form-card input:focus{outline:none!important;border-color:#bd8189!important;box-shadow:0 0 0 4px rgba(199,123,134,.14)!important}
+.primary-button{border:1px solid #d4b078!important;border-radius:14px!important;background:linear-gradient(115deg,#6e3449,#a65d70 58%,#c38d7e)!important;color:white!important;font-weight:800!important;letter-spacing:.02em;box-shadow:0 10px 24px rgba(111,51,72,.23)!important;transition:transform .2s,box-shadow .2s!important}
+.primary-button:hover{transform:translateY(-2px);box-shadow:0 14px 30px rgba(111,51,72,.3)!important}
+.link-button{color:#9a5265!important;font-weight:800!important}.switch-block{color:#775e66!important}
+.form-message{color:#9d2f45!important}
+/* Reveal suave, con fallback para usuarios que reducen movimiento */
+@media(prefers-reduced-motion:no-preference){.brand-panel-inner>*{animation:snRise .7s both}.brand-panel-inner>*:nth-child(2){animation-delay:.08s}.brand-panel-inner>*:nth-child(3){animation-delay:.16s}.brand-panel-inner>*:nth-child(4){animation-delay:.24s}.brand-panel-inner>*:nth-child(5){animation-delay:.32s}.form-card{animation:snRise .7s .12s both}@keyframes snRise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}}
+/* Modo oscuro coherente para las pantallas que ya tengan el atributo/clase */
+html[data-theme="dark"] body.auth-page,body.auth-page.dark-mode{background:radial-gradient(ellipse at 10% 10%,rgba(113,57,77,.24),transparent 40%),#171117!important;color:#f7e9eb!important}
+html[data-theme="dark"] .form-card,body.auth-page.dark-mode .form-card{background:#261c25!important;border-color:#62404b!important;color:#f8e9eb!important}
+html[data-theme="dark"] .form-card h2,body.auth-page.dark-mode .form-card h2{color:#f7e5e5!important}
+html[data-theme="dark"] .form-card label,body.auth-page.dark-mode .form-card label{color:#f2dfe3!important}
+html[data-theme="dark"] .form-card input,body.auth-page.dark-mode .form-card input{background:#1c151c!important;color:#fff!important;border-color:#60424d!important}
+html[data-theme="dark"] .form-intro,body.auth-page.dark-mode .form-intro,html[data-theme="dark"] .switch-block,body.auth-page.dark-mode .switch-block{color:#e1cbd1!important}
+@media(max-width:900px){.auth-shell{grid-template-columns:1fr!important;padding:14px!important;gap:18px!important}.brand-panel{border-radius:24px!important}.brand-panel-inner{padding:30px 26px!important}.brand-panel h1{font-size:clamp(2.3rem,10vw,4rem)!important}.form-card{border-radius:24px!important}.brand-features{grid-template-columns:1fr!important}.login-gallery-wrap{margin-bottom:8px}}
+@media(max-width:420px){.brand-panel-inner{padding:28px 20px!important}.experience-cloud{padding:18px!important}.form-card{padding:24px 20px!important}.logo-frame{width:88px!important;height:88px!important}}
