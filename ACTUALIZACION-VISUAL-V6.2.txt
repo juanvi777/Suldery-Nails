@@ -1,0 +1,15 @@
+SULDERY NAILS — ACTUALIZACIÓN VISUAL V6.2
+
+Cambios incluidos:
+- Integración de la muñeca PNG transparente proporcionada por la propietaria del proyecto.
+- Nueva pantalla de carga con la muñeca, el nombre Suldery Nails y una barra animada.
+- Portada de clientas rediseñada para acercarse a las referencias: marca destacada, tarjetas de experiencia/agenda/atención y botón Agendar cita.
+- Galería horizontal sin la sección titulada “Diseños elegidos para ti”.
+- Ajustes de modo claro y oscuro, contraste del calendario, reseñas y adaptación móvil.
+- Los cambios se replicaron en la raíz del proyecto, public/ y docs/.
+
+SEGURIDAD
+Por seguridad, el ZIP distribuible no incluye el archivo .env con credenciales privadas. Si necesitas ejecutar el backend localmente, conserva tu .env local y no lo publiques en GitHub.
+
+VERIFICACIÓN
+Se comprobarán sintaxis de JavaScript, existencia de referencias y la integridad del ZIP. Ejecuta pruebas funcionales de login, reservas, reseñas y modo claro/oscuro antes de desplegar.

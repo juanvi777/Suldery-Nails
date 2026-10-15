@@ -17,8 +17,10 @@
 #sn-loading-screen{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:22px;background:radial-gradient(circle at 50% 35%,rgba(112,31,53,.35),transparent 40%),linear-gradient(145deg,#220912,#4b1428 54%,#19070f);color:#fff1e7;opacity:1;visibility:visible;transition:opacity .45s ease,visibility .45s ease}
 #sn-loading-screen.sn-loading-hidden{opacity:0;visibility:hidden;pointer-events:none}
 .sn-loading-card{width:min(420px,100%);text-align:center;padding:28px 22px 24px;border:1px solid rgba(255,216,196,.8);border-radius:28px;background:linear-gradient(145deg,rgba(105,43,58,.85),rgba(39,9,22,.95));box-shadow:0 0 0 5px rgba(227,170,151,.12),0 20px 60px rgba(0,0,0,.35),inset 0 0 28px rgba(255,195,176,.08)}
-.sn-loading-mascot{width:clamp(118px,35vw,180px);height:clamp(118px,35vw,180px);margin:0 auto 12px;display:grid;place-items:center;border-radius:50%;border:3px solid #e6b49e;background:radial-gradient(circle,#6b2639,#260b17);box-shadow:0 0 0 6px rgba(239,190,169,.14),0 0 28px rgba(255,160,180,.25);overflow:hidden}
-.sn-loading-mascot img{width:100%;height:100%;object-fit:contain;animation:sn-wave 1.3s ease-in-out infinite alternate;transform-origin:bottom center}
+.sn-loading-mascot{width:clamp(190px,48vw,258px);height:min(42vh,360px);min-height:260px;margin:0 auto 6px;display:grid;place-items:center;border:0;border-radius:0;background:transparent;box-shadow:none;overflow:visible}
+.sn-loading-mascot img{display:block;width:100%;height:100%;object-fit:contain;animation:sn-mascot-float 2.4s ease-in-out infinite alternate;transform-origin:bottom center;filter:drop-shadow(0 8px 16px rgba(13,2,8,.24))}
+@keyframes sn-mascot-float{from{transform:translateY(2px)}to{transform:translateY(-4px)}}
+@media(max-height:700px){.sn-loading-card{padding:14px 18px}.sn-loading-mascot{height:30vh;min-height:200px;width:clamp(150px,42vw,220px)}.sn-loading-copy{margin:5px 0 10px;font-size:15px}}
 .sn-loading-crown{font-size:22px;color:#ffe4b4;text-shadow:0 0 15px #f5b5a7}
 .sn-loading-title{font-family:'Playfair Display',Georgia,serif;font-size:clamp(28px,7vw,40px);line-height:1.08;margin:8px 0;color:#ffe7cf;text-shadow:0 0 18px rgba(255,188,158,.48)}
 .sn-loading-copy{margin:8px 0 18px;font-size:17px;color:#ffd7d8;font-family:'Playfair Display',Georgia,serif;font-style:italic}
@@ -27,3 +29,18 @@
 .sn-loading-caption{font-size:12px;letter-spacing:.04em;color:#f8d9d4}
 @keyframes sn-wave{from{transform:rotate(-3deg) translateY(1px)}to{transform:rotate(3deg) translateY(-3px)}}@keyframes sn-progress{from{width:24%}to{width:88%}}
 @media(prefers-reduced-motion:reduce){#sn-loading-screen,.sn-loading-mascot img,.sn-loading-progress{animation:none!important;transition:none!important}}
+
+
+/* Mascota oficial independiente: cuerpo completo, fondo transparente y sin recorte. */
+.mascot-hero-card{width:min(100%,300px)!important;max-width:300px!important;justify-self:center!important;align-self:center!important;padding:0!important;margin:0 auto!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;transform:none!important;animation:none!important;overflow:visible!important;}
+.mascot-hero-card img{display:block!important;width:100%!important;height:auto!important;max-height:clamp(280px,42vw,500px)!important;aspect-ratio:auto!important;object-fit:contain!important;object-position:center bottom!important;border:0!important;outline:0!important;border-radius:0!important;padding:0!important;margin:0 auto!important;background:transparent!important;filter:drop-shadow(0 12px 20px rgba(53,13,30,.23))!important;}
+.mascot-hero-card span{display:block!important;margin:-.35rem 0 0!important;text-align:center!important;color:var(--sn-rose-deep,#8d4358)!important;font-family:'DM Sans',sans-serif!important;font-weight:800!important;letter-spacing:.03em!important;}
+.dark-mode .mascot-hero-card span{color:#f2ced8!important;}
+/* El personaje acompaña la bienvenida sin pisar el texto principal. */
+body.auth-page .brand-panel-inner{padding-right:clamp(190px,27vw,300px)!important;}
+body.auth-page .sn-login-mascot{position:absolute;right:clamp(6px,1.2vw,22px);top:clamp(120px,18vh,205px);width:clamp(170px,23vw,285px);height:min(62vh,520px);display:grid;place-items:center;z-index:0;pointer-events:none;}
+body.auth-page .sn-login-mascot img{display:block;width:100%;height:100%;object-fit:contain;object-position:center bottom;filter:drop-shadow(0 12px 20px rgba(15,3,11,.3));}
+body.auth-page .brand-panel-inner>*:not(.sn-login-mascot){position:relative;z-index:1;}
+@media(max-width:900px){body.auth-page .brand-panel-inner{padding-right:26px!important;}body.auth-page .sn-login-mascot{position:relative;inset:auto;width:min(62vw,245px);height:clamp(250px,42vh,345px);margin:4px auto 16px;z-index:1;}body.auth-page .sn-login-mascot img{height:100%;} .mascot-hero-card{width:min(72vw,265px)!important;max-width:265px!important;justify-self:center!important;margin:0 auto!important;} .mascot-hero-card img{max-height:370px!important;}}
+@media(max-height:720px) and (min-width:901px){body.auth-page .sn-login-mascot{height:48vh;top:120px;width:clamp(155px,19vw,235px);}}
+@media(max-width:420px){body.auth-page .sn-login-mascot{width:min(66vw,220px);height:270px;}.mascot-hero-card img{max-height:330px!important;}}

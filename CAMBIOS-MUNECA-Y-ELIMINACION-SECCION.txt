@@ -1,0 +1,9 @@
+SULDERY NAILS — CAMBIOS SOLICITADOS
+
+1. Se añadió la nueva muñeca de Suldery Nails como PNG con transparencia en assets/, public/assets/ y docs/assets/.
+2. La pantalla de carga muestra la muñeca de cuerpo completo sin recortarla en un círculo.
+3. La zona visual de la clienta usa la muñeca y no reemplaza la imagen por el carrusel de fotos.
+4. Se eliminó la sección “Diseños elegidos para ti” de las copias de la página de clienta.
+5. Se conservaron los catálogos, fotos laterales del mensaje de bienvenida, reseñas, agendas y demás funciones.
+
+Pruebas automáticas: ZIP de origen íntegro; verificar sintaxis JavaScript y estructura del ZIP antes de desplegar.

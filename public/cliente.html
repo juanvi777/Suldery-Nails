@@ -24,8 +24,9 @@
   <link rel="stylesheet" href="suldery-luxe.css?v=20261015-luxe01">
   <link rel="stylesheet" href="suldery-correccion-visual.css?v=20261015-fix02">
   <link rel="stylesheet" href="suldery-final-touch.css?v=20261015-2">
-  <link rel="stylesheet" href="suldery-rose-gold.css?v=20261015-rosegold03">
+  <link rel="stylesheet" href="suldery-rose-gold.css?v=20261015-mascota01">
   <link rel="stylesheet" href="suldery-contraste-global-v6.css?v=20261015-v6">
+  <link rel="stylesheet" href="suldery-home-v62.css?v=20261015-v62">
 </head>
 <body class="dashboard-page">
   <main class="dashboard-shell">
@@ -50,19 +51,32 @@
       <p class="client-menu-note">El tutorial funciona con Android y iPhone. En iPhone, usa Safari para instalar la app.</p>
     </aside>
 
-    <section class="hero-dashboard">
-      <div>
-        <div id="clientDailyWelcome" class="client-daily-welcome"><span id="clientTodayLabel">Hoy</span><strong id="clientMotivation">Un momento para ti también cuenta. ✨</strong></div>
-        <div class="brand-pill soft"> SULDERY NAILS</div>
-        <h1>Donde tus uñas<br><em>relucen.</em></h1>
-        <p>Un momento para ti, diseños que reflejan tu esencia y una atención cuidada con mucho cariño.</p>
-        <button id="openBookingButton" class="primary-button hero-cta" type="button">Agendar cita <span>→</span></button>
-              </div>
-      <div id="clientHeroGallery" class="floating-logo-card"><img src="assets/suldery-nails-logo.jpeg" alt="Suldery Nails"><span>Uñas hechas con amor ♡</span></div>
+    <section class="hero-dashboard sn-home-hero" aria-labelledby="snHomeTitle">
+      <div class="sn-home-copy">
+        <div id="clientDailyWelcome" class="client-daily-welcome sn-daily-welcome"><span id="clientTodayLabel">Hoy</span><strong id="clientMotivation">Tus manos cuentan tu estilo. Déjalas brillar hoy.</strong></div>
+        <p class="sn-hero-kicker"><span aria-hidden="true">✦</span> UN RINCÓN PARA CONSENTIRTE <span aria-hidden="true">♡</span></p>
+        <h1 id="snHomeTitle" class="sn-home-title"><span>SULDERY</span><em>Nails</em></h1>
+        <p class="sn-home-intro">Un rincón único para consentirte, elegir tu diseño y salir feliz con unas uñas hechas con amor. ♡</p>
+      </div>
+      <div id="clientHeroMascot" class="floating-logo-card mascot-hero-card sn-home-mascot">
+        <img src="assets/suldery-mascota.png?v=20261015-v62" alt="Muñeca de Suldery Nails saludando" loading="eager" decoding="async">
+        <span>Princesa, hoy es tu momento ♡</span>
+      </div>
+      <div class="sn-hero-features" aria-label="Lo que hace especial a Suldery Nails">
+        <article class="sn-hero-feature"><span class="sn-feature-icon" aria-hidden="true">✦</span><strong>17 años de experiencia</strong><small>Cuidando cada detalle para que te sientas cómoda, escuchada y feliz.</small></article>
+        <article class="sn-hero-feature"><span class="sn-feature-icon" aria-hidden="true">▦</span><strong>Agenda sencilla</strong><small>Elige fecha y hora sin complicarte.</small></article>
+        <article class="sn-hero-feature"><span class="sn-feature-icon" aria-hidden="true">♡</span><strong>Atención personalizada</strong><small>Tu solicitud queda siempre cuidada y organizada.</small></article>
+      </div>
+      <button id="openBookingButton" class="primary-button hero-cta sn-home-cta" type="button"><span class="sn-cta-calendar" aria-hidden="true">▦</span> Agendar cita <span aria-hidden="true">→</span></button>
+      <span class="sn-hero-sparkle sn-hero-sparkle-one" aria-hidden="true">✧</span><span class="sn-hero-sparkle sn-hero-sparkle-two" aria-hidden="true">♡</span>
+    </section>
+
+    <section class="sn-home-gallery" aria-label="Galería de diseños de uñas">
+      <div class="sn-gallery-frame"><div id="clientHeroGallery" class="carousel-frame login-gallery" aria-label="Galería de trabajos de Suldery Nails"></div></div>
     </section>
 
     <section class="client-thanks-showcase" id="clientThanksShowcase" aria-labelledby="clientThanksTitle">
-      <div class="client-thanks-side client-thanks-side-left" id="clientThanksLeft" aria-label="Diseños de uñas seleccionados"></div>
+      <div class="client-thanks-side client-thanks-side-left" id="clientThanksLeft" aria-label="Trabajos de uñas de Suldery Nails"></div>
       <div class="client-thanks-message" data-client-reveal>
         <p class="eyebrow">UN MENSAJE DE SULDERY</p>
         <span class="client-thanks-sparkle" aria-hidden="true">✦</span>
@@ -71,7 +85,7 @@
         <p>Gracias por confiar en mis manos, por compartir tu estilo conmigo y por hacer crecer este sueño con cada visita. Este espacio también es tuyo. ♡</p>
         <strong>Con todo mi cariño, Suldery</strong>
       </div>
-      <div class="client-thanks-side client-thanks-side-right" id="clientThanksRight" aria-label="Más diseños de uñas"></div>
+      <div class="client-thanks-side client-thanks-side-right" id="clientThanksRight" aria-label="Más trabajos de Suldery Nails"></div>
     </section>
 
 
@@ -180,10 +194,6 @@
         <div class="owner-tool-actions"><button id="submitReviewButton" class="primary-button" type="button">Publicar reseña <span></span></button><span id="reviewSubmitMessage" class="form-message"></span></div>
       </div>
     </section>
-    <section class="portfolio-section" id="exclusivePhotosSection">
-      <div class="portfolio-heading"><div><p class="eyebrow">SELECCIÓN PERSONAL</p><h2>Diseños elegidos para ti</h2></div><p>Suldery puede compartir aquí una selección privada de diseños para inspirarte.</p></div>
-      <div id="clientGallery" class="carousel-frame"></div>
-    </section>
 
   </main>
     <div id="installTutorialModal" class="sn-modal hidden-modal" role="dialog" aria-modal="true" aria-labelledby="installTutorialTitle">
@@ -203,7 +213,7 @@
   <script src="cliente.js?v=20261015-suldery-brilla"></script>
   <script src="suldery-wow.js?v=20261015-wow1" defer></script>
   <script src="suldery-luxe.js?v=20261015-luxe01"></script>
-  <script src="suldery-loading-screen.js?v=20261015-rose-gold03" defer></script>
+  <script src="suldery-loading-screen.js?v=20261015-v62" defer></script>
 </body>
 </html>
 

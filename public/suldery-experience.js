@@ -1,28 +1,20 @@
 (() => {
   const byId = id => document.getElementById(id);
-  const readMascotSvg = async () => {
-    const response = await fetch(new URL('assets/suldery-mascota.svg', document.baseURI));
-    if (!response.ok) throw new Error('No se pudo cargar la mascota');
-    return response.text();
-  };
-
   async function mountMascot(node) {
     if (!node || node.dataset.mounted === '1') return;
     node.dataset.mounted = '1';
-    try {
-      const svg = await readMascotSvg();
-      // El SVG local es un recurso de marca del propio sitio; al insertarlo en línea
-      // sus animaciones de saludo y guiño funcionan también en navegadores móviles.
-      node.innerHTML = svg;
-      const root = node.querySelector('svg');
-      if (root) { root.setAttribute('role','img'); root.setAttribute('aria-label','Muñequita de Suldery Nails saludando y guiñando un ojo'); }
-    } catch {
-      const fallback = document.createElement('img');
-      fallback.src = new URL('assets/suldery-nails-logo.jpeg', document.baseURI).href;
-      fallback.alt = 'Logo de Suldery Nails';
-      fallback.className = 'sn-mascot-fallback';
-      node.appendChild(fallback);
-    }
+    const image = document.createElement('img');
+    image.src = new URL('assets/suldery-mascota.png', document.baseURI).href;
+    image.alt = 'Muñeca de Suldery Nails saludando y guiñando un ojo';
+    image.className = 'sn-mascot-image';
+    image.loading = 'eager';
+    image.decoding = 'async';
+    image.onerror = () => {
+      image.onerror = null;
+      image.src = new URL('assets/suldery-nails-logo.jpeg', document.baseURI).href;
+      image.alt = 'Logo de Suldery Nails';
+    };
+    node.replaceChildren(image);
   }
 
   function initLoginHero() {
