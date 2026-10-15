@@ -58,12 +58,28 @@ function initClientMenu(){
     if(tool==='booking'){openBooking();return;}
     if(tool==='catalog'){location.href=pageUrl('catalogo.html');return;}
     if(tool==='tutorial'){$('openInstallTutorialButton')?.click();return;}
-    if(tool==='reviews'){$('reviewsSection')?.scrollIntoView({behavior:'smooth',block:'start'});$('reviewsViewer')?.classList.remove('hidden-review-viewer');$('reviewsToggleButton')?.setAttribute('aria-expanded','true');return;}
+    if(tool==='reviews'){showPublishedReviews();return;}
+    if(tool==='publishReview'){openPublishReviewForm();return;}
     if(tool==='notifications'){
       try{await enableSulderyPush();alert('Listo. Este dispositivo quedó registrado para recibir tus avisos importantes.');}
       catch(error){alert(error.message);}
     }
   });
+}
+
+function showPublishedReviews(){
+  $('clientReviewForm')?.classList.add('hidden');
+  $('reviewsViewer')?.classList.remove('hidden-review-viewer');
+  $('reviewsToggleButton')?.setAttribute('aria-expanded','true');
+  $('reviewsSection')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function openPublishReviewForm(){
+  $('clientReviewForm')?.classList.remove('hidden');
+  $('reviewsViewer')?.classList.add('hidden-review-viewer');
+  $('reviewsToggleButton')?.setAttribute('aria-expanded','false');
+  $('reviewsSection')?.scrollIntoView({behavior:'smooth',block:'start'});
+  window.setTimeout(()=> $('reviewComment')?.focus({preventScroll:true}),350);
 }
 
 async function initCliente(){
@@ -80,6 +96,8 @@ async function initCliente(){
   $('dateNextButton')?.addEventListener('click',nextFromDate);
   $('timeNextButton')?.addEventListener('click',nextFromTime);
   $('reviewsToggleButton')?.addEventListener('click', toggleReviewsViewer);
+  $('viewReviewsButton')?.addEventListener('click', showPublishedReviews);
+  $('openPublishReviewButton')?.addEventListener('click', openPublishReviewForm);
   $('reviewPreviousButton')?.addEventListener('click', () => moveReview(-1));
   $('reviewNextButton')?.addEventListener('click', () => moveReview(1));
   $('reviewStarPicker')?.addEventListener('click', chooseReviewStars);

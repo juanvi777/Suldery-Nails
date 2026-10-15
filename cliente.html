@@ -36,11 +36,12 @@
         <button type="button" data-client-tool="booking"><span>01</span><strong>Agendar cita</strong></button>
         <button type="button" data-client-tool="catalog"><span>02</span><strong>Ver catálogo</strong></button>
         <button type="button" data-client-tool="tutorial"><span>03</span><strong>Tutorial de instalación</strong></button>
-        <button type="button" data-client-tool="reviews"><span>04</span><strong>Ver / publicar reseña</strong></button>
-        <button type="button" data-client-tool="notifications"><span>05</span><strong>Avisos</strong></button>
-        <button type="button" id="installAppButton" class="install-app-menu-button" hidden><span>06</span><strong>Instalar Suldery Nails</strong></button>
+        <button type="button" data-client-tool="reviews"><span>04</span><strong>Ver reseñas</strong></button>
+        <button type="button" data-client-tool="publishReview"><span>05</span><strong>Publicar reseña</strong></button>
+        <button type="button" data-client-tool="notifications"><span>06</span><strong>Avisos</strong></button>
+        <button type="button" id="installAppButton" class="install-app-menu-button" hidden><span>07</span><strong>Instalar Suldery Nails</strong></button>
         
-        <button type="button" data-action="logout" class="client-menu-logout"><span>07</span><strong>Cerrar sesión</strong></button>
+        <button type="button" data-action="logout" class="client-menu-logout"><span>08</span><strong>Cerrar sesión</strong></button>
       </div>
       <p class="client-menu-note">El tutorial funciona con Android y iPhone. En iPhone, usa Safari para instalar la app.</p>
     </aside>
@@ -150,6 +151,10 @@
           <strong id="reviewScore">—</strong><span id="reviewStarsSummary" class="review-stars">★★★★★</span><small><span id="reviewTotal">0</span> reseñas</small>
         </button>
       </div>
+      <div class="client-review-navigation" aria-label="Opciones de reseñas">
+        <button id="viewReviewsButton" class="secondary-button" type="button">Ver reseñas publicadas</button>
+        <button id="openPublishReviewButton" class="primary-button" type="button">Publicar reseña</button>
+      </div>
       <div id="reviewsViewer" class="reviews-viewer hidden-review-viewer">
         <div class="review-viewer-card">
           <button id="reviewPreviousButton" class="carousel-arrow left" type="button" aria-label="Reseña anterior">‹</button>
@@ -159,7 +164,7 @@
         <div id="reviewDots" class="carousel-dots review-dots"></div>
       </div>
 
-      <div class="client-review-submit">
+      <div id="clientReviewForm" class="client-review-submit hidden">
         <div class="client-review-copy"><p class="eyebrow">TU OPINIÓN</p><h3>Comparte tu experiencia</h3><p>Puedes publicar una sola reseña por cuenta. Relacionarla con una cita es opcional; si eliges una, debe ser una cita confirmada y ya realizada.</p></div>
         <div class="review-submit-grid">
           <label>Cita relacionada <small>(opcional)</small><select id="reviewAppointmentSelect"><option value="">Reseña general (sin cita)</option></select></label>
