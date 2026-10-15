@@ -1,0 +1,44 @@
+/* Suldery Nails · bienvenida, oro rosado y legibilidad */
+:root{--sn-gold:#e8c49c;--sn-rose-gold:#bd817d;--sn-deep-rose:#4b2637;--sn-cream:#fff4ed}
+.auth-page .brand-panel{background:radial-gradient(circle at 75% 24%,rgba(255,222,206,.42),transparent 28%),linear-gradient(145deg,#3d1b2d 0%,#704152 48%,#bd8e91 100%)!important;color:#fff7f2}
+.auth-page .brand-panel-inner{text-align:center;max-width:760px;margin-inline:auto;width:100%}
+.auth-page .brand-panel h1{width:100%;text-align:center;font-size:clamp(3rem,7vw,6.1rem)!important;line-height:.98;letter-spacing:.055em!important;color:#fff4d9!important;text-shadow:0 2px 0 #a86f65,0 4px 0 rgba(62,25,42,.45),0 0 12px rgba(255,225,185,.8),0 0 30px rgba(255,205,170,.48)!important}
+.auth-page .brand-copy{margin-inline:auto;color:#fff8f4!important;font-size:clamp(1rem,2.2vw,1.18rem);line-height:1.8;text-shadow:0 1px 8px rgba(34,12,24,.35)}
+.auth-page .experience-cloud,.auth-page .feature-chip{background:rgba(255,240,232,.12)!important;border:1px solid rgba(255,220,190,.7)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 12px 30px rgba(25,7,18,.15)!important;backdrop-filter:blur(12px)}
+.auth-page .experience-cloud strong,.auth-page .feature-chip b{color:#ffe1b5!important}
+.auth-page .experience-cloud p,.auth-page .feature-chip small,.auth-page .brand-note{color:#fff7f1!important}
+.auth-page .cloud-sparkle{background:linear-gradient(145deg,#ffe6d6,#d99ca9)!important;color:#853e62!important}
+.auth-page .form-card{border:1px solid #e9c49e!important;box-shadow:0 0 0 3px rgba(255,239,216,.5),0 18px 55px rgba(64,24,44,.18)!important}
+.auth-page .form-card h2{color:#57283e!important}
+.auth-page .form-intro,.auth-page .switch-block{color:#59424c!important}
+.auth-page .eyebrow{color:#a85b78!important}
+.auth-page .page-date-label{color:#24151c!important;font-weight:800!important}
+.auth-page .logo-frame{padding:6px!important;border:2px solid #d8aa85!important;background:linear-gradient(135deg,#fff4df,#c48a7c,#ffe5c2)!important;box-shadow:0 0 0 3px rgba(232,196,156,.3),0 0 25px rgba(225,174,142,.35)!important}
+.auth-page .login-gallery-wrap{max-width:590px;margin:1.6rem auto 0}
+.auth-page .brand-features{max-width:590px;margin-inline:auto;text-align:left}
+.auth-page .experience-cloud{text-align:left}
+.auth-page.dark-mode .form-card,html[data-theme="dark"] .auth-page .form-card{background:#281a25!important;border-color:#8f626a!important}
+.auth-page.dark-mode .form-card h2,html[data-theme="dark"] .auth-page .form-card h2{color:#fff0e7!important}
+.auth-page.dark-mode .form-intro,.auth-page.dark-mode .switch-block,html[data-theme="dark"] .auth-page .form-intro,html[data-theme="dark"] .auth-page .switch-block{color:#f1dce3!important}
+.auth-page.dark-mode .page-date-label,html[data-theme="dark"] .auth-page .page-date-label{color:#fff4ee!important}
+.carousel-frame{border:3px solid transparent!important;border-radius:26px!important;background:linear-gradient(145deg,#fff8f0,#e7b9ae) padding-box,linear-gradient(135deg,#fff0dc,#b87570 22%,#f9e3d2 42%,#9d5e5a 60%,#fff0dc) border-box!important;box-shadow:0 0 0 2px rgba(255,239,224,.9),0 0 0 5px rgba(178,112,105,.45),0 12px 30px rgba(86,35,48,.16)!important;padding:10px!important}
+.carousel-stage{border:2px solid #e6b7aa!important;border-radius:19px!important;outline:1px solid rgba(157,94,90,.8);outline-offset:2px;overflow:hidden}
+.carousel-frame:before{content:"❦";position:absolute;z-index:5;top:-9px;left:50%;transform:translateX(-50%);color:#925a59;font-size:21px;text-shadow:0 1px #fff0dc;pointer-events:none}
+.client-review-submit.sn-review-form-collapsed{display:none!important}
+.sn-review-toggle{display:inline-flex;justify-content:center;align-items:center;gap:.5rem;margin-top:1rem;min-height:48px;padding:.8rem 1.15rem;border:1px solid #f4d7c9;border-radius:15px;color:#fffaf7;background:linear-gradient(115deg,#9e5967,#c98b83 58%,#a96870);box-shadow:0 8px 20px #672b3e2e;font-weight:800;cursor:pointer}
+.sn-review-toggle:focus-visible{outline:3px solid #e4b7ad;outline-offset:3px}
+.sn-loading-screen{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 50% 36%,#9a6578 0%,#572b40 55%,#2b1425 100%);opacity:1;visibility:visible;transition:opacity .55s ease,visibility .55s ease}
+.sn-loading-screen.is-leaving{opacity:0;visibility:hidden;pointer-events:none}
+.sn-loading-card{width:min(88vw,390px);text-align:center;color:#fff7f0;animation:snLoadingFloat 2.8s ease-in-out infinite}
+.sn-loading-logo-frame{width:132px;height:132px;margin:0 auto 24px;padding:7px;border-radius:36px;border:2px solid #edc79e;background:linear-gradient(135deg,#fff0d8,#b97876,#f9dfb8);box-shadow:0 0 0 4px #f8e0c126,0 0 32px #f0c9a86b,0 18px 42px #1a091b66}
+.sn-loading-logo{width:100%;height:100%;object-fit:cover;border-radius:28px;display:block;background:#fff7f2}
+.sn-loading-brand{margin:0;color:#fff0d1;font:700 clamp(2rem,8vw,2.8rem)/1.05 "Playfair Display",Georgia,serif;letter-spacing:.09em;text-shadow:0 2px #8d5a5d,0 0 16px #ffe3b4a8}
+.sn-loading-message{margin:16px 0 18px;color:#fff7f0;font-size:1.08rem;line-height:1.5}
+.sn-loading-sparkles{color:#f4d2a8;letter-spacing:.65em;font-size:1.1rem;animation:snSparkle 1.6s ease-in-out infinite}
+.sn-loading-track{width:140px;height:3px;margin:20px auto 0;border-radius:9px;overflow:hidden;background:#ffffff30}
+.sn-loading-track:after{content:"";display:block;width:42%;height:100%;border-radius:9px;background:#ffe0b7;animation:snLoadingBar 1.25s ease-in-out infinite}
+@keyframes snLoadingFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@keyframes snSparkle{0%,100%{opacity:.55}50%{opacity:1}}
+@keyframes snLoadingBar{0%{transform:translateX(-110%)}100%{transform:translateX(350%)}}
+@media(prefers-reduced-motion:reduce){.sn-loading-card,.sn-loading-sparkles,.sn-loading-track:after{animation:none!important}.sn-loading-screen{transition:none}}
+@media(max-width:680px){.auth-page .brand-panel-inner{padding:22px 14px!important}.auth-page .brand-panel h1{font-size:clamp(2.65rem,11vw,4rem)!important}.sn-loading-logo-frame{width:116px;height:116px}.carousel-frame{padding:8px!important}}

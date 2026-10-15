@@ -1,0 +1,45 @@
+(() => {
+  const addSplash = () => {
+    if (document.querySelector('.sn-loading-screen')) return;
+    const splash = document.createElement('div');
+    splash.className = 'sn-loading-screen';
+    splash.setAttribute('role','status');
+    splash.setAttribute('aria-label','Cargando Suldery Nails');
+    const logo = document.createElement('img');
+    logo.className = 'sn-loading-logo';
+    logo.src = 'assets/suldery-nails-logo.jpeg';
+    logo.alt = 'Logo de Suldery Nails';
+    logo.onerror = () => { logo.style.display = 'none'; };
+    const frame = document.createElement('div');
+    frame.className = 'sn-loading-logo-frame';
+    frame.appendChild(logo);
+    const card = document.createElement('div');
+    card.className = 'sn-loading-card';
+    const title = document.createElement('h1');
+    title.className = 'sn-loading-brand';
+    title.textContent = 'SULDERY NAILS';
+    const message = document.createElement('p');
+    message.className = 'sn-loading-message';
+    message.textContent = 'Princesa, muy pronto nos vemos ♡';
+    const sparkles = document.createElement('div');
+    sparkles.className = 'sn-loading-sparkles';
+    sparkles.setAttribute('aria-hidden','true');
+    sparkles.textContent = '✧ ✦ ✧';
+    const track = document.createElement('div');
+    track.className = 'sn-loading-track';
+    track.setAttribute('aria-hidden','true');
+    card.append(frame,title,message,sparkles,track);
+    splash.appendChild(card);
+    document.body.appendChild(splash);
+    const dismiss = () => {
+      if (splash.dataset.dismissed) return;
+      splash.dataset.dismissed = '1';
+      splash.classList.add('is-leaving');
+      window.setTimeout(() => splash.remove(), 650);
+    };
+    window.addEventListener('load', () => window.setTimeout(dismiss, 500), {once:true});
+    window.setTimeout(dismiss, 4000);
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addSplash, {once:true});
+  else addSplash();
+})();
