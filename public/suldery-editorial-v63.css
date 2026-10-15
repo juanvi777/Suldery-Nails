@@ -1,0 +1,108 @@
+/* Suldery Nails v6.3 — editorial copy, real photo frame and image-based ornaments. */
+:root{--sn-editorial-wine:#4b1728;--sn-editorial-rose:#c34e73;--sn-editorial-gold:#b77970;--sn-editorial-cream:#fff4ed;}
+/* Cover / login introduction */
+body.auth-page .brand-panel{background:radial-gradient(ellipse at 20% 10%,rgba(255,239,226,.98),transparent 36%),linear-gradient(145deg,#521c31 0%,#70263d 49%,#3c1326 100%)!important;color:#fff7f1!important;}
+body.auth-page .brand-panel:before{background:#e87d9e!important;opacity:.25!important;}
+body.auth-page .brand-panel:after{background:#f1bda4!important;opacity:.22!important;}
+body.auth-page .brand-panel-inner{width:100%;max-width:800px!important;padding-right:clamp(180px,24vw,290px)!important;}
+body.auth-page .sn-login-mascot{right:clamp(3px,1vw,18px)!important;top:clamp(110px,15vh,175px)!important;width:clamp(180px,23vw,280px)!important;height:min(60vh,500px)!important;}
+body.auth-page .sn-login-mascot img{object-fit:contain!important;object-position:center bottom!important;filter:drop-shadow(0 12px 24px rgba(12,2,8,.42))!important;}
+body.auth-page .brand-panel h1{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:0!important;margin:.3rem 0 .8rem!important;font-size:clamp(3.3rem,6.4vw,6.4rem)!important;line-height:.86!important;letter-spacing:.01em!important;color:#fff0d7!important;text-align:left!important;text-shadow:0 2px 0 #a76b56,0 5px 0 rgba(42,9,25,.4),0 0 24px rgba(255,202,160,.45)!important;}
+body.auth-page .brand-panel h1 span{display:block!important;color:#fff0d7!important;}
+body.auth-page .brand-panel h1 em{display:block!important;margin-left:.06em!important;color:#ff82ad!important;font-size:.82em!important;letter-spacing:-.03em!important;text-shadow:0 2px 0 #852d4e,0 0 18px rgba(255,126,175,.48)!important;}
+body.auth-page .brand-tagline{max-width:570px;margin:.8rem 0 .75rem!important;color:#ffd5c9!important;font:italic 600 clamp(1.2rem,2.1vw,1.65rem)/1.4 'Playfair Display',Georgia,serif!important;}
+body.auth-page .brand-copy{max-width:600px!important;color:#fff5ef!important;font-size:clamp(.9rem,1.1vw,1.03rem)!important;line-height:1.76!important;}
+body.auth-page .experience-cloud{margin-top:1.25rem!important;padding:1.12rem 1.2rem!important;gap:.9rem!important;border:1px solid rgba(255,213,194,.58)!important;border-radius:25px!important;background:linear-gradient(140deg,rgba(255,235,226,.14),rgba(214,113,139,.13))!important;box-shadow:inset 0 1px rgba(255,255,255,.16),0 16px 34px rgba(20,5,13,.13)!important;backdrop-filter:blur(10px)!important;}
+body.auth-page .experience-cloud strong{color:#ffe0bb!important;font:700 1.05rem/1.4 'Playfair Display',Georgia,serif!important;}
+body.auth-page .experience-cloud p{color:#fff3ed!important;font-size:.85rem!important;line-height:1.62!important;}
+.cloud-sparkle-image{display:block;flex:0 0 44px;width:44px;height:44px;object-fit:contain;filter:drop-shadow(0 4px 9px rgba(216,113,137,.23));}
+body.auth-page .brand-features{gap:.85rem!important;margin-top:.9rem!important;}
+body.auth-page .feature-chip{align-items:flex-start!important;padding:.95rem!important;border:1px solid rgba(255,224,207,.58)!important;border-radius:21px!important;background:linear-gradient(145deg,rgba(255,245,237,.16),rgba(229,146,161,.12))!important;box-shadow:0 12px 28px rgba(23,5,15,.12)!important;backdrop-filter:blur(9px)!important;}
+body.auth-page .feature-chip>img{width:53px!important;height:53px!important;flex:0 0 53px!important;object-fit:contain!important;border:0!important;border-radius:13px!important;background:rgba(255,246,239,.94)!important;padding:5px!important;}
+body.auth-page .feature-chip b{color:#ffe1c6!important;font:700 .94rem/1.35 'Playfair Display',Georgia,serif!important;}
+body.auth-page .feature-chip small{color:#fff3ed!important;font-size:.76rem!important;line-height:1.55!important;}
+/* Image-based icons and warm brand styling in the client home */
+.sn-home-tagline{margin:-4px 0 8px;color:#c65d7b;font:italic 600 clamp(1rem,1.45vw,1.3rem)/1.45 'Playfair Display',Georgia,serif;}
+.sn-hero-kicker{display:flex!important;align-items:center!important;gap:8px!important;}
+.sn-hero-kicker img{display:inline-block;width:20px;height:20px;object-fit:contain;}
+.sn-feature-icon-image{display:block;width:43px;height:43px;object-fit:contain;flex:0 0 43px;padding:4px;border-radius:13px;background:rgba(255,250,245,.85);filter:drop-shadow(0 3px 5px rgba(131,49,73,.12));}
+.sn-hero-feature strong{font-family:'Playfair Display',Georgia,serif!important;font-size:clamp(.92rem,1.2vw,1.08rem)!important;line-height:1.28!important;color:#532036!important;}
+.sn-hero-feature small{color:#654854!important;font-size:.76rem!important;line-height:1.55!important;}
+.sn-cta-icon{width:27px;height:27px;object-fit:contain;flex:0 0 27px;filter:drop-shadow(0 2px 3px rgba(72,10,31,.2));}
+.sn-cta-arrow{width:22px;height:22px;object-fit:contain;flex:0 0 22px;}
+.sn-hero-decor{position:absolute;width:32px;height:32px;object-fit:contain;pointer-events:none;}
+.sn-hero-decor.sn-hero-sparkle-one{left:2.4%;top:24%;}
+.sn-hero-decor.sn-hero-sparkle-two{right:34%;bottom:24%;width:25px;height:25px;}
+.sn-home-hero{overflow:hidden;}
+.sn-home-intro{max-width:64ch!important;line-height:1.72!important;}
+/* Use the supplied ornate oval frame only when a real portfolio image exists. */
+.sn-home-gallery{display:flex!important;justify-content:center!important;margin:18px 0 42px!important;padding:4px 0 22px!important;}
+.sn-gallery-frame{position:relative!important;width:min(100%,420px)!important;aspect-ratio:1/1!important;margin-inline:auto!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;overflow:visible!important;}
+#clientHeroGallery.has-photos,#loginGallery.has-photos{position:relative!important;isolation:isolate!important;display:block!important;width:100%!important;aspect-ratio:1/1!important;height:auto!important;min-height:0!important;margin:0!important;padding:0!important;overflow:visible!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;}
+#clientHeroGallery.has-photos::after,#loginGallery.has-photos::after{content:"";position:absolute;inset:0;z-index:4;display:block;pointer-events:none;background:url("assets/suldery-marco-ornamental.png") center/100% 100% no-repeat;}
+#clientHeroGallery.has-photos .carousel-stage,#loginGallery.has-photos .carousel-stage{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;aspect-ratio:1/1!important;overflow:visible!important;border:0!important;border-radius:0!important;padding:0!important;background:transparent!important;box-shadow:none!important;}
+#clientHeroGallery.has-photos .carousel-image,#loginGallery.has-photos .carousel-image{position:absolute!important;left:25.2%!important;top:20.8%!important;width:49.6%!important;height:58.4%!important;min-height:0!important;max-height:none!important;aspect-ratio:auto!important;object-fit:cover!important;object-position:center!important;border:0!important;border-radius:0!important;padding:0!important;margin:0!important;clip-path:ellipse(50% 50% at 50% 50%)!important;z-index:1!important;box-shadow:none!important;background:#f5d8df!important;}
+#clientHeroGallery.has-photos .carousel-arrow,#loginGallery.has-photos .carousel-arrow{z-index:6!important;top:51%!important;width:35px!important;height:35px!important;border:1px solid rgba(255,245,235,.94)!important;background:linear-gradient(135deg,#fff1e6,#e9a4ae)!important;color:#74354b!important;box-shadow:0 5px 13px rgba(58,18,32,.2)!important;}
+#clientHeroGallery.has-photos .carousel-arrow.left,#loginGallery.has-photos .carousel-arrow.left{left:17%!important;}
+#clientHeroGallery.has-photos .carousel-arrow.right,#loginGallery.has-photos .carousel-arrow.right{right:17%!important;}
+#clientHeroGallery.has-photos>.carousel-dots,#loginGallery.has-photos>.carousel-dots{position:absolute!important;left:0!important;right:0!important;bottom:1%!important;z-index:7!important;display:flex!important;justify-content:center!important;gap:7px!important;margin:0!important;padding:0!important;background:transparent!important;}
+#clientHeroGallery.has-photos .carousel-dot,#loginGallery.has-photos .carousel-dot{width:8px!important;height:8px!important;border:1px solid #a65a6e!important;background:#f5ccd2!important;}
+#clientHeroGallery.has-photos .carousel-dot.active,#loginGallery.has-photos .carousel-dot.active{background:#9a3e5d!important;}
+#clientHeroGallery.has-photos .carousel-loading,#loginGallery.has-photos .carousel-loading{position:absolute!important;left:25%!important;right:25%!important;top:47%!important;z-index:2!important;text-align:center!important;color:#73394d!important;font-size:.72rem!important;}
+/* Smaller real photos around the thank-you message get the same actual frame; no empty ornamental placeholders. */
+.client-thanks-photo{position:relative!important;width:min(100%,220px)!important;aspect-ratio:1/1!important;padding:0!important;margin:0!important;border:0!important;border-radius:0!important;overflow:visible!important;background:transparent!important;box-shadow:none!important;}
+.client-thanks-photo img{position:absolute!important;inset:0!important;display:block!important;width:100%!important;height:100%!important;object-fit:cover!important;object-position:center!important;border:0!important;border-radius:0!important;padding:0!important;margin:0!important;clip-path:ellipse(50% 50% at 50% 50%)!important;background:#f5d8df!important;}
+.client-thanks-photo::after{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;background:url("assets/suldery-marco-ornamental.png") center/100% 100% no-repeat;}
+.client-thanks-photo.is-visible{transform:none!important;}
+/* Keep the thank-you copy readable on phones instead of squeezing tiny pretend frames at its sides. */
+@media(max-width:760px){
+ body.auth-page .brand-panel-inner{max-width:640px!important;padding-right:0!important;}
+ body.auth-page .sn-login-mascot{position:relative!important;inset:auto!important;width:min(58vw,235px)!important;height:clamp(235px,40vh,330px)!important;margin:2px auto 8px!important;}
+ body.auth-page .brand-panel h1{align-items:center!important;text-align:center!important;font-size:clamp(3.05rem,13vw,5rem)!important;margin:.2rem 0 .65rem!important;}
+ body.auth-page .brand-tagline,body.auth-page .brand-copy{text-align:center!important;margin-inline:auto!important;}
+ body.auth-page .brand-features{grid-template-columns:1fr!important;max-width:560px!important;}
+ body.auth-page .feature-chip{padding:.82rem!important;}
+ body.auth-page .feature-chip small{font-size:.78rem!important;}
+ .sn-home-tagline{text-align:center;}
+ .sn-home-intro{font-size:.93rem!important;}
+ .sn-hero-features{grid-template-columns:1fr!important;gap:9px!important;}
+ .sn-hero-feature{min-height:0!important;padding:12px!important;}
+ .sn-hero-feature small{font-size:.82rem!important;}
+ .sn-home-gallery{padding-bottom:18px!important;}
+ .sn-gallery-frame{width:min(100%,360px)!important;}
+ .client-thanks-showcase{grid-template-columns:1fr!important;}
+ .client-thanks-side{display:none!important;}
+ .client-thanks-message{grid-column:1!important;}
+}
+@media(prefers-reduced-motion:reduce){.sn-hero-decor{animation:none!important;}}
+
+
+/* v6.3 photo mold: the frame is an image overlay, never an empty placeholder. */
+.auth-page .login-gallery-wrap{width:100%!important;max-width:360px!important;margin:22px auto 28px!important;}
+#loginGallery:not(.has-photos),#clientHeroGallery:not(.has-photos){display:block!important;width:100%!important;height:auto!important;min-height:0!important;aspect-ratio:auto!important;overflow:visible!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;}
+.auth-page .login-gallery-wrap:has(#loginGallery:not(.has-photos)),.sn-home-gallery:has(#clientHeroGallery:not(.has-photos)){display:none!important;}
+.client-thanks-photo:not(.has-photo)::after{display:none!important;}
+.client-thanks-photo.has-photo::after{display:block!important;}
+.client-thanks-photo:not(.has-photo) img{clip-path:none!important;}
+.photo-gallery-grid .client-photo-tile{position:relative!important;overflow:visible!important;aspect-ratio:auto!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;}
+.photo-gallery-grid .client-photo-tile img{position:relative!important;z-index:1!important;display:block!important;width:100%!important;aspect-ratio:1/1!important;height:auto!important;object-fit:cover!important;clip-path:none!important;border:0!important;border-radius:0!important;padding:0!important;margin:0!important;background:transparent!important;}
+.photo-gallery-grid .client-photo-tile.has-photo img{clip-path:ellipse(50% 50% at 50% 50%)!important;}
+.photo-gallery-grid .client-photo-tile.has-photo::after{content:"";position:absolute;left:0;top:0;z-index:2;display:block;width:100%;aspect-ratio:1/1;pointer-events:none;background:url("assets/suldery-marco-ornamental.png") center/100% 100% no-repeat;}
+.photo-gallery-grid .client-photo-tile figcaption{position:relative;z-index:3;margin-top:5px;padding:5px 2px!important;text-align:center;white-space:normal!important;color:#754252!important;background:transparent!important;border:0!important;}
+.catalog-client-image-button{position:relative!important;display:block!important;overflow:visible!important;isolation:isolate!important;border:0!important;border-radius:0!important;padding:0!important;background:transparent!important;box-shadow:none!important;aspect-ratio:1/1!important;}
+.catalog-client-image-button img{position:relative!important;z-index:1!important;display:block!important;width:100%!important;height:100%!important;aspect-ratio:1/1!important;object-fit:cover!important;clip-path:none!important;border:0!important;border-radius:0!important;padding:0!important;margin:0!important;background:transparent!important;}
+.catalog-client-image-button.has-photo img{clip-path:ellipse(50% 50% at 50% 50%)!important;}
+.catalog-client-image-button.has-photo::after{content:"";position:absolute;inset:0;z-index:2;display:block;pointer-events:none;background:url("assets/suldery-marco-ornamental.png") center/100% 100% no-repeat;}
+.catalog-client-card{overflow:visible!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;}
+.catalog-client-card-caption{position:relative;z-index:3;margin-top:6px;}
+.review-photo-frame{position:relative;display:block;width:min(100%,190px);aspect-ratio:1/1;margin:10px auto;overflow:visible!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;}
+.review-photo-frame img.review-card-photo{position:absolute!important;inset:0!important;z-index:1!important;width:100%!important;height:100%!important;aspect-ratio:1/1!important;object-fit:cover!important;clip-path:none!important;border:0!important;border-radius:0!important;padding:0!important;margin:0!important;background:transparent!important;}
+.review-photo-frame.has-photo img.review-card-photo{clip-path:ellipse(50% 50% at 50% 50%)!important;}
+.review-photo-frame.has-photo::after{content:"";position:absolute;inset:0;z-index:2;display:block;pointer-events:none;background:url("assets/suldery-marco-ornamental.png") center/100% 100% no-repeat;}
+.client-thanks-showcase:has(.client-thanks-side:empty){grid-template-columns:1fr!important;}
+.client-thanks-side:empty{display:none!important;}
+.sn-loading-crown{display:grid!important;place-items:center!important;}
+.sn-loading-crown img{display:block;width:76px;height:54px;object-fit:contain;filter:drop-shadow(0 4px 8px rgba(239,163,176,.25));}
+@media(max-width:760px){.photo-gallery-grid .client-photo-tile figcaption{font-size:.72rem!important;}.review-photo-frame{width:min(100%,160px);}.catalog-client-image-button{width:100%!important;}}
+
+#clientHeroGallery.has-photos .carousel-counter{display:none!important;}

@@ -357,7 +357,9 @@ function renderCurrentReview() {
     return;
   }
   const review = clientReviews[clientReviewIndex];
-  card.innerHTML = `<div class="review-card-stars">${reviewStars(review.stars)}</div><blockquote>“${escapeHtml(review.comment || '')}”</blockquote>${review.image_url ? `<img class="review-card-photo" src="${escapeAttribute(apiAssetUrl(review.image_url))}" loading="lazy" alt="Uñas de ${escapeAttribute(review.client_name || 'clienta')}">` : ''}<strong>${escapeHtml(review.client_name || 'Clienta')}</strong><small>${review.created_at ? escapeHtml(formatDate(String(review.created_at).slice(0,10))) : ''}</small>`;
+  card.innerHTML = `<div class="review-card-stars">${reviewStars(review.stars)}</div><blockquote>“${escapeHtml(review.comment || '')}”</blockquote>${review.image_url ? `<div class="review-photo-frame"><img class="review-card-photo" src="${escapeAttribute(apiAssetUrl(review.image_url))}" loading="lazy" alt="Uñas de ${escapeAttribute(review.client_name || 'clienta')}"></div>` : ''}<strong>${escapeHtml(review.client_name || 'Clienta')}</strong><small>${review.created_at ? escapeHtml(formatDate(String(review.created_at).slice(0,10))) : ''}</small>`;
+  const reviewPhoto=card.querySelector('.review-photo-frame img');
+  if(reviewPhoto){const frame=reviewPhoto.closest('.review-photo-frame');const markFrame=()=>frame?.classList.add('has-photo');reviewPhoto.addEventListener('load',markFrame,{once:true});reviewPhoto.addEventListener('error',()=>frame?.classList.remove('has-photo'),{once:true});if(reviewPhoto.complete&&reviewPhoto.naturalWidth)markFrame();}
   clientReviews.forEach((_, i) => {
     const dot = document.createElement('button');
     dot.type = 'button'; dot.className = `carousel-dot${i === clientReviewIndex ? ' active' : ''}`;
@@ -471,9 +473,11 @@ function initInstallTutorial(){
 
 async function buildCarousel(gallery, photos, large = false) {
   if (!gallery) return;
+  gallery.classList.remove('has-photos');
   if (gallery._carouselCleanup) gallery._carouselCleanup();
   gallery.innerHTML = '';
   if (!photos.length) {
+    gallery.classList.remove('has-photos');
     gallery.innerHTML = '<div class="empty-state">Pronto verás aquí los diseños de Suldery.</div>';
     return;
   }
@@ -521,8 +525,8 @@ async function buildCarousel(gallery, photos, large = false) {
     loading.textContent = 'Cargando diseño…';
     loading.classList.remove('hidden');
     image.classList.add('is-loading');
-    image.onload = () => { image.classList.remove('is-loading'); loading.classList.add('hidden'); };
-    image.onerror = () => { image.classList.remove('is-loading'); loading.textContent = 'No se pudo cargar esta foto.'; loading.classList.remove('hidden'); };
+    image.onload = () => { image.classList.remove('is-loading'); loading.classList.add('hidden'); gallery.classList.add('has-photos'); };
+    image.onerror = () => { image.classList.remove('is-loading'); gallery.classList.remove('has-photos'); loading.textContent = 'No se pudo cargar esta foto.'; loading.classList.remove('hidden'); };
     image.src = apiAssetUrl(photo.image_url);
     image.alt = photo.title || 'Diseño de Suldery Nails';
     dots.querySelectorAll('.carousel-dot').forEach((dot, i) => dot.classList.toggle('active', i === state.index));
@@ -573,6 +577,10 @@ function renderClientPhotoGrid(gallery, photos) {
     const card=document.createElement('figure');
     card.className='client-photo-tile';
     card.innerHTML=`<img src="${escapeAttribute(apiAssetUrl(photo.image_url))}" loading="lazy" decoding="async" alt="${escapeAttribute(photo.title || 'Diseño de Suldery Nails')}"><figcaption>${escapeHtml(photo.title || '')}</figcaption>`;
+    const photoImage=card.querySelector('img');
+    photoImage.addEventListener('load',()=>card.classList.add('has-photo'),{once:true});
+    photoImage.addEventListener('error',()=>card.classList.remove('has-photo'),{once:true});
+    if(photoImage.complete&&photoImage.naturalWidth)card.classList.add('has-photo');
     gallery.appendChild(card);
   });
 }
@@ -590,6 +598,8 @@ function renderThanksSidePhotos(container, photos) {
     image.alt = photo.title || 'Diseño de uñas de Suldery Nails';
     image.loading = 'lazy';
     image.decoding = 'async';
+    image.addEventListener('load',()=>figure.classList.add('has-photo'),{once:true});
+    image.addEventListener('error',()=>figure.classList.remove('has-photo'),{once:true});
     figure.appendChild(image);
     container.appendChild(figure);
   });

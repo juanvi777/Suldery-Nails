@@ -1,0 +1,12 @@
+SULDERY NAILS — ACTUALIZACIÓN EDITORIAL V6.3
+
+Cambios:  
+- Textos de bienvenida y experiencia ampliados con un tono cercano y sentimental.
+- Iconografía decorativa sustituida por ilustraciones SVG propias en tonos rosa y oro rosa.
+- Marco ornamental convertido a PNG con transparencia exterior y apertura central transparente.
+- El marco se muestra únicamente después de que una fotografía real haya cargado correctamente en carrusel, galería, catálogo, reseñas y fotografías del mensaje de agradecimiento.
+- Se retiraron los bordes y fondos antiguos de esos portafotos para evitar marcos falsos o vacíos.
+- Cambios replicados en el código raíz, public/ y docs/.
+- Caché del service worker incrementada a v6.3 para favorecer la actualización instalada.
+
+COMPROBACIÓN: ejecutar node --check sobre los archivos JavaScript principales y comprobar la integridad del ZIP. Antes de publicar, probar en navegador el inicio de sesión, agenda, catálogo, reseñas y alternancia de tema.

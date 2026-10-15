@@ -11,11 +11,13 @@ function renderPublicDate() {
 async function loadLoginGallery() {
   const gallery = document.getElementById('loginGallery');
   if (!gallery) return;
+  gallery.classList.remove('has-photos');
   try {
     const data = await apiFetch('/portfolio?visibility=login');
 
     gallery.innerHTML = '';
     if (!data.photos?.length) {
+      gallery.classList.remove('has-photos');
       gallery.innerHTML = '<div class="empty-state">Pronto podrás ver nuestros diseños aquí.</div>';
       return;
     }
@@ -29,6 +31,8 @@ async function loadLoginGallery() {
     stage.appendChild(image);
 
     const render = () => {
+      image.onload = () => gallery.classList.add('has-photos');
+      image.onerror = () => gallery.classList.remove('has-photos');
       image.src = apiAssetUrl(data.photos[index].image_url);
       image.alt = data.photos[index].title || 'Diseño de Suldery Nails';
       dots.forEach((dot, i) => dot.classList.toggle('active', i === index));
@@ -66,6 +70,7 @@ async function loadLoginGallery() {
       window.setInterval(() => { index = (index + 1) % data.photos.length; render(); }, 5000);
     }
   } catch {
+    gallery.classList.remove('has-photos');
     gallery.innerHTML = '<div class="empty-state">No se pudo cargar el portafolio ahora.</div>';
   }
 }
