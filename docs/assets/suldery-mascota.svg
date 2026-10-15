@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 440" role="img" aria-label="Muñequita Suldery Nails saludando y guiñando un ojo">
+  <defs>
+    <linearGradient id="snHair" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#26101d"/><stop offset=".5" stop-color="#59303c"/><stop offset=".72" stop-color="#170b13"/><stop offset="1" stop-color="#7c4852"/></linearGradient>
+    <linearGradient id="snSkin" x1="0" y1="0" x2="0.9" y2="1"><stop stop-color="#ffd9c2"/><stop offset=".7" stop-color="#e9a98d"/><stop offset="1" stop-color="#d58d78"/></linearGradient>
+    <linearGradient id="snBow" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ff8eae"/><stop offset=".52" stop-color="#f44981"/><stop offset="1" stop-color="#b91d58"/></linearGradient>
+    <linearGradient id="snApron" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#361620"/><stop offset=".55" stop-color="#1e1018"/><stop offset="1" stop-color="#522333"/></linearGradient>
+    <radialGradient id="snBlush"><stop stop-color="#f37f91" stop-opacity=".7"/><stop offset="1" stop-color="#f37f91" stop-opacity="0"/></radialGradient>
+  </defs>
+  <ellipse cx="184" cy="420" rx="104" ry="13" fill="#3b1524" opacity=".17"/>
+  <!-- Hair silhouette and curls -->
+  <path d="M91 174C67 129 90 65 140 56C158 19 218 24 246 57C298 62 312 115 292 167L280 268L105 277Z" fill="url(#snHair)" stroke="#1b0c15" stroke-width="4"/>
+  <g fill="url(#snHair)" stroke="#35202a" stroke-width="2.2">
+    <circle cx="101" cy="105" r="25"/><circle cx="87" cy="145" r="24"/><circle cx="101" cy="190" r="25"/>
+    <circle cx="94" cy="226" r="24"/><circle cx="115" cy="254" r="27"/><circle cx="137" cy="64" r="23"/>
+    <circle cx="173" cy="47" r="25"/><circle cx="211" cy="51" r="27"/><circle cx="251" cy="74" r="26"/>
+    <circle cx="283" cy="108" r="25"/><circle cx="290" cy="151" r="23"/><circle cx="282" cy="196" r="27"/>
+    <circle cx="269" cy="233" r="26"/><circle cx="247" cy="258" r="25"/>
+  </g>
+  <!-- body -->
+  <path d="M122 273C127 250 147 239 171 239H206C232 243 248 258 255 286L269 387H103Z" fill="url(#snSkin)" stroke="#b87769" stroke-width="2"/>
+  <path d="M115 282Q180 253 248 282L273 411H91Z" fill="url(#snApron)" stroke="#d58a92" stroke-width="3"/>
+  <path d="M143 264L157 246H207L224 268L215 292H153Z" fill="#e7a2ad" stroke="#7a394c" stroke-width="2"/>
+  <path d="M155 288Q178 300 202 288L220 410H137Z" fill="#4b2031" stroke="#d9859a" stroke-width="2"/>
+  <text x="179" y="334" font-family="Georgia,serif" font-size="18" font-style="italic" text-anchor="middle" fill="#ffa5bf">Suldery</text>
+  <text x="179" y="353" font-family="Georgia,serif" font-size="17" font-style="italic" text-anchor="middle" fill="#ffa5bf">Nails</text>
+  <path d="M151 368H207" stroke="#b86a82" stroke-width="1.5"/>
+  <circle cx="179" cy="379" r="3" fill="#e5b58f"/>
+  <!-- raised waving arm, animated as one articulated unit -->
+  <g class="sn-wave-arm">
+    <path d="M229 284C250 268 261 241 271 218L291 181C297 170 309 171 314 180C317 187 312 194 309 201L300 221C311 206 322 198 330 206C336 213 329 223 323 229C336 221 345 230 338 240L324 255C334 252 341 261 332 272L311 291C296 309 270 316 246 308Z" fill="url(#snSkin)" stroke="#c88475" stroke-width="2.8" stroke-linejoin="round"/>
+    <path d="M291 181C288 166 295 153 304 155C313 156 315 167 314 180" fill="url(#snSkin)" stroke="#c88475" stroke-width="2.5"/>
+    <path d="M309 201C317 186 330 186 334 194C338 202 329 214 323 229" fill="url(#snSkin)" stroke="#c88475" stroke-width="2.5"/>
+    <path d="M323 229C335 216 346 224 342 234L332 252" fill="url(#snSkin)" stroke="#c88475" stroke-width="2.4"/>
+    <path d="M310 250Q304 261 295 266" fill="none" stroke="#bd766f" stroke-width="2" stroke-linecap="round"/>
+    <path d="M294 177Q300 174 305 178" fill="none" stroke="#fff0dd" stroke-width="3" stroke-linecap="round"/>
+    <path d="M318 201Q324 198 329 202" fill="none" stroke="#fff0dd" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <!-- face framed by curls -->
+  <path d="M125 107C138 81 220 76 239 112L241 168C236 213 214 239 181 241C145 238 122 207 119 166Z" fill="url(#snSkin)" stroke="#b67668" stroke-width="2.5"/>
+  <path d="M122 143C111 114 129 75 159 70C183 57 224 72 243 100C251 118 248 142 243 154C232 124 216 114 199 107C178 133 150 130 128 145Z" fill="url(#snHair)"/>
+  <g fill="url(#snHair)">
+    <circle cx="125" cy="121" r="22"/><circle cx="131" cy="147" r="18"/><circle cx="238" cy="119" r="22"/><circle cx="239" cy="146" r="18"/>
+  </g>
+  <!-- bow -->
+  <g class="sn-mascot-bow">
+    <path d="M164 80C138 70 122 48 132 36C145 22 168 48 180 59C198 39 225 25 235 39C246 55 215 75 190 83Z" fill="url(#snBow)" stroke="#9c224e" stroke-width="3"/>
+    <path d="M177 63C155 52 145 41 146 35C155 38 172 51 184 61C203 48 220 39 226 39C220 54 201 67 188 74Z" fill="#ffb3c5" opacity=".8"/>
+    <ellipse cx="185" cy="70" rx="14" ry="12" fill="#f86592" stroke="#9c224e" stroke-width="2.5"/>
+  </g>
+  <!-- eyes, lashes, and an animated wink -->
+  <ellipse cx="153" cy="164" rx="14" ry="20" fill="#fffaf1" stroke="#42202b" stroke-width="2"/>
+  <ellipse cx="155" cy="166" rx="9" ry="14" fill="#38202a"/>
+  <ellipse cx="157" cy="160" rx="4.5" ry="6" fill="#fff"/>
+  <circle cx="151" cy="173" r="2.6" fill="#fff"/>
+  <path d="M139 151L132 145M145 146L141 138M153 144L153 136" fill="none" stroke="#38202a" stroke-width="3" stroke-linecap="round"/>
+  <ellipse cx="208" cy="164" rx="14" ry="20" fill="#fffaf1" stroke="#42202b" stroke-width="2"/>
+  <ellipse cx="207" cy="166" rx="9" ry="14" fill="#38202a"/>
+  <ellipse cx="210" cy="160" rx="4.5" ry="6" fill="#fff"/>
+  <circle cx="203" cy="173" r="2.4" fill="#fff"/>
+  <path d="M220 151L228 145M213 146L217 138M205 144L205 136" fill="none" stroke="#38202a" stroke-width="3" stroke-linecap="round"/>
+  <ellipse class="sn-blink-cover" cx="153" cy="164" rx="16" ry="22" fill="#f1bca5"/>
+  <path class="sn-closed-eye" d="M138 164Q151 178 166 162" fill="none" stroke="#48212d" stroke-width="4" stroke-linecap="round"/>
+  <path d="M160 193Q179 207 198 192Q181 217 160 193Z" fill="#9a334f" stroke="#7f2842" stroke-width="1.4"/>
+  <path d="M165 195Q180 201 194 194" fill="none" stroke="#fff0e5" stroke-width="2.2" stroke-linecap="round"/>
+  <ellipse cx="137" cy="184" rx="20" ry="11" fill="url(#snBlush)"/>
+  <ellipse cx="223" cy="184" rx="20" ry="11" fill="url(#snBlush)"/>
+  <path d="M129 216Q137 229 146 230M217 217Q225 227 232 226" fill="none" stroke="#7d4050" stroke-width="2.2" stroke-linecap="round"/>
+  <!-- hand detail and a tiny sparkle -->
+  <path d="M286 304Q298 295 304 303" fill="none" stroke="#edb3a3" stroke-width="2"/>
+  <path d="M76 304L81 315L93 320L81 324L76 337L71 324L59 320L71 315Z" fill="#ffe1ac" stroke="#d59b80" stroke-width="1.5"/>
+  <path d="M273 116L277 124L286 127L277 130L273 139L270 130L261 127L270 124Z" fill="#ffe1b9"/>
+  <style>
+    .sn-wave-arm{transform-box:view-box;transform-origin:236px 291px;animation:sn-wave 1.08s ease-in-out infinite}
+    .sn-blink-cover{opacity:0;transform-box:fill-box;transform-origin:center;animation:sn-wink 4.6s ease-in-out infinite}
+    .sn-closed-eye{opacity:0;animation:sn-wink-line 4.6s ease-in-out infinite}
+    .sn-mascot-bow{transform-box:fill-box;transform-origin:center;animation:sn-bow-bounce 3.2s ease-in-out infinite}
+    @keyframes sn-wave{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(8deg)}}
+    @keyframes sn-wink{0%,43%,49%,100%{opacity:0;transform:scaleY(.08)}45%,47%{opacity:1;transform:scaleY(1)}}
+    @keyframes sn-wink-line{0%,43%,49%,100%{opacity:0}45%,47%{opacity:1}}
+    @keyframes sn-bow-bounce{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-2px) rotate(-1.5deg)}}
+    @media(prefers-reduced-motion:reduce){.sn-wave-arm,.sn-blink-cover,.sn-closed-eye,.sn-mascot-bow{animation:none!important}.sn-blink-cover{opacity:0}.sn-closed-eye{opacity:0}}
+  </style>
+</svg>

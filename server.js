@@ -2425,6 +2425,68 @@ app.get('/api/owner/appointments', authRequired, ownerRequired, async (_req, res
   }
 });
 
+app.patch('/api/owner/appointments/:id/reschedule', authRequired, ownerRequired, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const date = String(req.body.appointment_date || '').trim();
+    const time = String(req.body.appointment_time || '').trim();
+    if (!Number.isInteger(id) || id < 1) return res.status(400).json({ message: 'Cita invÃ¡lida.' });
+    const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+    if (!dateMatch) return res.status(400).json({ message: 'Fecha invÃ¡lida. Usa AAAA-MM-DD.' });
+    const utcDate = new Date(Date.UTC(Number(dateMatch[1]), Number(dateMatch[2]) - 1, Number(dateMatch[3])));
+    if (utcDate.toISOString().slice(0,10) !== date) return res.status(400).json({ message: 'La fecha no existe en el calendario.' });
+    const normalizedTime = normalizeTimeValue(time);
+    if (!normalizedTime) return res.status(400).json({ message: 'Usa una hora vÃ¡lida en bloques de 30 minutos, por ejemplo 14:30.' });
+    const now = new Date();
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone:'America/Bogota', year:'numeric', month:'2-digit', day:'2-digit' }).formatToParts(now);
+    const part = Object.fromEntries(parts.map(p => [p.type,p.value]));
+    const today = `${part.year}-${part.month}-${part.day}`;
+    const proposedDateTime = new Date(`${date}T${normalizedTime}:00-05:00`);
+    if (date < today || proposedDateTime <= now) return res.status(400).json({ message: 'Elige una fecha y hora futuras.' });
+
+    const [currentRows] = await pool.query(
+      'SELECT id,status,service,duration_minutes,appointment_date,appointment_time FROM appointments WHERE id=? LIMIT 1',
+      [id]
+    );
+    const current = currentRows[0];
+    if (!current) return res.status(404).json({ message: 'No se encontrÃ³ la cita.' });
+    if (!['accepted','pending'].includes(current.status)) {
+      return res.status(400).json({ message: 'Solo se pueden reprogramar citas pendientes o confirmadas.' });
+    }
+    const blocked = await isDateBlocked(date);
+    if (blocked) return res.status(400).json({ message: `Ese dÃ­a estÃ¡ bloqueado${blocked.reason ? ': ' + blocked.reason : '.'}` });
+    const scheduleDay = await getScheduleDay(dateWeekday(date), date);
+    if (!scheduleDay.is_open || !Array.isArray(scheduleDay.intervals) || !scheduleDay.intervals.length) {
+      return res.status(400).json({ message: 'Ese dÃ­a figura como descanso o no tiene horario de atenciÃ³n.' });
+    }
+    const duration = Math.max(1, Number(current.duration_minutes) || serviceDuration(current.service) || 60);
+    const startMin = toMinutes(normalizedTime);
+    const endMin = startMin + duration;
+    const insideSchedule = scheduleDay.intervals.some(interval =>
+      startMin >= toMinutes(interval.start_time) && endMin <= toMinutes(interval.end_time)
+    );
+    if (!insideSchedule) return res.status(400).json({ message: 'La hora elegida no cabe completa dentro del horario de atenciÃ³n.' });
+
+    const [otherRows] = await pool.query(
+      `SELECT id,appointment_time,duration_minutes,service FROM appointments
+       WHERE appointment_date=? AND id<>? AND status IN ('pending','accepted')`,
+      [date, id]
+    );
+    const overlaps = otherRows.some(row => {
+      const otherStart = toMinutes(formatDbTime(row.appointment_time));
+      const otherEnd = otherStart + Math.max(1, Number(row.duration_minutes) || serviceDuration(row.service) || 60);
+      return startMin < otherEnd && endMin > otherStart;
+    });
+    if (overlaps) return res.status(409).json({ message: 'Ese horario se cruza con otra cita pendiente o confirmada. Elige otra hora.' });
+
+    await pool.query('UPDATE appointments SET appointment_date=?, appointment_time=? WHERE id=?', [date, normalizedTime, id]);
+    res.json({ message: 'Cita reprogramada. Confirma el nuevo horario con la clienta para que estÃ© enterada.' });
+  } catch (error) {
+    console.error('No se pudo reprogramar la cita:', error);
+    res.status(error.statusCode || 500).json({ message: error.message || 'No se pudo reprogramar la cita.' });
+  }
+});
+
 app.patch('/api/owner/appointments/:id/status', authRequired, ownerRequired, async (req, res) => {
   try {
     const status = String(req.body.status || '').trim();
