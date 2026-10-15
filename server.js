@@ -1927,7 +1927,23 @@ app.post('/api/owner/notifications/send', authRequired, ownerRequired, async (re
   }
 });
 
+function disableDynamicImageCaching(res) {
+  res.set({
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+    'Surrogate-Control': 'no-store'
+  });
+}
+
+function imageVersion(row) {
+  if (row.image_hash) return String(row.image_hash);
+  const timestamp = row.created_at ? new Date(row.created_at).getTime() : 0;
+  return String(timestamp || row.id || Date.now());
+}
+
 app.get('/api/portfolio', async (req, res) => {
+  disableDynamicImageCaching(res);
   try {
     const visibility = String(req.query.visibility || 'client').trim();
     const allowed = ['login', 'client'];
@@ -1935,10 +1951,10 @@ app.get('/api/portfolio', async (req, res) => {
 
     const limit = visibility === 'client' ? 10 : 8;
     const [rows] = await pool.query(
-      `SELECT id,title,image_url,visibility,display_order,created_at
+      `SELECT id,title,image_url,visibility,display_order,created_at,image_hash
        FROM portfolio_photos
        WHERE visibility IN (?, 'both')
-       ORDER BY display_order ASC, created_at DESC
+       ORDER BY display_order ASC, id ASC
        LIMIT ${limit}`,
       [visibility]
     );
@@ -1949,7 +1965,7 @@ app.get('/api/portfolio', async (req, res) => {
       visibility: row.visibility || visibility,
       display_order: row.display_order,
       created_at: row.created_at,
-      image_url: `/api/portfolio/${row.id}/image`
+      image_url: `/api/portfolio/${row.id}/image?v=${encodeURIComponent(imageVersion(row))}`
     })) });
   } catch (error) {
     console.error('No se pudo cargar el portafolio:', error.message);
@@ -1958,6 +1974,7 @@ app.get('/api/portfolio', async (req, res) => {
 });
 
 app.get('/api/portfolio/:id/image', async (req, res) => {
+  disableDynamicImageCaching(res);
   try {
     const [rows] = await pool.query(
       'SELECT image_data,image_mime,image_url FROM portfolio_photos WHERE id=? LIMIT 1',
@@ -1967,7 +1984,6 @@ app.get('/api/portfolio/:id/image', async (req, res) => {
     if (!photo) return res.status(404).send('Imagen no encontrada.');
 
     if (photo.image_data && photo.image_data.length) {
-      res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
       res.setHeader('X-Content-Type-Options', 'nosniff');
       res.type(photo.image_mime || 'image/jpeg');
       return res.send(photo.image_data);
@@ -1985,21 +2001,22 @@ app.get('/api/portfolio/:id/image', async (req, res) => {
 });
 
 app.get('/api/catalog', authRequired, async (req, res) => {
+  disableDynamicImageCaching(res);
   if (req.auth.role !== 'client' && req.auth.role !== 'owner') {
     return res.status(403).json({ message: 'No tienes permiso para ver el catálogo.' });
   }
   try {
     const [rows] = await pool.query(
-      `SELECT id,title,display_order,created_at
+      `SELECT id,title,display_order,created_at,image_hash
        FROM catalog_photos
-       ORDER BY display_order ASC, created_at DESC`
+       ORDER BY display_order ASC, id ASC`
     );
     res.json({ photos: rows.map(row => ({
       id: row.id,
       title: row.title,
       display_order: row.display_order,
       created_at: row.created_at,
-      image_url: `/api/catalog/${row.id}/image`
+      image_url: `/api/catalog/${row.id}/image?v=${encodeURIComponent(imageVersion(row))}`
     })) });
   } catch (error) {
     console.error('No se pudo cargar el catálogo:', error.message);
@@ -2008,6 +2025,7 @@ app.get('/api/catalog', authRequired, async (req, res) => {
 });
 
 app.get('/api/catalog/:id/image', async (req, res) => {
+  disableDynamicImageCaching(res);
   try {
     const [rows] = await pool.query(
       'SELECT image_data,image_mime FROM catalog_photos WHERE id=? LIMIT 1',
@@ -2015,7 +2033,6 @@ app.get('/api/catalog/:id/image', async (req, res) => {
     );
     const photo = rows[0];
     if (!photo) return res.status(404).send('Imagen no encontrada.');
-    res.setHeader('Cache-Control', 'public, max-age=300');
     res.type(photo.image_mime || 'image/jpeg');
     res.send(photo.image_data);
   } catch (error) {
@@ -2025,18 +2042,19 @@ app.get('/api/catalog/:id/image', async (req, res) => {
 });
 
 app.get('/api/owner/catalog', authRequired, ownerRequired, async (_req, res) => {
+  disableDynamicImageCaching(res);
   try {
     const [rows] = await pool.query(
-      `SELECT id,title,display_order,created_at
+      `SELECT id,title,display_order,created_at,image_hash
        FROM catalog_photos
-       ORDER BY display_order ASC, created_at DESC`
+       ORDER BY display_order ASC, id ASC`
     );
     res.json({ photos: rows.map(row => ({
       id: row.id,
       title: row.title,
       display_order: row.display_order,
       created_at: row.created_at,
-      image_url: `/api/catalog/${row.id}/image`
+      image_url: `/api/catalog/${row.id}/image?v=${encodeURIComponent(imageVersion(row))}`
     })) });
   } catch (error) {
     console.error('No se pudo cargar el catálogo de Suldery:', error.message);
@@ -2104,7 +2122,7 @@ app.delete('/api/owner/catalog/:id', authRequired, ownerRequired, async (req, re
 });
 
 async function normalizeCatalogOrder() {
-  const [rows] = await pool.query('SELECT id FROM catalog_photos ORDER BY display_order ASC, created_at DESC');
+  const [rows] = await pool.query('SELECT id FROM catalog_photos ORDER BY display_order ASC, id ASC');
   for (let index = 0; index < rows.length; index++) {
     await pool.query('UPDATE catalog_photos SET display_order=? WHERE id=?', [index + 1, rows[index].id]);
   }
@@ -2114,7 +2132,7 @@ app.patch('/api/owner/catalog/:id/move', authRequired, ownerRequired, async (req
   try {
     const direction = req.body.direction === 'up' ? 'up' : req.body.direction === 'down' ? 'down' : null;
     if (!direction) return res.status(400).json({ message: 'Movimiento inválido.' });
-    const [rows] = await pool.query('SELECT id,display_order FROM catalog_photos ORDER BY display_order ASC, created_at DESC');
+    const [rows] = await pool.query('SELECT id,display_order FROM catalog_photos ORDER BY display_order ASC, id ASC');
     const index = rows.findIndex(row => String(row.id) === String(req.params.id));
     if (index === -1) return res.status(404).json({ message: 'Foto de catálogo no encontrada.' });
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
@@ -2833,11 +2851,12 @@ app.post('/api/owner/appointments', authRequired, ownerRequired, async (req, res
 });
 
 app.get('/api/owner/portfolio', authRequired, ownerRequired, async (_req, res) => {
+  disableDynamicImageCaching(res);
   try {
     const [rows] = await pool.query(
-      `SELECT id,title,image_url,image_data,image_mime,visibility,display_order,created_at
+      `SELECT id,title,image_url,image_data,image_mime,visibility,display_order,created_at,image_hash
        FROM portfolio_photos
-       ORDER BY display_order ASC, created_at DESC`
+       ORDER BY display_order ASC, id ASC`
     );
 
     const photos = rows.map(row => ({
@@ -2846,7 +2865,9 @@ app.get('/api/owner/portfolio', authRequired, ownerRequired, async (_req, res) =
       visibility: row.visibility || 'login',
       image_url: row.image_data
         ? `data:${row.image_mime || 'image/jpeg'};base64,${Buffer.from(row.image_data).toString('base64')}`
-        : row.image_url,
+        : (row.image_url && row.image_url.startsWith('/uploads/portfolio/')
+          ? `${row.image_url}?v=${encodeURIComponent(imageVersion(row))}`
+          : row.image_url),
       display_order: row.display_order,
       created_at: row.created_at
     }));
@@ -2970,7 +2991,7 @@ app.delete('/api/owner/portfolio/:id' , authRequired, ownerRequired, async (req,
 });
 
 async function normalizePortfolioOrder() {
-  const [rows] = await pool.query('SELECT id FROM portfolio_photos ORDER BY display_order ASC, created_at DESC');
+  const [rows] = await pool.query('SELECT id FROM portfolio_photos ORDER BY display_order ASC, id ASC');
   for (let index = 0; index < rows.length; index++) {
     await pool.query('UPDATE portfolio_photos SET display_order=? WHERE id=?', [index + 1, rows[index].id]);
   }
@@ -2982,7 +3003,7 @@ app.patch('/api/owner/portfolio/:id/move', authRequired, ownerRequired, async (r
     if (!direction) return res.status(400).json({ message: 'Movimiento inválido.' });
 
     const [rows] = await pool.query(
-      'SELECT id,display_order FROM portfolio_photos ORDER BY display_order ASC, created_at DESC'
+      'SELECT id,display_order FROM portfolio_photos ORDER BY display_order ASC, id ASC'
     );
     const index = rows.findIndex(row => String(row.id) === String(req.params.id));
     if (index === -1) return res.status(404).json({ message: 'Foto no encontrada.' });

@@ -1,4 +1,4 @@
-let currentUser = null;
+﻿let currentUser = null;
 let currentMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let selectedDate = '';
 let selectedTime = '';
@@ -571,6 +571,11 @@ function escapeHtml(text) {
   return String(text ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 }
 
+function escapeAttribute(value) {
+  return String(value ?? '').replace(/[&<>"']/g, character => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[character]));
+}
 document.addEventListener('DOMContentLoaded', () => {
   const picker = document.getElementById('reviewStarPicker');
   if (picker && !picker.children.length) {
@@ -578,3 +583,4 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   initCliente();
 });
+

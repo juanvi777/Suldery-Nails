@@ -1,0 +1,239 @@
+const fs = require('fs');
+const path = require('path');
+const mysql = require('mysql2/promise');
+require('dotenv').config();
+
+const DB_HOST = process.env.DB_HOST || '127.0.0.1';
+const DB_PORT = Number(process.env.DB_PORT || 3306);
+const DB_USER = process.env.DB_USER || 'root';
+const DB_PASSWORD = process.env.DB_PASSWORD || '';
+const DB_NAME = process.env.DB_NAME || 'suldery_nails';
+
+let pool;
+
+async function ensureDatabase() {
+  const connection = await mysql.createConnection({
+    host: DB_HOST,
+    port: DB_PORT,
+    user: DB_USER,
+    password: DB_PASSWORD,
+    multipleStatements: true
+  });
+
+  try {
+    await connection.query(
+      `CREATE DATABASE IF NOT EXISTS \`${DB_NAME.replace(/`/g, '``')}\`
+       CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
+    );
+  } finally {
+    await connection.end();
+  }
+}
+
+function createPool() {
+  pool = mysql.createPool({
+    host: DB_HOST,
+    port: DB_PORT,
+    user: DB_USER,
+    password: DB_PASSWORD,
+    database: DB_NAME,
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+    charset: 'utf8mb4',
+    // Mantén DATE como YYYY-MM-DD para evitar desfases e Invalid Date en el navegador.
+    dateStrings: true
+  });
+  return pool;
+}
+
+async function testConnection() {
+  if (!pool) throw new Error('Pool de MySQL no inicializado.');
+  const connection = await pool.getConnection();
+  try { await connection.ping(); }
+  finally { connection.release(); }
+}
+
+async function initializeSchema() {
+  const schemaPath = path.join(__dirname, 'schema.sql');
+  const sql = fs.readFileSync(schemaPath, 'utf8');
+  const statements = sql
+    .split(/;\s*(?:\r?\n|$)/)
+    .map(statement => statement.trim())
+    .filter(Boolean);
+
+  for (const statement of statements) {
+    await pool.query(statement);
+  }
+}
+
+function ensureUploadDirectory() {
+  fs.mkdirSync(path.join(__dirname, 'uploads', 'portfolio'), { recursive: true });
+}
+
+async function ensureCompatibilityMigrations() {
+  const migrations = [
+    { table: 'users', column: 'phone', sql: "ALTER TABLE users ADD COLUMN phone VARCHAR(30) NULL AFTER email" },
+    { table: 'appointments', column: 'client_phone', sql: "ALTER TABLE appointments ADD COLUMN client_phone VARCHAR(30) NULL AFTER client_name" },
+    { table: 'portfolio_photos', column: 'image_data', sql: "ALTER TABLE portfolio_photos ADD COLUMN image_data MEDIUMBLOB NULL AFTER image_url" },
+    { table: 'portfolio_photos', column: 'image_mime', sql: "ALTER TABLE portfolio_photos ADD COLUMN image_mime VARCHAR(80) NULL AFTER image_data" },
+    { table: 'portfolio_photos', column: 'visibility', sql: "ALTER TABLE portfolio_photos ADD COLUMN visibility ENUM('login','client','both') NOT NULL DEFAULT 'both' AFTER image_mime" },
+    { table: 'portfolio_photos', column: 'display_order', sql: "ALTER TABLE portfolio_photos ADD COLUMN display_order INT NOT NULL DEFAULT 0 AFTER visibility" },
+    { table: 'portfolio_photos', column: 'image_hash', sql: "ALTER TABLE portfolio_photos ADD COLUMN image_hash CHAR(64) NULL AFTER display_order" }
+  ];
+  for (const migration of migrations) {
+    const [rows] = await pool.query(
+      `SELECT COUNT(*) AS total FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME=? AND COLUMN_NAME=?`,
+      [DB_NAME, migration.table, migration.column]
+    );
+    if (Number(rows[0]?.total) === 0) await pool.query(migration.sql);
+  }
+  const [portfolioHashRows] = await pool.query("SELECT id,image_data FROM portfolio_photos WHERE image_data IS NOT NULL AND (image_hash IS NULL OR image_hash='')");
+  for (const row of portfolioHashRows) {
+    const hash = require('crypto').createHash('sha256').update(row.image_data).digest('hex');
+    await pool.query('UPDATE portfolio_photos SET image_hash=? WHERE id=?', [hash,row.id]);
+  }
+
+  await pool.query(
+    `UPDATE appointments a
+     INNER JOIN users u ON u.id=a.user_id
+     SET a.client_phone=u.phone
+     WHERE (a.client_phone IS NULL OR a.client_phone='') AND u.phone IS NOT NULL AND u.phone<>''`
+  );
+  await pool.query(`CREATE TABLE IF NOT EXISTS catalog_photos (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    title VARCHAR(160) NOT NULL DEFAULT 'Diseño Suldery Nails',
+    image_data MEDIUMBLOB NOT NULL,
+    image_mime VARCHAR(80) NOT NULL,
+    display_order INT NOT NULL DEFAULT 0,
+    image_hash CHAR(64) NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_catalog_order (display_order),
+    KEY idx_catalog_created_at (created_at),
+    KEY idx_catalog_image_hash (image_hash)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+  const [catalogHashRows] = await pool.query("SELECT id,image_data FROM catalog_photos WHERE image_data IS NOT NULL AND (image_hash IS NULL OR image_hash='')");
+  for (const row of catalogHashRows) {
+    const hash = require('crypto').createHash('sha256').update(row.image_data).digest('hex');
+    await pool.query('UPDATE catalog_photos SET image_hash=? WHERE id=?', [hash,row.id]);
+  }
+
+  const [catalogHashColumn] = await pool.query(
+    `SELECT COUNT(*) AS total FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME='catalog_photos' AND COLUMN_NAME='image_hash'`,
+    [DB_NAME]
+  );
+  if (Number(catalogHashColumn[0]?.total) === 0) {
+    await pool.query(`ALTER TABLE catalog_photos ADD COLUMN image_hash CHAR(64) NULL AFTER image_mime`);
+  }
+
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS blocked_intervals (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      blocked_date DATE NOT NULL,
+      start_time TIME NOT NULL,
+      end_time TIME NOT NULL,
+      reason VARCHAR(255) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_blocked_intervals_date (blocked_date),
+      UNIQUE KEY uq_blocked_interval (blocked_date,start_time,end_time)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+  );
+
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS notification_log (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      notification_key VARCHAR(190) NOT NULL,
+      notification_type VARCHAR(60) NOT NULL,
+      sent_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_notification_key (notification_key),
+      KEY idx_notification_type_sent (notification_type, sent_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+  );
+
+  await pool.query(`CREATE TABLE IF NOT EXISTS app_settings (
+    setting_key VARCHAR(120) NOT NULL,
+    setting_value TEXT NOT NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (setting_key)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+  await pool.query(`CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id INT UNSIGNED NOT NULL,
+    endpoint_hash CHAR(64) NOT NULL,
+    endpoint TEXT NOT NULL,
+    p256dh VARCHAR(255) NOT NULL,
+    auth VARCHAR(255) NOT NULL,
+    content_encoding VARCHAR(30) NOT NULL DEFAULT 'aes128gcm',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    vapid_key_hash CHAR(64) NULL,
+    last_success_at DATETIME NULL,
+    last_error_at DATETIME NULL,
+    last_error VARCHAR(500) NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_push_endpoint_hash (endpoint_hash),
+    KEY idx_push_user (user_id),
+    CONSTRAINT fk_push_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+  const pushColumns = [
+    ['vapid_key_hash', "ALTER TABLE push_subscriptions ADD COLUMN vapid_key_hash CHAR(64) NULL AFTER updated_at"],
+    ['last_success_at', "ALTER TABLE push_subscriptions ADD COLUMN last_success_at DATETIME NULL AFTER vapid_key_hash"],
+    ['last_error_at', "ALTER TABLE push_subscriptions ADD COLUMN last_error_at DATETIME NULL AFTER last_success_at"],
+    ['last_error', "ALTER TABLE push_subscriptions ADD COLUMN last_error VARCHAR(500) NULL AFTER last_error_at"],
+  ];
+  for (const [column, sql] of pushColumns) {
+    const [rows] = await pool.query(
+      `SELECT COUNT(*) AS total FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME='push_subscriptions' AND COLUMN_NAME=?`,
+      [DB_NAME, column]
+    );
+    if (Number(rows[0]?.total) === 0) await pool.query(sql);
+  }
+
+  await pool.query(`CREATE TABLE IF NOT EXISTS pending_push_registrations (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id INT UNSIGNED NOT NULL,
+    token_hash CHAR(64) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    used_at DATETIME NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_pending_push_token (token_hash),
+    KEY idx_pending_push_user (user_id),
+    CONSTRAINT fk_pending_push_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+  // Las versiones antiguas permitían "both". Se conserva en MySQL para no perder
+  // fotos existentes, pero la interfaz nueva solo permite escoger una ubicación.
+
+}
+
+async function initDatabase() {
+  await ensureDatabase();
+  createPool();
+  await initializeSchema();
+  await ensureCompatibilityMigrations();
+  await testConnection();
+}
+
+module.exports = {
+  pool: {
+    query(...args) {
+      if (!pool) throw new Error('MySQL no está inicializado.');
+      return pool.query(...args);
+    },
+    getConnection(...args) {
+      if (!pool) throw new Error('MySQL no está inicializado.');
+      return pool.getConnection(...args);
+    }
+  },
+  initDatabase,
+  testConnection,
+  initializeSchema,
+  ensureUploadDirectory
+};

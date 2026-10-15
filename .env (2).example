@@ -1,0 +1,9 @@
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=
+DB_NAME=suldery_nails
+JWT_SECRET=pon_aqui_una_clave_de_al_menos_32_caracteres
+NODE_ENV=development
+PORT=3000
+CORS_ORIGINS=https://juanvi777.github.io

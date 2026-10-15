@@ -1,0 +1,52 @@
+/* SULDERY SIGNATURE — experiencia rosa oro, legible y coherente */
+:root{--sn-rose:#b96f7c;--sn-rose-deep:#824351;--sn-gold:#d5a66d;--sn-gold-light:#f6e4c7;--sn-ink:#38232d;--sn-muted:#765e66;--sn-panel:#fffaf7;--sn-line:rgba(185,111,124,.28);--sn-shadow:0 22px 60px rgba(73,35,47,.13)}
+html{scroll-behavior:smooth;scroll-padding-top:88px}
+body{font-family:'DM Sans',sans-serif;color:var(--sn-ink)}
+button,input,select,textarea{font:inherit}
+:where(.auth-shell,.dashboard-shell){isolation:isolate}
+.brand-panel h1,.hero-dashboard h1{font-family:'Playfair Display',Georgia,serif;letter-spacing:-.035em;line-height:1.02;text-wrap:balance;text-shadow:0 5px 24px rgba(190,119,133,.12)}
+.brand-panel h1{font-size:clamp(2.6rem,5vw,5rem)!important}
+.brand-panel h1 em,.hero-dashboard h1 em{color:#b76b7b!important;-webkit-text-fill-color:#b76b7b!important;font-style:italic;text-shadow:0 0 22px rgba(216,164,147,.24)}
+.brand-copy,.experience-cloud p,.feature-chip small,.form-intro,.hero-dashboard>div>p,.client-menu-note{line-height:1.75}
+.experience-cloud,.feature-chip,.form-card,.booking-card,.appointments-card,.admin-card,.stat-card,.owner-mini-card,.glass-card,.calendar-card,.review-card,.ai-assistant-box{border:1px solid rgba(190,135,126,.3)!important;box-shadow:var(--sn-shadow),inset 0 1px rgba(255,255,255,.85)!important;border-radius:24px!important}
+.experience-cloud{position:relative;overflow:hidden;gap:16px!important;background:linear-gradient(130deg,#fffdfa,#fff1ec 58%,#f4dfd3)!important}
+.experience-cloud:after{content:"";position:absolute;inset:auto -30px -70px auto;width:180px;height:180px;border:1px solid rgba(193,142,108,.25);border-radius:50%;box-shadow:0 0 0 15px rgba(193,142,108,.05),0 0 0 32px rgba(193,142,108,.035);pointer-events:none}
+.experience-cloud strong{font-size:1.08rem;letter-spacing:.01em;color:#713d4b!important}
+.feature-chip{background:rgba(255,251,248,.92)!important;transition:transform .25s ease,box-shadow .25s ease}
+.feature-chip:hover,.owner-menu-grid>button:hover,.client-photo-tile:hover{transform:translateY(-3px);box-shadow:0 18px 35px rgba(99,49,62,.15)!important}
+/* Marco metálico tipo espejo; la fotografía llega hasta sus bordes interiores */
+.carousel-frame,.catalog-owner-stage,.catalog-client-stage,.client-photo-tile,.review-card-photo,.owner-review-photo{background:linear-gradient(135deg,#fff0d8 0%,#c18b77 12%,#f8dfbd 22%,#a95e6c 35%,#f9e6c9 50%,#bd817a 65%,#f9e8d1 80%,#9e5866 100%)!important}
+.carousel-frame{padding:clamp(7px,1.2vw,13px)!important;border:1px solid #e8cba8!important;border-radius:26px!important;box-shadow:0 22px 42px rgba(70,35,45,.2),inset 0 0 0 2px rgba(255,255,255,.7),inset 0 0 0 4px rgba(177,112,112,.45)!important}
+.carousel-stage{border-radius:15px!important;overflow:hidden!important;background:#ead6ce!important}
+.carousel-stage img,.carousel-image,.catalog-owner-stage img,.catalog-client-stage img{display:block!important;width:100%!important;height:100%!important;object-fit:cover!important;padding:0!important;margin:0!important;border:0!important;background:transparent!important}
+.photo-gallery-grid{gap:clamp(12px,2vw,22px)!important}
+.client-photo-tile{overflow:hidden!important;padding:7px!important;border:1px solid #e4c29e!important;border-radius:20px!important;box-shadow:0 10px 28px rgba(75,35,48,.13)!important;transition:transform .25s ease,box-shadow .25s ease}
+.client-photo-tile img{display:block!important;width:100%!important;aspect-ratio:1/1!important;height:auto!important;object-fit:cover!important;object-position:center!important;padding:0!important;margin:0!important;border:0!important;border-radius:12px!important;background:transparent!important}
+.client-photo-tile figcaption{padding:10px 5px 5px!important;color:#55333e!important;font-weight:600}
+.review-card-photo,.owner-review-photo{display:block!important;max-width:100%;object-fit:cover!important;padding:4px!important;border:1px solid #d9b18d!important;border-radius:16px!important}
+.primary-button{background:linear-gradient(120deg,#8e4658,#bd7882 52%,#9a5967)!important;box-shadow:0 10px 22px rgba(133,64,82,.23)!important;border:1px solid rgba(255,255,255,.5)!important;transition:transform .2s ease,filter .2s ease!important}
+.primary-button:hover{filter:brightness(1.06);transform:translateY(-2px)}
+.secondary-button,.small-button.ghost,.owner-menu-toggle,.theme-toggle{border:1px solid rgba(179,119,118,.38)!important;background:linear-gradient(130deg,#fffaf4,#f0d9d1)!important;color:#673e49!important;border-radius:14px!important}
+input,select,textarea{border-color:rgba(169,113,119,.34)!important;border-radius:13px!important;min-height:44px}
+input:focus,select:focus,textarea:focus{outline:3px solid rgba(188,116,132,.18)!important;border-color:#b96f7c!important}
+.owner-menu-drawer{background:linear-gradient(145deg,#fffdf9,#fff0eb 70%,#f4ded7)!important;border:1px solid #c9938d!important;box-shadow:0 28px 90px rgba(49,23,34,.34)!important;border-radius:26px!important}
+.owner-menu-head{background:#fff8f4!important}
+.owner-menu-head h2,.owner-menu-grid strong{color:#56323d!important}
+.owner-menu-grid>button{background:linear-gradient(145deg,#fffdfb,#f8e9e3)!important;border:1px solid rgba(177,112,119,.28)!important;border-radius:17px!important;transition:transform .2s ease,box-shadow .2s ease!important}
+/* Dark mode global: todos los componentes y textos conservan contraste */
+html[data-theme="dark"],body[data-theme="dark"],body.dark-mode,body.theme-dark,html.dark{color-scheme:dark;background:#171218!important;color:#f8edf0!important}
+html[data-theme="dark"] body,body[data-theme="dark"],body.dark-mode,body.theme-dark,html.dark body{background-color:#171218!important;color:#f8edf0!important}
+html[data-theme="dark"] .dashboard-header,html[data-theme="dark"] .glass-card,html[data-theme="dark"] .experience-cloud,html[data-theme="dark"] .feature-chip,html[data-theme="dark"] .form-card,html[data-theme="dark"] .booking-card,html[data-theme="dark"] .appointments-card,html[data-theme="dark"] .admin-card,html[data-theme="dark"] .stat-card,html[data-theme="dark"] .owner-mini-card,html[data-theme="dark"] .calendar-card,html[data-theme="dark"] .review-card,html[data-theme="dark"] .appointment-item,html[data-theme="dark"] .admin-item,html[data-theme="dark"] .time-selection,html[data-theme="dark"] .day-timeline-panel,body.dark-mode .glass-card,body.dark-mode .experience-cloud,body.dark-mode .feature-chip,body.dark-mode .form-card,body.dark-mode .booking-card,body.dark-mode .appointments-card,body.dark-mode .admin-card,body.dark-mode .stat-card,body.theme-dark .glass-card{background:linear-gradient(145deg,#30232c,#211921)!important;color:#f8edf0!important;border-color:#684652!important}
+html[data-theme="dark"] :is(h1,h2,h3,h4,strong,b,label,.card-heading,.calendar-title),body.dark-mode :is(h1,h2,h3,h4,strong,b,label),body.theme-dark :is(h1,h2,h3,h4,strong,b,label){color:#ffedf1!important}
+html[data-theme="dark"] :is(p,small,span,.brand-copy,.experience-cloud p,.feature-chip small,.form-intro,.hero-dashboard>div>p,.calendar-legend,.empty-state,.client-menu-note),body.dark-mode :is(p,small,.brand-copy,.experience-cloud p,.feature-chip small),body.theme-dark :is(p,small){color:#e4cfd5!important}
+html[data-theme="dark"] .owner-menu-drawer,body.dark-mode .owner-menu-drawer,body.theme-dark .owner-menu-drawer{background:linear-gradient(145deg,#30232c,#211921)!important;border-color:#815564!important}
+html[data-theme="dark"] .owner-menu-head,body.dark-mode .owner-menu-head,body.theme-dark .owner-menu-head{background:#30232c!important}
+html[data-theme="dark"] .owner-menu-grid>button,body.dark-mode .owner-menu-grid>button,body.theme-dark .owner-menu-grid>button{background:linear-gradient(145deg,#3b2a35,#2b2029)!important;border-color:#74505c!important}
+html[data-theme="dark"] input,html[data-theme="dark"] select,html[data-theme="dark"] textarea,body.dark-mode input,body.dark-mode select,body.dark-mode textarea{background:#211921!important;color:#fff1f4!important;border-color:#775260!important}
+html[data-theme="dark"] .primary-button,body.dark-mode .primary-button{color:#fff!important}
+/* Revelado progresivo, sin ocultar contenido si JS o el observador no están disponibles */
+.reveal-on-scroll{opacity:0;transform:translateY(18px);transition:opacity .65s ease,transform .65s cubic-bezier(.2,.7,.2,1)}
+.reveal-on-scroll.is-visible{opacity:1;transform:translateY(0)}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.reveal-on-scroll{opacity:1;transform:none;transition:none}*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+@media(max-width:700px){.brand-panel h1{font-size:clamp(2.4rem,12vw,4rem)!important}.experience-cloud{padding:18px!important}.carousel-frame{padding:7px!important;border-radius:19px!important}.client-photo-tile{padding:5px!important;border-radius:15px!important}.dashboard-header{gap:10px!important}.client-user-menu{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.client-theme-quick{display:inline-flex!important;align-items:center;justify-content:center;min-height:42px;padding:8px 10px!important;font-size:.85rem!important}}
+.client-theme-quick{display:none}

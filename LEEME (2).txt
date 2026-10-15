@@ -1,0 +1,23 @@
+SULDERY NAILS — CORRECCIÓN DE CONTRASTE, FOTOS, MENÚ Y RESEÑAS
+
+Este parche corrige los defectos que se ven en las capturas:
+- Texto pálido casi invisible en los bloques de presentación.
+- Menús flotantes de clienta/dueña con contraste insuficiente.
+- Fotografías del carrusel con espacio vacío inferior: la imagen ocupa todo el marco.
+- Estilos para modo oscuro en paneles y menú (depende de la clase/atributo que active la app).
+- Error JavaScript "Can't find variable: escapeAttribute" en cliente.js: añade el helper si no existe.
+- Incluye copia de seguridad automática de los archivos que toca.
+
+INSTALACIÓN:
+1. Extrae el ZIP dentro de la carpeta raíz del proyecto, junto a public y package.json.
+2. Ejecuta PowerShell desde esa carpeta:
+   powershell -ExecutionPolicy Bypass -File .\scripts\Aplicar-Correccion-Visual.ps1
+3. Abre la app localmente y comprueba login, menú, fotos y reseñas.
+4. Si todo está bien, despliega con:
+   railway up
+
+IMPORTANTE:
+- El parche no borra ni sustituye la lógica de citas, usuarios, catálogo o panel.
+- No repara por sí solo un backend/API de reseñas caído; corrige el error de función que aparece en la captura.
+- El estilo oscuro contempla varias convenciones de tema. Si el código usa otra convención, habrá que adaptar el selector a la implementación real.
+- Lahia IA ya tiene lógica local en duena.js; este parche no convierte esa lógica en un modelo generativo autónomo ni conecta EMPRE.IA.

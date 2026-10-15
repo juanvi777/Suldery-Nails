@@ -1,0 +1,165 @@
+/* Correcciones puntuales a partir de las capturas reales */
+:root{
+ --sn-rose:#b8797b;--sn-wine:#603b45;--sn-ink:#44343a;
+ --sn-muted:#78666b;--sn-line:rgba(166,104,111,.34);
+}
+html{color-scheme:light}
+body{color:#44343a!important}
+.brand-copy,.experience-cloud p,.feature-chip small,.hero-dashboard p,
+.card-copy,.manager-note,.form-intro,.owner-menu-grid strong,
+.client-menu-note,.appointment-item p,.admin-item p,.stat-card small,
+.review-card small,.review-card blockquote,.ai-assistant-answer,
+.ai-lab-panel p,.time-hint,.calendar-legend,.empty-state{
+ color:#705b62!important;opacity:1!important;
+}
+.brand-panel h1,.hero-dashboard h1,.form-card h2,.card-heading h2,
+.portfolio-heading h2,.owner-menu-head h2{color:#593640!important}
+.brand-panel h1 em,.hero-dashboard h1 em{
+ color:#a55e70!important;background:none!important;-webkit-text-fill-color:#a55e70!important
+}
+.experience-cloud,.feature-chip,.form-card,.booking-card,.appointments-card,
+.admin-card,.stat-card,.owner-menu-drawer,.owner-menu-grid>button,
+.ai-assistant-box,.ai-assistant-answer,.review-card,.review-viewer-card,
+.appointment-item,.admin-item,.calendar-card,.time-selection,.day-timeline-panel{
+ background:linear-gradient(145deg,#fffdf9 0%,#fff4ef 58%,#f5e0d9 100%)!important;
+ color:#44343a!important;border-color:rgba(166,104,111,.38)!important;
+}
+.experience-cloud p,.feature-chip small{color:#795f67!important}
+.feature-chip b,.experience-cloud strong,.owner-menu-grid strong{color:#633f49!important}
+input,select,textarea{color:#403138!important;background:#fffdfb!important}
+input::placeholder,textarea::placeholder{color:#8b777d!important;opacity:1!important}
+.primary-button{color:#fff!important}
+.secondary-button,.small-button.ghost,.owner-menu-toggle{
+ color:#713f4b!important;background:linear-gradient(135deg,#fff9ee,#ebc9bf)!important
+}
+.status.accepted{color:#236545!important;background:#d8f0df!important}
+.status.pending{color:#765a11!important;background:#fff0bf!important}
+.status.cancelled,.status.rejected{color:#8d2438!important;background:#f9d8dd!important}
+
+/* Marcos tipo espejo: el contenido ocupa todo el espacio interior */
+.carousel-frame{
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ min-height:0!important;padding:clamp(9px,2vw,16px)!important;
+ background:linear-gradient(135deg,#fff8e9,#c58c83 15%,#f8e2c7 29%,#a65d69 43%,#f9e5ce 59%,#b77b7b 75%,#fff2dc)!important;
+ border:2px solid #f9e5d5!important;border-radius:29px!important;
+ box-shadow:0 18px 40px rgba(76,39,47,.2),inset 0 0 0 2px rgba(255,255,255,.88),inset 0 0 0 6px rgba(193,132,131,.42)!important;
+}
+.carousel-stage{
+ position:relative!important;width:100%!important;max-width:900px!important;
+ aspect-ratio:4/3!important;height:auto!important;min-height:0!important;
+ overflow:hidden!important;border-radius:17px!important;
+ border:2px solid #fff0dc!important;background:#d9b8ae!important;
+ box-shadow:inset 0 0 0 1px rgba(174,111,113,.55),0 8px 22px rgba(73,38,47,.2)!important;
+}
+.carousel-stage img,.carousel-image{
+ position:absolute!important;inset:0!important;display:block!important;
+ width:100%!important;height:100%!important;max-width:none!important;
+ object-fit:cover!important;object-position:center!important;
+ padding:0!important;margin:0!important;border:0!important;background:transparent!important;
+}
+.carousel-dots{z-index:4!important;bottom:12px!important}
+.carousel-dot{box-shadow:0 1px 5px rgba(66,34,43,.18)!important}
+.catalog-owner-stage,.catalog-client-stage{
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ overflow:hidden!important;padding:9px!important;
+ background:linear-gradient(135deg,#fff8e9,#c58c83 18%,#f8e2c7 35%,#a65d69 52%,#f9e5ce 70%,#b77b7b 86%,#fff2dc)!important;
+}
+.catalog-owner-stage img,.catalog-client-stage img{
+ display:block!important;width:100%!important;height:100%!important;min-height:0!important;
+ object-fit:cover!important;padding:0!important;margin:0!important;background:transparent!important;
+ border-radius:12px!important;position:relative!important;z-index:1!important;
+}
+
+/* Menús: modal real, legible y separado del contenido de fondo */
+.owner-menu-drawer{
+ position:fixed!important;inset:12px 10px auto auto!important;
+ width:min(640px,calc(100vw - 20px))!important;
+ max-height:calc(100dvh - 24px)!important;overflow-y:auto!important;
+ z-index:10000!important;padding:clamp(14px,3vw,24px)!important;
+ border:1px solid #c58a8d!important;border-radius:27px!important;
+ box-shadow:0 30px 90px rgba(38,20,27,.38),inset 0 1px #fff!important;
+ backdrop-filter:blur(24px)!important;
+}
+.owner-menu-drawer[hidden]{display:none!important}
+.owner-menu-head{position:sticky!important;top:-1px!important;z-index:3!important;
+ padding:8px 0 16px!important;background:#fff8f2!important}
+.owner-menu-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
+.owner-menu-grid>button{
+ display:flex!important;align-items:center!important;gap:11px!important;
+ min-height:76px!important;padding:12px!important;text-align:left!important;
+ border:1px solid rgba(166,104,111,.35)!important;border-radius:17px!important;
+ box-shadow:0 7px 18px rgba(92,50,59,.08)!important;
+}
+.owner-menu-grid>button>span:first-child{
+ flex:0 0 38px!important;width:38px!important;height:38px!important;
+ display:grid!important;place-items:center!important;border-radius:13px!important;
+ color:#713f4b!important;background:linear-gradient(135deg,#fff1df,#d9a8a4)!important
+}
+.owner-menu-grid>button strong{font-size:.83rem!important;line-height:1.35!important}
+.owner-menu-grid>button:hover{transform:translateY(-2px)!important;box-shadow:0 12px 24px rgba(92,50,59,.15)!important}
+.client-menu-logout{background:linear-gradient(135deg,#f9e5e3,#e5b9b5)!important}
+
+/* El tema oscuro debe oscurecer el documento completo, no solo el botón del menú.
+   Compatible con los atributos/clases de tema usados habitualmente en el proyecto. */
+html[data-theme="dark"] body,body[data-theme="dark"],body.dark-mode,body.theme-dark,
+html.dark body{
+ color:#f8e9ec!important;
+ background:radial-gradient(ellipse at top,#432a35,#1c151b 68%,#120f13)!important;
+}
+html[data-theme="dark"] .glass-card,body[data-theme="dark"] .glass-card,
+body.dark-mode .glass-card,body.theme-dark .glass-card,html.dark .glass-card,
+html[data-theme="dark"] .owner-menu-drawer,body[data-theme="dark"] .owner-menu-drawer,
+body.dark-mode .owner-menu-drawer,body.theme-dark .owner-menu-drawer,html.dark .owner-menu-drawer{
+ background:linear-gradient(145deg,#30232b,#211a21 75%,#3a252e)!important;
+ color:#f8e9ec!important;border-color:#79515d!important
+}
+html[data-theme="dark"] .owner-menu-head,body[data-theme="dark"] .owner-menu-head,
+body.dark-mode .owner-menu-head,body.theme-dark .owner-menu-head,html.dark .owner-menu-head{
+ background:#30232b!important
+}
+html[data-theme="dark"] .owner-menu-head h2,body[data-theme="dark"] .owner-menu-head h2,
+body.dark-mode .owner-menu-head h2,body.theme-dark .owner-menu-head h2,html.dark .owner-menu-head h2,
+html[data-theme="dark"] .owner-menu-grid strong,body[data-theme="dark"] .owner-menu-grid strong,
+body.dark-mode .owner-menu-grid strong,body.theme-dark .owner-menu-grid strong,html.dark .owner-menu-grid strong{
+ color:#ffedf0!important
+}
+html[data-theme="dark"] .owner-menu-grid>button,body[data-theme="dark"] .owner-menu-grid>button,
+body.dark-mode .owner-menu-grid>button,body.theme-dark .owner-menu-grid>button,html.dark .owner-menu-grid>button{
+ background:linear-gradient(145deg,#3c2a34,#2a2028)!important;border-color:#76505c!important
+}
+html[data-theme="dark"] .owner-menu-grid>button>span:first-child,body[data-theme="dark"] .owner-menu-grid>button>span:first-child,
+body.dark-mode .owner-menu-grid>button>span:first-child,body.theme-dark .owner-menu-grid>button>span:first-child,html.dark .owner-menu-grid>button>span:first-child{
+ background:linear-gradient(135deg,#b67d82,#67404d)!important;color:#fff!important
+}
+html[data-theme="dark"] .brand-copy,html[data-theme="dark"] .hero-dashboard p,
+html[data-theme="dark"] .card-copy,html[data-theme="dark"] .manager-note,
+html[data-theme="dark"] .experience-cloud p,html[data-theme="dark"] .feature-chip small,
+body.dark-mode .brand-copy,body.dark-mode .hero-dashboard p,body.dark-mode .card-copy,
+body.dark-mode .experience-cloud p,body.theme-dark .brand-copy,body.theme-dark .hero-dashboard p{
+ color:#e3cbd2!important
+}
+html[data-theme="dark"] .booking-card,html[data-theme="dark"] .appointments-card,
+html[data-theme="dark"] .admin-card,html[data-theme="dark"] .stat-card,
+html[data-theme="dark"] .experience-cloud,html[data-theme="dark"] .feature-chip,
+html[data-theme="dark"] .form-card,html[data-theme="dark"] .appointment-item,
+html[data-theme="dark"] .admin-item,html[data-theme="dark"] .ai-assistant-box,
+html[data-theme="dark"] .ai-assistant-answer,
+body.dark-mode .booking-card,body.dark-mode .appointments-card,body.dark-mode .admin-card,
+body.dark-mode .stat-card,body.dark-mode .experience-cloud,body.dark-mode .feature-chip,
+body.dark-mode .form-card,body.dark-mode .appointment-item,body.dark-mode .admin-item{
+ background:linear-gradient(145deg,#30232b,#251c23)!important;color:#f8e9ec!important;border-color:#694753!important
+}
+html[data-theme="dark"] .booking-card h2,html[data-theme="dark"] .appointments-card h2,
+html[data-theme="dark"] .admin-card h2,html[data-theme="dark"] .stat-card strong,
+body.dark-mode .booking-card h2,body.dark-mode .appointments-card h2,
+body.dark-mode .admin-card h2,body.dark-mode .stat-card strong{color:#ffe8ed!important}
+@media(max-width:560px){
+ .owner-menu-drawer{inset:8px!important;width:calc(100vw - 16px)!important;max-height:calc(100dvh - 16px)!important;border-radius:22px!important}
+ .owner-menu-grid{gap:7px!important}
+ .owner-menu-grid>button{min-height:72px!important;padding:9px!important;gap:7px!important}
+ .owner-menu-grid>button>span:first-child{flex-basis:31px!important;width:31px!important;height:31px!important}
+ .owner-menu-grid>button strong{font-size:.73rem!important}
+ .carousel-frame{padding:8px!important}
+ .carousel-stage{aspect-ratio:4/3!important}
+}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}

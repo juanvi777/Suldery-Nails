@@ -250,6 +250,35 @@ function showIOSInstallGuide() {
   document.getElementById('iosInstallGuide')?.classList.remove('hidden');
 }
 
+function showGenericInstallGuide() {
+  let wrapper = document.getElementById('genericInstallGuide');
+  if (!wrapper) {
+    wrapper = document.createElement('div');
+    wrapper.id = 'genericInstallGuide';
+    wrapper.className = 'ios-install-guide';
+    wrapper.innerHTML = `
+      <div class="ios-install-backdrop" data-generic-install-close></div>
+      <section class="ios-install-dialog" role="dialog" aria-modal="true" aria-labelledby="genericInstallTitle">
+        <button type="button" class="ios-install-close" data-generic-install-close aria-label="Cerrar">×</button>
+        <p class="eyebrow">SULDERY NAILS</p>
+        <h2 id="genericInstallTitle">Instala la app en tu dispositivo</h2>
+        <p>Si no apareció la ventana automática, puedes instalarla desde el menú del navegador:</p>
+        <ol>
+          <li>Abre el menú del navegador (⋮ o compartir).</li>
+          <li>Busca <strong>Instalar app</strong> o <strong>Agregar a pantalla de inicio</strong>.</li>
+          <li>Confirma y luego abre Suldery Nails desde el icono instalado.</li>
+        </ol>
+        <p class="ios-install-note">Si no ves esa opción, abre el enlace en Chrome o Edge actualizado y comprueba que tienes conexión.</p>
+        <button type="button" class="primary-button" data-generic-install-close>Entendido</button>
+      </section>`;
+    document.body.appendChild(wrapper);
+    wrapper.addEventListener('click', event => {
+      if (event.target.closest('[data-generic-install-close]')) wrapper.classList.add('hidden');
+    });
+  }
+  wrapper.classList.remove('hidden');
+}
+
 function updateInstallButtons() {
   document.querySelectorAll('#installAppButton').forEach(button => {
     const iosNeedsInstall = isIOSDevice() && !isInstalledPWA();
@@ -257,9 +286,10 @@ function updateInstallButtons() {
       button.hidden = true;
       return;
     }
-    button.hidden = !deferredInstallPrompt && !iosNeedsInstall;
-    if (iosNeedsInstall) button.textContent = '＋ Cómo instalar';
-    else if (deferredInstallPrompt) button.textContent = '＋ Instalar app';
+    // Mantener el botón visible aunque el navegador no emita beforeinstallprompt.
+    // En ese caso el botón abre instrucciones en lugar de no hacer nada.
+    button.hidden = false;
+    button.textContent = iosNeedsInstall ? '＋ Cómo instalar' : '＋ Instalar app';
   });
 }
 
@@ -291,7 +321,10 @@ document.addEventListener('click', async event => {
     showIOSInstallGuide();
     return;
   }
-  if (!deferredInstallPrompt) return;
+  if (!deferredInstallPrompt) {
+    showGenericInstallGuide();
+    return;
+  }
 
   deferredInstallPrompt.prompt();
   try { await deferredInstallPrompt.userChoice; } catch {}
@@ -311,7 +344,7 @@ async function getSulderyServiceWorker() {
     throw new Error('Este dispositivo no permite instalar el sistema de avisos.');
   }
   if (!sulderyServiceWorkerRegistration) {
-    const swUrl = new URL('sw.js?v=20261008-v53.0', location.href);
+    const swUrl = new URL('sw.js?v=20261008-v56.0', location.href);
     sulderyServiceWorkerRegistration = await navigator.serviceWorker.register(swUrl, { scope: './' });
   }
   return await navigator.serviceWorker.ready;
@@ -463,7 +496,7 @@ window.syncExistingSulderyPushSubscription = syncExistingSulderyPushSubscription
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    const swUrl = new URL('sw.js?v=20261008-v53.0', location.href);
+    const swUrl = new URL('sw.js?v=20261008-v56.0', location.href);
     navigator.serviceWorker.register(swUrl, { scope: './' }).catch(() => {});
   });
 }
