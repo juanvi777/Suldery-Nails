@@ -1,0 +1,72 @@
+
+/* SULDERY NAILS — acabado final rosa oro 2026-10-15 */
+:root{
+ --sn-frame-metal:#c98e83;
+ --sn-frame-light:#f8e2d4;
+ --sn-frame-shadow:#87514d;
+ --sn-text-light:#fff7f1;
+ --sn-text-dark:#35151f;
+}
+/* Tema claro: todo texto oscuro, sin placas detrás de textos para simular contraste. */
+html[data-theme="light"], body[data-theme="light"], body.light-mode, body.theme-light{
+ color:var(--sn-text-dark)!important;
+}
+html[data-theme="light"] :is(h1,h2,h3,h4,p,span,small,label,strong,em,a,button,li,summary),
+body[data-theme="light"] :is(h1,h2,h3,h4,p,span,small,label,strong,em,a,button,li,summary),
+body.light-mode :is(h1,h2,h3,h4,p,span,small,label,strong,em,a,button,li,summary),
+body.theme-light :is(h1,h2,h3,h4,p,span,small,label,strong,em,a,button,li,summary){
+ color:var(--sn-text-dark);
+}
+/* Tema oscuro: todo texto claro para mantener contraste. */
+html[data-theme="dark"], body[data-theme="dark"], body.dark-mode, body.theme-dark{
+ color:var(--sn-text-light)!important;
+}
+html[data-theme="dark"] :is(h1,h2,h3,h4,p,span,small,label,strong,em,a,button,li,summary),
+body[data-theme="dark"] :is(h1,h2,h3,h4,p,span,small,label,strong,em,a,button,li,summary),
+body.dark-mode :is(h1,h2,h3,h4,p,span,small,label,strong,em,a,button,li,summary),
+body.theme-dark :is(h1,h2,h3,h4,p,span,small,label,strong,em,a,button,li,summary){
+ color:var(--sn-text-light);
+}
+/* Mantener inputs legibles en ambos temas sin cajas decorativas detrás del texto. */
+:is(input,textarea,select){color:var(--sn-text-dark);background-color:rgba(255,255,255,.94)}
+/* Marcos rectangulares rosa oro en las tres galerías: no se aplican filtros a las fotos. */
+:is(.carousel-frame,.login-gallery,.photo-gallery-grid,.catalog-client-grid,.client-thanks-showcase,.review-card-photo) :is(.carousel-stage,.carousel-image,.photo-gallery-card,.catalog-photo-card,.catalog-card,img){
+ border-color:var(--sn-frame-metal);
+}
+:is(.carousel-frame,.login-gallery,.photo-gallery-grid,.catalog-client-grid) :is(.carousel-stage,.photo-gallery-card,.catalog-photo-card,.catalog-card){
+ border:3px solid transparent!important;
+ border-radius:12px!important;
+ background:linear-gradient(#fff7f0,#fff7f0) padding-box,
+ linear-gradient(135deg,#f9e5d4 0%,#bd8078 18%,#fbe8d6 35%,#9f655e 52%,#f5d0bf 72%,#bd8078 88%,#fff0df 100%) border-box!important;
+ box-shadow:0 4px 16px rgba(69,22,31,.25),inset 0 0 0 1px rgba(255,245,226,.8)!important;
+ padding:4px!important;overflow:hidden!important;
+}
+:is(.carousel-frame,.login-gallery,.photo-gallery-grid,.catalog-client-grid) img{
+ display:block!important;object-fit:cover!important;max-width:100%;
+ filter:none!important;transform:none;
+}
+/* Catálogo: marco y fondo de exposición, sin editar las fotografías originales. */
+.catalog-page{
+ background:radial-gradient(ellipse at 10% 0%,rgba(250,220,210,.9),transparent 38%),
+ radial-gradient(ellipse at 92% 25%,rgba(171,103,99,.22),transparent 35%),
+ linear-gradient(145deg,#fff8f3,#f0d8d2 52%,#fff4ef)!important;
+}
+html[data-theme="dark"] .catalog-page,body[data-theme="dark"] .catalog-page,body.dark-mode .catalog-page,body.theme-dark .catalog-page{
+ background:radial-gradient(ellipse at 10% 0%,rgba(197,132,125,.18),transparent 38%),
+ radial-gradient(ellipse at 92% 25%,rgba(100,35,54,.4),transparent 35%),
+ linear-gradient(145deg,#210d17,#431c2b 55%,#190a12)!important;
+}
+/* Se elimina la sección duplicada solicitada; el catálogo completo sigue disponible. */
+#clientGallery{display:none!important}
+.portfolio-heading:has(+ #clientGallery){display:none!important}
+/* Pantalla de carga: ilustración original de la muñeca saludando y mensaje legible. */
+#sn-loading-screen{z-index:999999!important;backdrop-filter:blur(9px)}
+.sn-loading-card{max-width:min(92vw,460px)!important;padding:clamp(22px,4vw,38px)!important}
+.sn-loading-mascot{width:clamp(150px,30vw,245px)!important;height:clamp(180px,35vw,280px)!important;margin:0 auto 10px!important;animation:snMascotHello 1.8s ease-in-out infinite}
+.sn-loading-mascot img{width:100%!important;height:100%!important;object-fit:contain!important}
+.sn-loading-copy{font-size:clamp(20px,4vw,30px)!important;line-height:1.35!important;font-weight:700!important}
+.sn-loading-caption{font-size:14px!important;line-height:1.5!important}
+@keyframes snMascotHello{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-6px) rotate(1deg)}}
+@media(max-width:700px){
+ :is(.carousel-frame,.login-gallery,.photo-gallery-grid,.catalog-client-grid) :is(.carousel-stage,.photo-gallery-card,.catalog-photo-card,.catalog-card){border-radius:10px!important;padding:3px!important}
+}

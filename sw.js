@@ -1,4 +1,4 @@
-const CACHE_NAME = 'suldery-rose-gold-20261015-v58';
+const CACHE_NAME = 'suldery-rose-gold-20261015-v58-final04';
 const ASSET_PATHS = ['suldery-rose-gold.css?v=20261015-rosegold03','suldery-loading-screen.js?v=20261015-rosegold03',
   'style.css?v=20261008-v56.0','auth.js?v=20261008-v56.0','login.js?v=20261008-v56.0','registro.js?v=20261008-v56.0','cliente.js?v=20261008-v56.0','duena.js?v=20261008-v56.0',
   'catalogo.html','catalogo.js?v=20261008-v56.0','assets/suldery-nails-logo.jpeg','assets/suldery-nails-icon-192.png','assets/suldery-nails-icon-512.png','manifest.webmanifest','assets/favicon-48.png','assets/favicon-96.png','assets/suldery-nails-icon-120.png','assets/suldery-nails-icon-152.png','assets/suldery-nails-icon-167.png','assets/suldery-nails-icon-180.png','assets/Suldery-Nails-Tutorial-Android.pdf','assets/Suldery-Nails-Tutorial-iPhone-iOS.pdf','assets/Suldery-Nails-Tutorial-Android.pptx','assets/Suldery-Nails-Tutorial-iPhone-iOS.pptx'

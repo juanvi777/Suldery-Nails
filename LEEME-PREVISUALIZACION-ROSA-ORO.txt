@@ -1,0 +1,21 @@
+SULDERY NAILS — PREVISUALIZACIÓN ROSA ORO FINAL
+================================================
+
+Esta copia se creó desde el ZIP completo proporcionado. No contiene la carpeta .git ni el archivo local .env por seguridad. Las fotos se mantienen como archivos originales; el rediseño actúa mediante CSS.
+
+Cambios incluidos:
+- Capa visual de marcos rectangulares en tonos rosa oro para las galerías y el catálogo.
+- Fondo elegante para la página de catálogo sin filtros ni edición de las fotografías.
+- Regla de contraste para textos en temas claro y oscuro.
+- Oculta la sección duplicada “Diseños elegidos para ti” dentro del panel de clienta.
+- Carga el script de reseñas separadas en cliente.html, además de la pantalla de bienvenida que ya existía.
+- Cache-busting visual para facilitar que el navegador descargue los estilos nuevos.
+
+PRUEBA LOCAL:
+1. Configura tu archivo .env a partir de .env.example con tus credenciales locales.
+2. Ejecuta npm install.
+3. Ejecuta npm start.
+4. Abre la dirección local indicada por la aplicación.
+
+IMPORTANTE:
+Esta entrega es una copia de prueba. No se ha desplegado ni publicado. Hay que probar visualmente en navegador las páginas, confirmar las clases de tema que usa la versión en ejecución y validar reseñas, inicio de sesión y base de datos antes de reemplazar el sitio publicado. No se incluye el .env original ni la carpeta .git.
